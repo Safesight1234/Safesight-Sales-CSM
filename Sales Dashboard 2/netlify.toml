@@ -1,0 +1,11 @@
+# Netlify configuration for the Safesight "Sales and numbers" dashboard.
+# The dashboard (index.html + assets) is served as a static site.
+# The Teamleader connection lives in netlify/functions and is called by
+# the dashboard at /.netlify/functions/dashboard-data
+
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

@@ -1,0 +1,9 @@
+{
+  "name": "safesight-sales-dashboard",
+  "version": "1.0.0",
+  "description": "Safesight Sales & numbers dashboard + Teamleader connection",
+  "private": true,
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
