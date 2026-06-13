@@ -1,30 +1,16 @@
-/* ============================================================================
-   STEP 3 — The data endpoint the dashboard actually calls.
-   GET /.netlify/functions/dashboard-data  →  JSON shaped like window.DATA.
+/* The data endpoint the dashboard calls. Fetches Teamleader deals → dashboard shape. */
 
-   It fetches deals + companies + users from Teamleader, then maps them into
-   the exact structure the front-end expects. If not connected yet, it returns
-   501 and the dashboard quietly shows demo data.
-   ============================================================================ */
 const { connectLambda } = require('@netlify/blobs');
 const { tlList, tlApi, loadTokens } = require('./_lib/teamleader');
 
-/* ── CONFIG — adjust these to YOUR Teamleader setup ──────────────────────────
-   1) How do you tell New logo vs Upsell apart? Pick ONE mode and fill it in. */
 const TYPE_RULE = {
-  mode: 'pipeline',          // 'pipeline' | 'phase' | 'customField'
-  // For 'pipeline'/'phase': any name containing one of these = Upsell, else New logo
+  mode: 'pipeline',
   upsellNameContains: ['upsell', 'existing', 'expansion', 'renewal'],
-  // For 'customField': the custom field id holding the type, + value meaning upsell
   customFieldId: '',
   upsellFieldValue: 'Upsell',
 };
-/* 2) Sales goals (Teamleader has no concept of your targets). */
 const GOALS = { sales: 75000, newLogo: 55000, upsell: 20000 };
-/* 3) Finance figures that don't live in deals (your "Total Safesight 75%" etc.)
-      Leave as null to hide, or hardcode, or wire to your finance source later. */
 const SAFESIGHT_PCT = 0.75;
-/* ──────────────────────────────────────────────────────────────────────────*/
 
 const RESPONSE_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' };
 const qOf  = d => 'Q' + (Math.floor(d.getMonth() / 3) + 1);
@@ -39,10 +25,9 @@ function classifyType(deal, phaseName, pipelineName) {
   }
   return TYPE_RULE.upsellNameContains.some(s => hay.includes(s)) ? 'Upsell' : 'New logo';
 }
+
 exports.handler = async function (event) {
   connectLambda(event);
-exports.handler = async function () {
-  // Not connected yet → let the dashboard fall back to demo data.
   const tokens = await loadTokens().catch(() => null);
   if (!tokens) {
     return { statusCode: 501, headers: RESPONSE_HEADERS,
@@ -50,15 +35,12 @@ exports.handler = async function () {
   }
 
   try {
-    // ---- 1. pull raw data ----
     const deals = await tlList('deals.list', { sort: [{ field: 'created_at', order: 'desc' }] });
 
-    // resolve user (rep) names
     const users = await tlList('users.list', {});
     const userName = {};
     users.forEach(u => { userName[u.id] = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email; });
 
-    // resolve company names + industry (batch by id)
     const companyIds = [...new Set(deals.map(d => d.lead && d.lead.customer && d.lead.customer.type === 'company' && d.lead.customer.id).filter(Boolean))];
     const companyName = {}, companyIndustry = {};
     for (let i = 0; i < companyIds.length; i += 100) {
@@ -67,7 +49,6 @@ exports.handler = async function () {
       cs.forEach(c => { companyName[c.id] = c.name; companyIndustry[c.id] = (c.business_type && c.business_type.name) || ''; });
     }
 
-    // ---- 2. shape each deal ----
     const empty = () => ({ won: [], open: [], lost: [], churn: [] });
     const quarters = { Q1: empty(), Q2: empty(), Q3: empty(), Q4: empty() };
     const histNL = {}, histUP = {};
@@ -96,7 +77,6 @@ exports.handler = async function () {
         thisMonth: date.getMonth() === new Date().getMonth() && yr === CURRENT_YEAR,
       };
 
-      // historicals (won deals, all years)
       if (d.status === 'won') {
         const idx = Number(q.slice(1)) - 1;
         const bucket = type === 'Upsell' ? histUP : histNL;
@@ -104,7 +84,6 @@ exports.handler = async function () {
         bucket[yr][idx] += value;
       }
 
-      // quarter buckets (current year only, matches the dashboard's 2026 view)
       if (yr === CURRENT_YEAR) {
         if (d.status === 'won')  { quarters[q].won.push(row);  leaderboard[q][owner] = (leaderboard[q][owner] || 0) + value; }
         else if (d.status === 'open') quarters[q].open.push(row);
@@ -112,9 +91,7 @@ exports.handler = async function () {
       }
     });
 
-    // ---- 3. derive the rest of the shape ----
-    const years = [...new Set([CURRENT_YEAR, ...Object.keys(histNL).map(Number), ...Object.keys(histUP).map(Number)])]
-      .sort((a, b) => b - a);
+    const years = [...new Set([CURRENT_YEAR, ...Object.keys(histNL).map(Number), ...Object.keys(histUP).map(Number)])].sort((a, b) => b - a);
     const fillYears = obj => { years.forEach(y => { obj[y] = obj[y] || [0, 0, 0, 0]; }); return obj; };
     fillYears(histNL); fillYears(histUP);
     const combined = {};
@@ -126,8 +103,6 @@ exports.handler = async function () {
     });
 
     const reps = ['All reps', ...users.map(u => userName[u.id]).filter(Boolean)];
-
-    // ARR + churn computed from deals (swap for your finance source if needed)
     const wonAll = Object.values(quarters).flatMap(x => x.won);
     const arrTotal = wonAll.reduce((a, r) => a + r.value, 0);
     const churnTotal = Object.values(quarters).flatMap(x => x.churn).reduce((a, r) => a + r.value, 0);
@@ -139,12 +114,7 @@ exports.handler = async function () {
       quarters,
       leaderboard: lb,
       historicals: { newLogo: histNL, upsell: histUP, combined },
-      finance: {
-        arrTotal,
-        totalSafesight: Math.round(arrTotal * SAFESIGHT_PCT),
-        churnTotal,
-        safesightPct: SAFESIGHT_PCT,
-      },
+      finance: { arrTotal, totalSafesight: Math.round(arrTotal * SAFESIGHT_PCT), churnTotal, safesightPct: SAFESIGHT_PCT },
     };
 
     return { statusCode: 200, headers: RESPONSE_HEADERS, body: JSON.stringify(payload) };
