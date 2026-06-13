@@ -6,7 +6,7 @@
    the exact structure the front-end expects. If not connected yet, it returns
    501 and the dashboard quietly shows demo data.
    ============================================================================ */
-
+const { connectLambda } = require('@netlify/blobs');
 const { tlList, tlApi, loadTokens } = require('./_lib/teamleader');
 
 /* ── CONFIG — adjust these to YOUR Teamleader setup ──────────────────────────
@@ -39,7 +39,8 @@ function classifyType(deal, phaseName, pipelineName) {
   }
   return TYPE_RULE.upsellNameContains.some(s => hay.includes(s)) ? 'Upsell' : 'New logo';
 }
-
+exports.handler = async function (event) {
+  connectLambda(event);
 exports.handler = async function () {
   // Not connected yet → let the dashboard fall back to demo data.
   const tokens = await loadTokens().catch(() => null);
