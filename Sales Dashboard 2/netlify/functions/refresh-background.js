@@ -1,151 +1,146 @@
 const { connectLambda, getStore } = require('@netlify/blobs');
-const { tlList, tlApi } = require('./_lib/teamleader');
+const { tlApi } = require('./_lib/teamleader');
 
-const PIPE = {
-  newLogo: '93cea99a-85d8-0778-a440-5829fa542693',
-  upsell:  '71b71c5d-edc5-0fe1-a146-e1928c32b843',
-};
+const PIPE = { newLogo: '93cea99a-85d8-0778-a440-5829fa542693', upsell: '71b71c5d-edc5-0fe1-a146-e1928c32b843' };
 const CF = {
   customerType: 'cfdfab3b-85a3-0037-b856-b60fbb26e2fe',
-  nlArr:        'edc58a04-5906-0621-9b56-6aab49e6e0ed',
-  nlOneoff:     '1c28dc76-90d0-0543-8d51-fa2c46b6e0ee',
-  nlOnboarding: '6f50cf78-c829-0742-9e53-044ce086e0ef',
-  usArr:        'a0eda7c5-167f-0165-8957-1582ebb6e0f3',
-  usOneoff:     '2c8416d7-5096-03a6-9650-5f8a94b6e0f4',
-  usOnboarding: '3f84f737-02a9-0856-b25e-6f10e246e0f5',
-  vlRecurring:  '849d1bf1-8386-031b-8656-713d94f6e0f0',
-  vlOneoff:     '634bc612-c4a7-0e2e-be57-ea5d1196e0f1',
-  vlImpl:       '6dadb325-1a28-0b3f-b45e-4a049816e0f2',
-  vlChurn:      '2b144baa-1314-08a0-905a-d2e4c708e0d4',
+  nlArr: 'edc58a04-5906-0621-9b56-6aab49e6e0ed', nlOneoff: '1c28dc76-90d0-0543-8d51-fa2c46b6e0ee', nlOnboarding: '6f50cf78-c829-0742-9e53-044ce086e0ef',
+  usArr: 'a0eda7c5-167f-0165-8957-1582ebb6e0f3', usOneoff: '2c8416d7-5096-03a6-9650-5f8a94b6e0f4', usOnboarding: '3f84f737-02a9-0856-b25e-6f10e246e0f5',
+  vlRecurring: '849d1bf1-8386-031b-8656-713d94f6e0f0', vlOneoff: '634bc612-c4a7-0e2e-be57-ea5d1196e0f1', vlImpl: '6dadb325-1a28-0b3f-b45e-4a049816e0f2', vlChurn: '2b144baa-1314-08a0-905a-d2e4c708e0d4',
 };
 const GOALS = { sales: 75000, newLogo: 55000, upsell: 20000 };
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
+const BUDGET = 7000, DETAIL_BATCH = 8;
 const num = v => (v == null || v === '') ? 0 : (Number(v) || 0);
-function cfMap(deal) {
-  const m = {};
-  (deal.custom_fields || []).forEach(f => { if (f.definition) m[f.definition.id] = f.value; });
-  return m;
-}
+function cfMap(d) { const m = {}; (d.custom_fields || []).forEach(f => { if (f.definition) m[f.definition.id] = f.value; }); return m; }
+async function page(endpoint, body, p) { const j = await tlApi(endpoint, Object.assign({}, body, { page: { size: 100, number: p } })); return j.data || []; }
 
 exports.handler = async function (event) {
   connectLambda(event);
   const store = getStore({ name: 'teamleader' });
+  const t0 = Date.now();
+
+  const lock = await store.get('lock', { type: 'json' }).catch(() => null);
+  if (lock && t0 - lock.t < 20000) return { statusCode: 200, body: 'busy' };
+  await store.setJSON('lock', { t: t0 });
+
+  let job = await store.get('job', { type: 'json' }).catch(() => null);
+  if (!job) {
+    job = { phase: 'deals', dealPage: 1, deals: [], userName: {}, detailIds: [], cursor: 0, details: {}, companyIds: [], companyCursor: 0, companyName: {}, startedAt: t0 };
+    await store.setJSON('status', { state: 'refreshing', startedAt: t0, progress: 'starting' });
+  }
+  const dealById = {};
+  job.deals.forEach(d => { dealById[d.id] = d; });
+
   try {
-    await store.setJSON('status', { state: 'refreshing', startedAt: Date.now() });
-
-    const all = await tlList('deals.list', { sort: [{ field: 'created_at', order: 'desc' }] });
-    const deals = all.filter(d => d.pipeline && (d.pipeline.id === PIPE.newLogo || d.pipeline.id === PIPE.upsell));
-
-    const users = await tlList('users.list', {});
-    const userName = {};
-    users.forEach(u => { userName[u.id] = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email; });
-
-    const needDetail = deals.filter(d => d.status === 'won' || d.status === 'open');
-    const detail = {};
-    const BATCH = 6;
-    for (let i = 0; i < needDetail.length; i += BATCH) {
-      const slice = needDetail.slice(i, i + BATCH);
-      const got = await Promise.all(slice.map(d => tlApi('deals.info', { id: d.id }).then(r => r.data).catch(() => null)));
-      got.forEach(d => { if (d) detail[d.id] = d; });
-    }
-
-    const companyIds = [...new Set(deals.map(d => d.lead && d.lead.customer && d.lead.customer.type === 'company' && d.lead.customer.id).filter(Boolean))];
-    const companyName = {};
-    for (let i = 0; i < companyIds.length; i += 100) {
-      const cs = await tlList('companies.list', { filter: { ids: companyIds.slice(i, i + 100) } });
-      cs.forEach(c => { companyName[c.id] = c.name; });
-    }
-
-    const empty = () => ({ won: [], open: [], lost: [], churn: [] });
-    const quarters = { Q1: empty(), Q2: empty(), Q3: empty(), Q4: empty() };
-    const histNL = {}, histUP = {};
-    const leaderboard = { Q1: {}, Q2: {}, Q3: {}, Q4: {} };
-    const renewals = [];
-    const CUR = new Date().getFullYear();
-    let arrTotal = 0, churnTotal = 0;
-
-    deals.forEach(d => {
-      const full = detail[d.id] || d;
-      const cf = cfMap(full);
-      const isNL = d.pipeline.id === PIPE.newLogo;
-      const type = isNL ? 'New logo' : 'Upsell';
-
-      const arr        = isNL ? num(cf[CF.nlArr])        : num(cf[CF.usArr]);
-      const oneoff     = isNL ? num(cf[CF.nlOneoff])     : num(cf[CF.usOneoff]);
-      const onboarding = isNL ? num(cf[CF.nlOnboarding]) : num(cf[CF.usOnboarding]);
-      const total = arr + oneoff + onboarding;
-      const value = total || num(d.estimated_value && d.estimated_value.amount);
-
-      const rArr = isNL ? 0 : num(cf[CF.vlRecurring]);
-      const rOneoff = isNL ? 0 : num(cf[CF.vlOneoff]);
-      const rImpl = isNL ? 0 : num(cf[CF.vlImpl]);
-      const renewalTotal = rArr + rOneoff + rImpl;
-      const churn = isNL ? 0 : num(cf[CF.vlChurn]);
-
-      const cid = d.lead && d.lead.customer && d.lead.customer.type === 'company' ? d.lead.customer.id : null;
-      const owner = (d.responsible_user && userName[d.responsible_user.id]) || '—';
-      const dateStr = d.closed_at || d.estimated_closing_date || d.created_at;
-      const date = new Date(dateStr);
-      const yr = date.getFullYear();
-      const q = 'Q' + (Math.floor(date.getMonth() / 3) + 1);
-      const idx = Number(q.slice(1)) - 1;
-      const row = {
-        name: d.title || (cid && companyName[cid]) || 'Untitled deal',
-        type, value, arr, oneoff, onboarding, owner,
-        industry: cf[CF.customerType] || '',
-        prob: d.estimated_probability != null ? d.estimated_probability : 0.5,
-        close: (d.estimated_closing_date || '').slice(0, 10),
-        customer: (cid && companyName[cid]) || '',
-        refused: (d.closed_at || '').slice(0, 10),
-        thisMonth: date.getMonth() === new Date().getMonth() && yr === CUR,
-      };
-
-      if (d.status === 'won' && value > 0) {
-        const b = isNL ? histNL : histUP;
-        b[yr] = b[yr] || [0, 0, 0, 0];
-        b[yr][idx] += value;
-        arrTotal += arr;
-        if (yr === CUR) { quarters[q].won.push(row); leaderboard[q][owner] = (leaderboard[q][owner] || 0) + value; }
-      } else if (yr === CUR && d.status === 'open' && value > 0) {
-        quarters[q].open.push(row);
-      } else if (yr === CUR && d.status === 'lost') {
-        quarters[q].lost.push(row);
-      }
-
-      if (!isNL && d.status === 'won' && (renewalTotal > 0 || churn > 0)) {
-        renewals.push({
-          customer: row.customer || row.name, industry: row.industry, owner,
-          arr: rArr, oneoff: rOneoff, onboarding: rImpl, total: renewalTotal,
-          churn, close: row.refused, year: yr, quarter: q,
+    let done = false;
+    while (Date.now() - t0 < BUDGET && !done) {
+      if (job.phase === 'deals') {
+        if (Object.keys(job.userName).length === 0) {
+          let up = 1, urows;
+          do { urows = await page('users.list', {}, up); urows.forEach(u => { job.userName[u.id] = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email; }); up++; } while (urows.length === 100 && Date.now() - t0 < BUDGET);
+        }
+        const rows = await page('deals.list', { sort: [{ field: 'created_at', order: 'desc' }] }, job.dealPage);
+        rows.forEach(d => {
+          if (d.pipeline && (d.pipeline.id === PIPE.newLogo || d.pipeline.id === PIPE.upsell)) {
+            const rec = { id: d.id, status: d.status, pipeline: d.pipeline.id, title: d.title,
+              cust: (d.lead && d.lead.customer && d.lead.customer.type === 'company') ? d.lead.customer.id : null,
+              owner: d.responsible_user && d.responsible_user.id, prob: d.estimated_probability,
+              estClose: d.estimated_closing_date, closedAt: d.closed_at, created: d.created_at,
+              estVal: d.estimated_value && d.estimated_value.amount };
+            job.deals.push(rec); dealById[rec.id] = rec;
+          }
         });
-        if (churn) { churnTotal += churn; if (yr === CUR) quarters[q].churn.push({ customer: row.customer || row.name, industry: row.industry, reason: '', when: MONTHS[date.getMonth()], value: churn }); }
+        if (rows.length < 100) {
+          job.detailIds = job.deals.filter(d => d.status === 'won' || d.status === 'open').map(d => d.id);
+          job.companyIds = [...new Set(job.deals.map(d => d.cust).filter(Boolean))];
+          job.phase = 'detail';
+        } else job.dealPage++;
       }
-    });
+      else if (job.phase === 'detail') {
+        const slice = job.detailIds.slice(job.cursor, job.cursor + DETAIL_BATCH);
+        if (slice.length === 0) { job.phase = 'companies'; }
+        else {
+          const infos = await Promise.all(slice.map(id => tlApi('deals.info', { id }).then(r => r.data).catch(() => null)));
+          infos.forEach((full, i) => {
+            const id = slice[i], d = dealById[id]; if (!full || !d) return;
+            const cf = cfMap(full), isNL = d.pipeline === PIPE.newLogo;
+            job.details[id] = {
+              industry: cf[CF.customerType] || '',
+              arr: isNL ? num(cf[CF.nlArr]) : num(cf[CF.usArr]),
+              oneoff: isNL ? num(cf[CF.nlOneoff]) : num(cf[CF.usOneoff]),
+              onboarding: isNL ? num(cf[CF.nlOnboarding]) : num(cf[CF.usOnboarding]),
+              rArr: isNL ? 0 : num(cf[CF.vlRecurring]), rOneoff: isNL ? 0 : num(cf[CF.vlOneoff]), rImpl: isNL ? 0 : num(cf[CF.vlImpl]), churn: isNL ? 0 : num(cf[CF.vlChurn]),
+            };
+          });
+          job.cursor += slice.length;
+        }
+      }
+      else if (job.phase === 'companies') {
+        const slice = job.companyIds.slice(job.companyCursor, job.companyCursor + 100);
+        if (slice.length === 0) { job.phase = 'finalize'; }
+        else {
+          const cs = await page('companies.list', { filter: { ids: slice } }, 1);
+          cs.forEach(c => { job.companyName[c.id] = c.name; });
+          job.companyCursor += slice.length;
+        }
+      }
+      else if (job.phase === 'finalize') {
+        await store.setJSON('payload', build(job));
+        await store.setJSON('status', { state: 'ready', finishedAt: Date.now(), deals: job.deals.length });
+        await store.delete('job');
+        done = true;
+      }
+    }
 
-    const years = [...new Set([CUR, ...Object.keys(histNL).map(Number), ...Object.keys(histUP).map(Number)])].sort((a, b) => b - a);
-    [histNL, histUP].forEach(o => years.forEach(y => { o[y] = o[y] || [0, 0, 0, 0]; }));
-    const combined = {};
-    years.forEach(y => { combined[y] = histNL[y].map((v, i) => v + histUP[y][i]); });
-    const lb = {};
-    Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
-    const reps = ['All reps', ...users.map(u => userName[u.id]).filter(Boolean)];
-
-    const payload = {
-      asOf: new Date().toISOString().slice(0, 10),
-      currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-      years, reps, goals: GOALS,
-      quarters, leaderboard: lb,
-      historicals: { newLogo: histNL, upsell: histUP, combined },
-      renewals,
-      finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 },
-    };
-
-    await store.setJSON('payload', payload);
-    await store.setJSON('status', { state: 'ready', finishedAt: Date.now(), deals: deals.length });
-    return { statusCode: 200, body: 'ok: ' + deals.length + ' deals processed' };
+    if (!done) {
+      await store.setJSON('job', job);
+      await store.setJSON('status', { state: 'refreshing', startedAt: job.startedAt, progress: job.phase + ' ' + job.cursor + '/' + job.detailIds.length });
+      await store.delete('lock');
+      if (process.env.URL) { try { await fetch(process.env.URL + '/.netlify/functions/refresh-background'); } catch (e) {} }
+    } else {
+      await store.delete('lock');
+    }
+    return { statusCode: 200, body: done ? 'done' : ('continuing: ' + job.phase) };
   } catch (e) {
-    await store.setJSON('status', { state: 'error', message: e.message });
+    await store.setJSON('status', { state: 'error', message: e.message, at: job && job.phase });
+    await store.delete('lock');
     return { statusCode: 500, body: 'Error: ' + e.message };
   }
 };
+
+function build(job) {
+  const empty = () => ({ won: [], open: [], lost: [], churn: [] });
+  const quarters = { Q1: empty(), Q2: empty(), Q3: empty(), Q4: empty() };
+  const histNL = {}, histUP = {}, leaderboard = { Q1: {}, Q2: {}, Q3: {}, Q4: {} }, renewals = [];
+  const CUR = new Date().getFullYear(); let arrTotal = 0, churnTotal = 0;
+  job.deals.forEach(d => {
+    const det = job.details[d.id] || {};
+    const isNL = d.pipeline === PIPE.newLogo, type = isNL ? 'New logo' : 'Upsell';
+    const arr = num(det.arr), oneoff = num(det.oneoff), onboarding = num(det.onboarding);
+    const total = arr + oneoff + onboarding, value = total || num(d.estVal);
+    const rTotal = num(det.rArr) + num(det.rOneoff) + num(det.rImpl), churn = num(det.churn);
+    const owner = (d.owner && job.userName[d.owner]) || '—';
+    const date = new Date(d.closedAt || d.estClose || d.created);
+    const yr = date.getFullYear(), q = 'Q' + (Math.floor(date.getMonth() / 3) + 1), idx = Number(q.slice(1)) - 1;
+    const row = { name: d.title || (d.cust && job.companyName[d.cust]) || 'Untitled deal', type, value, arr, oneoff, onboarding, owner,
+      industry: det.industry || '', prob: d.prob != null ? d.prob : 0.5, close: (d.estClose || '').slice(0, 10),
+      customer: (d.cust && job.companyName[d.cust]) || '', refused: (d.closedAt || '').slice(0, 10),
+      thisMonth: date.getMonth() === new Date().getMonth() && yr === CUR };
+    if (d.status === 'won' && value > 0) {
+      const b = isNL ? histNL : histUP; b[yr] = b[yr] || [0, 0, 0, 0]; b[yr][idx] += value; arrTotal += arr;
+      if (yr === CUR) { quarters[q].won.push(row); leaderboard[q][owner] = (leaderboard[q][owner] || 0) + value; }
+    } else if (yr === CUR && d.status === 'open' && value > 0) quarters[q].open.push(row);
+    else if (yr === CUR && d.status === 'lost') quarters[q].lost.push(row);
+    if (!isNL && d.status === 'won' && (rTotal > 0 || churn > 0)) {
+      renewals.push({ customer: row.customer || row.name, industry: row.industry, owner, arr: num(det.rArr), oneoff: num(det.rOneoff), onboarding: num(det.rImpl), total: rTotal, churn, close: row.refused, year: yr, quarter: q });
+      if (churn) { churnTotal += churn; if (yr === CUR) quarters[q].churn.push({ customer: row.customer || row.name, industry: row.industry, reason: '', when: MONTHS[date.getMonth()], value: churn }); }
+    }
+  });
+  const years = [...new Set([CUR, ...Object.keys(histNL).map(Number), ...Object.keys(histUP).map(Number)])].sort((a, b) => b - a);
+  [histNL, histUP].forEach(o => years.forEach(y => { o[y] = o[y] || [0, 0, 0, 0]; }));
+  const combined = {}; years.forEach(y => combined[y] = histNL[y].map((v, i) => v + histUP[y][i]));
+  const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
+  const reps = ['All reps', ...Object.values(job.userName)];
+  return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }), years, reps, goals: GOALS, quarters, leaderboard: lb, historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
+}
