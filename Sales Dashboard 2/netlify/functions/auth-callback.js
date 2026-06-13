@@ -5,9 +5,9 @@
    exactly this function's URL:
        https://YOUR-SITE.netlify.app/.netlify/functions/auth-callback
    ============================================================================ */
-
+const { connectLambda } = require('@netlify/blobs');
 const { exchangeCode, saveTokens } = require('./_lib/teamleader');
-
+connectLambda(event);
 exports.handler = async function (event) {
   const code = event.queryStringParameters && event.queryStringParameters.code;
   if (!code) return { statusCode: 400, body: 'Missing ?code from Teamleader.' };
