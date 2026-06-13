@@ -1,17 +1,26 @@
-const { connectLambda } = require('@netlify/blobs');
-const { tlList } = require('./_lib/teamleader');
+onst { connectLambda } = require('@netlify/blobs');
+const { tlList, tlApi } = require('./_lib/teamleader');
 
 exports.handler = async function (event) {
   connectLambda(event);
   try {
-    const deals = await tlList('deals.list', { sort: [{ field: 'created_at', order: 'desc' }] });
-    const phasesSeen = [...new Set(deals.map(d => d.current_phase && (d.current_phase.name || d.current_phase.id)).filter(Boolean))];
-    const statuses = [...new Set(deals.map(d => d.status))];
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ totalDeals: deals.length, statuses, phasesSeen, firstThreeDeals: deals.slice(0, 3) }, null, 2),
-    };
+    const deals = await tlList('deals.list', {});
+    const byPipeline = {};
+    deals.forEach(d => {
+      const pid = (d.pipeline && d.pipeline.id) || 'none';
+      byPipeline[pid] = byPipeline[pid] || { count: 0, statusCounts: {}, sampleTitles: [] };
+      byPipeline[pid].count++;
+      byPipeline[pid].statusCounts[d.status] = (byPipeline[pid].statusCounts[d.status] || 0) + 1;
+      if (byPipeline[pid].sampleTitles.length < 8) byPipeline[pid].sampleTitles.push(d.title);
+    });
+    let phaseNames = null;
+    try { const p = await tlList('dealPhases.list', {}); phaseNames = {}; p.forEach(x => phaseNames[x.id] = x.name); }
+    catch (e) { phaseNames = { error: e.message }; }
+    let oneDealFull = null;
+    try { const r = await tlApi('deals.info', { id: deals[0].id }); oneDealFull = r.data; }
+    catch (e) { oneDealFull = { error: e.message }; }
+    return { statusCode: 200, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ totalDeals: deals.length, byPipeline, phaseNames, oneDealFull }, null, 2) };
   } catch (e) {
     return { statusCode: 500, body: 'Error: ' + e.message };
   }
