@@ -1,6 +1,23 @@
 const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSXNWmYIOdt1L9BptFGEZPIPrNumIzgm6Nc74P-fQtkwFOsIq89OLQe7NWNKDNK5TqBw9MdsaHMVL-K/pub?gid=1113282903&single=true&output=csv';
 function parseCsvLine(line){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(q){if(c==='"'){if(line[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}else{if(c===','){out.push(cur);cur='';}else if(c==='"')q=true;else cur+=c;}}out.push(cur);return out;}
-function parseNum(s){if(s==null)return 0;s=String(s).replace(/[^0-9.,-]/g,'');if(!s)return 0;const lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');const dec=lc>ld?',':(ld>lc?'.':'');if(dec){const thou=dec===','?'.':',';s=s.split(thou).join('').replace(dec,'.');}return parseFloat(s)||0;}
+function parseNum(s){
+  if(s==null)return 0;
+  s=String(s).replace(/[^0-9.,-]/g,'');
+  if(!s)return 0;
+  const hasC=s.indexOf(',')>-1,hasD=s.indexOf('.')>-1;
+  if(hasC&&hasD){
+    if(s.lastIndexOf(',')>s.lastIndexOf('.'))s=s.split('.').join('').replace(',','.');
+    else s=s.split(',').join('');
+  }else if(hasC){
+    const after=s.length-s.lastIndexOf(',')-1;
+    if(s.indexOf(',')===s.lastIndexOf(',')&&after<=2)s=s.replace(',','.');
+    else s=s.split(',').join('');
+  }else if(hasD){
+    const after=s.length-s.lastIndexOf('.')-1;
+    if(!(s.indexOf('.')===s.lastIndexOf('.')&&after<=2))s=s.split('.').join('');
+  }
+  return parseFloat(s)||0;
+}
 exports.handler = async function(){
   try{
     const res = await fetch(SHEET_CSV,{redirect:'follow'});
