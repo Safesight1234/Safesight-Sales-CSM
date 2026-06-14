@@ -55,6 +55,18 @@
     Q4: { won: [], open: [], lost: [], churn: [] },
   };
 
+  // demo-only: stamp a month (0-11) on mock deals that have no date, so month
+  // filtering has something to show in the preview. Deals that already carry a
+  // date (open/lost) keep it. Live data carries real dates instead.
+  const QMON = { Q1: [0, 1, 2], Q2: [3, 4, 5], Q3: [6, 7, 8], Q4: [9, 10, 11] };
+  Object.keys(QUARTERS).forEach(q => {
+    ['won', 'open', 'lost', 'churn'].forEach(k => {
+      QUARTERS[q][k].forEach((d, i) => {
+        if (d.mon == null && !(d.refused || d.close)) d.mon = QMON[q][i % 3];
+      });
+    });
+  });
+
   const LEADERBOARD = {
     Q1: [
       { name: 'Yannick Stegehuis', value: 84000 },
@@ -96,6 +108,13 @@
     years: [2026, 2025, 2024],
     reps: ['All reps', 'Yannick Stegehuis', 'Edo Haan', 'Casper Derks', 'Eva de Vre'],
     goals: { sales: 75000, newLogo: 55000, upsell: 20000 },
+    // Per-quarter targets (from "Goals New logo + Upsell 2026")
+    goalsByQuarter: {
+      Q1: { newLogo: 85000, upsell: 15000, combined: 100000 },
+      Q2: { newLogo: 55000, upsell: 20000, combined: 75000 },
+      Q3: { newLogo: 90000, upsell: 10000, combined: 100000 },
+      Q4: { newLogo: 85000, upsell: 15000, combined: 100000 },
+    },
     quarters: QUARTERS,
     leaderboard: LEADERBOARD,
     historicals: HIST,
@@ -130,6 +149,37 @@
   // helper: sum a deal list by type
   window.sumBy = function (list, type) {
     return list.filter(d => !type || d.type === type).reduce((a, d) => a + d.value, 0);
+  };
+
+  /* ---- value/month helpers (work for both live + demo rows) ---- */
+  // A deal's own sales value = sum of its pipeline-specific custom fields
+  // (NL-ARR+One-off+Onboarding, or US-ARR+One-off+Onboarding). Falls back to
+  // .value for demo rows that don't carry the component fields.
+  window.ownValue = function (d) {
+    if (d.arr != null || d.oneoff != null || d.onboarding != null) {
+      return (+d.arr || 0) + (+d.oneoff || 0) + (+d.onboarding || 0);
+    }
+    return +d.value || 0;
+  };
+  // sum a list by ownValue, optional type filter
+  window.sumOwn = function (list, type) {
+    return list.filter(d => !type || d.type === type).reduce((a, d) => a + window.ownValue(d), 0);
+  };
+  // month index (0-11) of the deal's relevant date
+  window.dealMonth = function (d) {
+    if (d.mon != null) return d.mon;
+    const s = d.refused || d.close;
+    return s ? new Date(s).getMonth() : -1;
+  };
+  // sum per-quarter goals over a set of quarters for a key (newLogo|upsell|combined)
+  window.goalSum = function (quarters, key) {
+    const g = window.DATA.goalsByQuarter || {};
+    return quarters.reduce((a, q) => a + ((g[q] && g[q][key]) || 0), 0);
+  };
+  // quarters elapsed so far this year, e.g. June -> ['Q1','Q2']
+  window.ytdQuarters = function () {
+    const cq = Math.floor(new Date().getMonth() / 3) + 1;
+    return ['Q1', 'Q2', 'Q3', 'Q4'].slice(0, cq);
   };
 
   /* ------------------------------------------------------------

@@ -1,81 +1,94 @@
 /* ============================================================
-   Financials tab
+   Financials tab — company YTD + finance-sheet figures
    ============================================================ */
 (function () {
+  const { useState, useEffect } = React;
   const { Card } = window;
+  const sumOwn = window.sumOwn;
 
   function FinancialsTab({ ctx }) {
-    const { cur, year, goalsOn, financeReady } = ctx;
+    const { cur, goalsOn } = ctx;
     const D = window.DATA;
 
-    // 2026 shows the current-quarter (Q2) figures, matching the live finance sheet.
-    // Other years show the full-year achieved totals from historicals.
-    let sales, nl, up;
-    if (year === 2026) {
-      const won = D.quarters.Q2.won;
-      nl = window.sumBy(won, 'New logo');
-      up = window.sumBy(won, 'Upsell');
-      sales = nl + up;
-    } else {
-      nl = D.historicals.newLogo[year].reduce((a, b) => a + b, 0);
-      up = D.historicals.upsell[year].reduce((a, b) => a + b, 0);
-      sales = nl + up;
-    }
-    const wonCount = year === 2026 ? D.quarters.Q2.won.length : '—';
+    // ---- sales YTD, straight from won deals (NL + Upsell, all quarters so far) ----
+    const ytd = window.ytdQuarters();
+    const won = ytd.flatMap(q => D.quarters[q].won);
+    const nl = sumOwn(won, 'New logo');
+    const up = sumOwn(won, 'Upsell');
+    const sales = nl + up;
+    const goalSales = window.goalSum(ytd, 'combined');
+    const goalNL = window.goalSum(ytd, 'newLogo');
+    const goalUP = window.goalSum(ytd, 'upsell');
 
-    const Loadable = ({ value }) => financeReady
-      ? <span>{value}</span>
-      : <span className="shimmer" style={{ width: 120, height: 40 }}>&nbsp;</span>;
+    // ---- ARR + Total Safesight: pulled live from the finance Google Sheet ----
+    const [fin, setFin] = useState(null);
+    const [finState, setFinState] = useState('loading'); // loading | ok | err
+    useEffect(() => {
+      let alive = true;
+      fetch('/.netlify/functions/finance', { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(j => { if (alive) { setFin(j); setFinState('ok'); } })
+        .catch(() => { if (alive) setFinState('err'); });
+      return () => { alive = false; };
+    }, []);
+    const arrTotal = fin ? fin.arrTotal : D.finance.arrTotal;
+    const safeTotal = fin ? fin.totalSafesight : D.finance.totalSafesight;
+
+    const Loadable = ({ value }) => finState === 'loading'
+      ? <span className="shimmer" style={{ width: 150, height: 42, borderRadius: 8 }}>&nbsp;</span>
+      : <span>{value}</span>;
 
     return (
       <React.Fragment>
         <p className="intro">
-          Company year-to-date. <b>Sales</b> figures are calculated from the pipeline export (won deals);
-          <b> ARR &amp; revenue</b> figures are pulled live from the finance sheet.
+          Company year-to-date ({ytd.join(' + ')}). <b>Sales</b> figures are the sum of won New logo + Upsell deals;
+          <b> ARR &amp; Total Safesight</b> are pulled live from the finance sheet.
         </p>
 
         <div className="grid g-3">
           <Card className="kpi pad-lg">
-            <div className="eyebrow">TOTAL SALES · YTD {year}</div>
+            <div className="eyebrow">TOTAL SALES · YTD</div>
             <div className="big tnum">{window.fmtFull(sales, cur)}</div>
-            {goalsOn && <div className="bar"><i style={{ width: Math.min(100, window.pct(sales, D.goals.sales)) + '%' }} /></div>}
+            {goalsOn && <div className="bar"><i style={{ width: Math.min(100, window.pct(sales, goalSales)) + '%' }} /></div>}
             <div className="kpi-foot" style={{ marginTop: goalsOn ? 0 : 14 }}>
-              <span className="pct">{goalsOn ? `${window.pct(sales, D.goals.sales)}%` : ''}</span>
-              <span className="goal">{wonCount} deals won</span>
+              <span className="pct">{goalsOn ? `${window.pct(sales, goalSales)}%` : ''}</span>
+              <span className="goal">{won.length} deals won{goalsOn ? <span> · of {window.fmtK(goalSales, cur)}</span> : null}</span>
             </div>
-            {goalsOn && <div className="sub">of {window.fmtK(D.goals.sales, cur)} goal</div>}
           </Card>
 
           <Card soft className="kpi pad-lg">
-            <div className="eyebrow"><span className="dot green" />NEW LOGO</div>
+            <div className="eyebrow"><span className="dot green" />NEW LOGO · YTD</div>
             <div className="big tnum">{window.fmtFull(nl, cur)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(nl, D.goals.newLogo)}% of ${window.fmtK(D.goals.newLogo, cur)} goal` : 'New business closed this year'}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(nl, goalNL)}% of ${window.fmtK(goalNL, cur)} goal` : 'New business closed this year'}</div>
           </Card>
 
           <Card soft className="kpi pad-lg">
-            <div className="eyebrow"><span className="dot blue" />UPSELL</div>
+            <div className="eyebrow"><span className="dot blue" />UPSELL · YTD</div>
             <div className="big tnum">{window.fmtFull(up, cur)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(up, D.goals.upsell)}% of ${window.fmtK(D.goals.upsell, cur)} goal` : 'Expansion revenue this year'}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(up, goalUP)}% of ${window.fmtK(goalUP, cur)} goal` : 'Expansion revenue this year'}</div>
           </Card>
         </div>
 
         <div className="grid g-3">
           <Card soft className="kpi pad-lg">
             <div className="eyebrow">ARR — TOTAL</div>
-            <div className="big tnum"><Loadable value={window.fmtInt(D.finance.arrTotal, cur)} /></div>
-            <div className="sub" style={{ marginTop: 14 }}>Annual recurring revenue · annual + event-based licenses</div>
+            <div className="big tnum"><Loadable value={window.fmtInt(arrTotal, cur)} /></div>
+            <div className="sub" style={{ marginTop: 14 }}>
+              {finState === 'err' ? <span style={{ color: 'var(--red)' }}>Finance sheet unreachable — showing fallback</span>
+                : 'Annual recurring revenue · live from finance sheet (C6)'}
+            </div>
           </Card>
 
           <Card soft className="kpi pad-lg" style={{ borderColor: 'var(--green)', boxShadow: '0 0 0 1px var(--green-soft)' }}>
-            <div className="eyebrow"><span className="dot green" />TOTAL SAFESIGHT ({Math.round(D.finance.safesightPct * 100)}%)</div>
-            <div className="big tnum"><Loadable value={window.fmtInt(D.finance.totalSafesight, cur)} /></div>
-            <div className="sub" style={{ marginTop: 14 }}>Weighted company total, per finance</div>
+            <div className="eyebrow"><span className="dot green" />TOTAL SAFESIGHT (75%)</div>
+            <div className="big tnum"><Loadable value={window.fmtInt(safeTotal, cur)} /></div>
+            <div className="sub" style={{ marginTop: 14 }}>Weighted company total · live from finance sheet (L6)</div>
           </Card>
 
           <Card soft className="kpi pad-lg">
             <div className="eyebrow"><span className="dot red" />CHURN — TOTAL</div>
-            <div className="big tnum red"><Loadable value={window.fmtInt(D.finance.churnTotal, cur)} /></div>
-            <div className="sub" style={{ marginTop: 14 }}>Lost ARR</div>
+            <div className="big tnum red">{window.fmtInt(D.finance.churnTotal, cur)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>Lost ARR · year to date</div>
           </Card>
         </div>
       </React.Fragment>

@@ -12,6 +12,7 @@
     moon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>,
     goal: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>,
     check: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>,
+    close: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>,
   };
 
   const TABS = [
@@ -19,8 +20,8 @@
     ['historicals', 'Historicals'], ['csm', 'CSM'],
   ];
   const QUARTER_PERIODS = ['YTD', 'Q1', 'Q2', 'Q3', 'Q4'];
-  const MONTHS = [['Jan', 'Q1'], ['Feb', 'Q1'], ['Mar', 'Q1'], ['Apr', 'Q2'], ['May', 'Q2'], ['Jun', 'Q2']];
-  const monthToQ = m => (MONTHS.find(x => x[0] === m) || [, 'Q2'])[1];
+  const QUARTERS_ALL = ['Q1', 'Q2', 'Q3', 'Q4'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const STORE = 'safesight_dash_v1';
   const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; } };
@@ -37,6 +38,63 @@
     );
   }
 
+  /* ---- Goals modal: the per-quarter targets ---- */
+  function GoalsModal({ cur, onClose }) {
+    const g = window.DATA.goalsByQuarter;
+    const rows = QUARTERS_ALL.map(q => ({ q, ...g[q] }));
+    const tot = {
+      newLogo: window.goalSum(QUARTERS_ALL, 'newLogo'),
+      upsell: window.goalSum(QUARTERS_ALL, 'upsell'),
+      combined: window.goalSum(QUARTERS_ALL, 'combined'),
+    };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={e => e.stopPropagation()} className="card" style={{ maxWidth: 640, width: '100%', padding: 0, boxShadow: 'var(--shadow-pop)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 14px' }}>
+            <div>
+              <div className="eyebrow">2026 targets</div>
+              <h3 className="card-title" style={{ marginTop: 4 }}>Goals · New logo + Upsell</h3>
+            </div>
+            <button className="btn icon" onClick={onClose} title="Close">{I.close}</button>
+          </div>
+          <div style={{ padding: '0 24px 22px' }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Quarter</th>
+                  <th className="num">New Logo</th>
+                  <th className="num">Upsell</th>
+                  <th className="num">NL + Up</th>
+                  <th className="num">US</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.q}>
+                    <td><b>{r.q}</b></td>
+                    <td className="num tnum">{window.fmtInt(r.newLogo, cur)}</td>
+                    <td className="num tnum">{window.fmtInt(r.upsell, cur)}</td>
+                    <td className="num tnum">{window.fmtInt(r.combined, cur)}</td>
+                    <td className="num muted">TBD</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td className="num tnum">{window.fmtInt(tot.newLogo, cur)}</td>
+                  <td className="num tnum">{window.fmtInt(tot.upsell, cur)}</td>
+                  <td className="num tnum">{window.fmtInt(tot.combined, cur)}</td>
+                  <td className="num muted">TBD</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function App() {
     const saved = load();
     const [tab, setTab] = useState(saved.tab || 'overview');
@@ -48,18 +106,17 @@
     const [rep, setRep] = useState(saved.rep || 'All reps');
     const [theme, setTheme] = useState(saved.theme || 'light');
     const [goalsOn, setGoalsOn] = useState(saved.goalsOn != null ? saved.goalsOn : true);
+    const [goalsModal, setGoalsModal] = useState(false);
     const [sync, setSync] = useState('busy'); // busy | ok | demo
     const [syncLabel, setSyncLabel] = useState('Connecting…');
     const [live, setLive] = useState(false);
     const [financeReady, setFinanceReady] = useState(true);
     const [dataVersion, setDataVersion] = useState(0);
 
-    // persist
     useEffect(() => {
       localStorage.setItem(STORE, JSON.stringify({ tab, year, cur, gran, period, month, rep, theme, goalsOn }));
     }, [tab, year, cur, gran, period, month, rep, theme, goalsOn]);
 
-    // theme on root
     useEffect(() => {
       document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
@@ -82,8 +139,19 @@
     const runSync = useCallback(() => doSync(false), [doSync]);
     useEffect(() => { doSync(true); }, [doSync]);
 
-    const effPeriod = gran === 'Month' ? monthToQ(month) : period;
-    const ctx = { cur, period: effPeriod, rep, year, goalsOn, financeReady, gran };
+    // ---- resolve the active scope ----
+    let quarters, monthIdx = null, isYTD = false, periodLabel;
+    if (gran === 'Month') {
+      if (month === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${year}`; }
+      else { const mi = MONTHS.indexOf(month); monthIdx = mi; quarters = ['Q' + (Math.floor(mi / 3) + 1)]; periodLabel = `${month} ${year}`; }
+    } else {
+      if (period === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${year}`; }
+      else { quarters = [period]; periodLabel = `${period} ${year}`; }
+    }
+    // goals: for YTD compare against quarters elapsed so far; otherwise the selected scope
+    const goalQuarters = isYTD ? window.ytdQuarters() : quarters;
+
+    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, year, goalsOn, financeReady };
 
     const showDealFilters = tab === 'overview' || tab === 'pipeline';
     const showRep = showDealFilters;
@@ -145,7 +213,7 @@
                 <Seg options={['Quarter', 'Month']} value={gran} onChange={setGran} />
                 {gran === 'Quarter'
                   ? <Seg options={QUARTER_PERIODS} value={period} onChange={setPeriod} />
-                  : <Seg options={['YTD', ...MONTHS.map(m => m[0])]} value={month} onChange={setMonth} />}
+                  : <Seg options={['YTD', ...MONTHS]} value={month} onChange={setMonth} />}
               </React.Fragment>
             )}
 
@@ -156,9 +224,8 @@
             )}
 
             {showGoals && (
-              <button className={`btn ${goalsOn ? '' : ''}`} aria-pressed={goalsOn}
-                      onClick={() => setGoalsOn(g => !g)}
-                      style={goalsOn ? { background: 'var(--green-soft)', borderColor: 'var(--green)', color: 'var(--green-ink)' } : null}>
+              <button className="btn" onClick={() => setGoalsModal(true)} title="View 2026 goals"
+                      style={{ background: 'var(--green-soft)', borderColor: 'var(--green)', color: 'var(--green-ink)' }}>
                 {I.goal} Goals
               </button>
             )}
@@ -172,6 +239,8 @@
             {TabComp ? <TabComp ctx={ctx} /> : <div className="empty">Coming soon</div>}
           </div>
         </div>
+
+        {goalsModal && <GoalsModal cur={cur} onClose={() => setGoalsModal(false)} />}
       </div>
     );
   }

@@ -144,6 +144,7 @@ body {
   background: var(--surface); border: 1px solid var(--border-2);
   padding: 8px 14px; border-radius: var(--pill);
   box-shadow: var(--shadow); transition: background .14s, border-color .14s, transform .05s;
+  white-space: nowrap;
 }
 .btn:hover { background: var(--hover); }
 .btn:active { transform: translateY(.5px); }
