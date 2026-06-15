@@ -38,6 +38,58 @@
     );
   }
 
+  /* ---- Export Finance modal ---- */
+  function ExportModal({ onClose }) {
+    const today = new Date();
+    const [mode, setMode] = useState('Quarter');
+    const [yr, setYr] = useState(2026);
+    const [per, setPer] = useState('Q' + (Math.floor(today.getMonth() / 3) + 1));
+    function changeMode(m) {
+      setMode(m);
+      if (m === 'Quarter') setPer('Q' + (Math.floor(today.getMonth() / 3) + 1));
+      else if (m === 'Month') setPer(MONTHS[today.getMonth()]);
+    }
+    const periodOptions = mode === 'Quarter' ? ['Q1', 'Q2', 'Q3', 'Q4'] : (mode === 'Month' ? MONTHS : null);
+    const label = mode === 'Full year' ? `${yr}` : `${per} ${yr}`;
+    function download() {
+      let quarters, monthIdx = null, filename;
+      if (mode === 'Full year') { quarters = QUARTERS_ALL; filename = `safesight-export-${yr}`; }
+      else if (mode === 'Quarter') { quarters = [per]; filename = `safesight-export-${yr}-${per.toLowerCase()}`; }
+      else { const mi = MONTHS.indexOf(per); monthIdx = mi; quarters = ['Q' + (Math.floor(mi / 3) + 1)]; filename = `safesight-export-${yr}-${per.toLowerCase()}`; }
+      window.exportFinance({ quarters, monthIdx, year: yr, label, filename });
+      onClose();
+    }
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={e => e.stopPropagation()} className="card" style={{ maxWidth: 560, width: '100%', boxShadow: 'var(--shadow-pop)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+            <h3 className="card-title" style={{ fontSize: 19 }}>Export Finance</h3>
+            <button className="btn icon" onClick={onClose} title="Close">{I.close}</button>
+          </div>
+          <p className="h-sub" style={{ margin: '0 0 18px', maxWidth: 440 }}>New bookings &amp; churn detail in the finance format. Pick the period to include — all sheets are scoped to it.</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Seg options={['Month', 'Quarter', 'Full year']} value={mode} onChange={changeMode} />
+            <select className="select" value={yr} onChange={e => setYr(+e.target.value)}>
+              {window.DATA.years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            {periodOptions && (
+              <select className="select" value={per} onChange={e => setPer(e.target.value)}>
+                {periodOptions.map(o => <option key={o} value={o}>{o} {yr}</option>)}
+              </select>
+            )}
+          </div>
+          <div style={{ marginTop: 16, padding: '13px 16px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', fontSize: 13, color: 'var(--text-2)' }}>
+            Export will include new bookings and churn details for <b style={{ color: 'var(--text)' }}>{label}</b>.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+            <button className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn" onClick={download} style={{ background: 'var(--green)', borderColor: 'var(--green)', color: '#073d27' }}>{I.download} Download .xlsx</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* ---- Goals modal: the per-quarter targets ---- */
   function GoalsModal({ cur, onClose }) {
     const g = window.DATA.goalsByQuarter;
@@ -107,6 +159,7 @@
     const [theme, setTheme] = useState(saved.theme || 'light');
     const [goalsOn, setGoalsOn] = useState(saved.goalsOn != null ? saved.goalsOn : true);
     const [goalsModal, setGoalsModal] = useState(false);
+    const [exportOpen, setExportOpen] = useState(false);
     const [sync, setSync] = useState('busy'); // busy | ok | demo
     const [syncLabel, setSyncLabel] = useState('Connecting…');
     const [live, setLive] = useState(false);
@@ -168,8 +221,11 @@
           {/* ---- header ---- */}
           <div className="topbar">
             <div className="brand">
-              <h1 className="h-title">Sales and numbers</h1>
-              <p className="h-sub">Safesight — New logo &amp; Upsell performance</p>
+              <div className="brandrow">
+                <img src="logo.png" className="brand-logo" alt="Safesight" />
+                <span className="brand-div" />
+                <span className="brand-name">Safesight dashboarding</span>
+              </div>
             </div>
             <div className="tabs" role="tablist" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
               {TABS.map(([id, label]) => (
@@ -192,7 +248,7 @@
               {syncLabel}
             </span>
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <button className="btn">{I.download} Export Finance</button>
+            <button className="btn" onClick={() => setExportOpen(true)}>{I.download} Export Finance</button>
             <button className="btn icon" title="Toggle theme" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
               {theme === 'dark' ? I.moon : I.sun}
             </button>
@@ -241,6 +297,7 @@
         </div>
 
         {goalsModal && <GoalsModal cur={cur} onClose={() => setGoalsModal(false)} />}
+        {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
       </div>
     );
   }

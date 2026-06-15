@@ -108,6 +108,11 @@ body {
    =========================================================== */
 .topbar { display: flex; align-items: flex-start; gap: 28px; }
 .topbar .brand { flex: 0 0 auto; }
+.brandrow { display: flex; align-items: center; gap: 14px; }
+.brand-logo { height: 30px; width: auto; display: block; }
+.dark .brand-logo { filter: brightness(0) invert(1); }
+.brand-div { width: 1px; height: 26px; background: var(--border-2); }
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: var(--text-2); white-space: nowrap; }
 
 .tabs {
   display: inline-flex; gap: 2px;
@@ -367,3 +372,71 @@ body {
 }
 
 .section-gap { height: 4px; }
+
+/* ============================================================
+   Login gate
+   ============================================================ */
+html.locked, html.locked body { overflow: hidden; }
+.login-screen {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(120% 90% at 50% -10%, var(--surface-2) 0%, var(--bg) 60%);
+}
+.login-card {
+  width: 100%; max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-pop);
+  padding: 40px 36px 34px;
+  text-align: center;
+}
+.login-logo { height: 40px; width: auto; display: block; margin: 0 auto 26px; }
+.dark .login-logo { filter: brightness(0) invert(1); }
+.login-title { font-size: 21px; font-weight: 700; letter-spacing: -.02em; color: var(--text); margin: 0 0 6px; }
+.login-sub { font-size: 14px; color: var(--text-2); margin: 0 0 26px; }
+.login-form { display: flex; flex-direction: column; gap: 12px; }
+.login-field { position: relative; }
+.login-field input {
+  width: 100%; box-sizing: border-box;
+  font-family: inherit; font-size: 15px; color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm);
+  padding: 13px 44px 13px 15px;
+  transition: border-color .14s, box-shadow .14s, background .14s;
+}
+.login-field input::placeholder { color: var(--text-3); }
+.login-field input:focus {
+  outline: none; background: var(--surface);
+  border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft);
+}
+.login-eye {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0;
+  background: none; border: none; cursor: pointer; color: var(--text-3);
+  border-radius: var(--r-xs);
+}
+.login-eye:hover { color: var(--text-2); background: var(--hover); }
+.login-eye svg { width: 18px; height: 18px; }
+.login-eye.on { color: var(--green-ink); }
+.login-error { font-size: 13px; font-weight: 500; color: var(--red-ink); text-align: left; margin: -2px 2px 0; }
+.login-btn {
+  appearance: none; font-family: inherit; cursor: pointer;
+  font-size: 15px; font-weight: 600; color: #06351f;
+  background: var(--green); border: 1px solid var(--green);
+  padding: 13px 16px; border-radius: var(--r-sm);
+  margin-top: 4px; transition: filter .14s, transform .05s;
+}
+.login-btn:hover { filter: brightness(1.04); }
+.login-btn:active { transform: translateY(1px); }
+@keyframes login-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+.login-card.shake { animation: login-shake .42s cubic-bezier(.36,.07,.19,.97) both; }
