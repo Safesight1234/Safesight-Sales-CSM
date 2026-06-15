@@ -202,11 +202,13 @@ function build(deals, cache) {
       //   lost -> full renewal ARR | won w/ VL-Churn -> partial | open/new -> forecast
       const start = new Date(det.startDate || det.endDate || d.closedAt || d.estClose || d.created);
       const sYr = start.getFullYear(), sQ = 'Q' + (Math.floor(start.getMonth() / 3) + 1);
-      let ck = null, cv = 0;
-      if (d.status === 'lost') { ck = 'lost'; cv = num(det.rArr) > 0 ? num(det.rArr) : num(d.estVal); }
-      else if (d.status === 'won' && churn > 0) { ck = 'partial'; cv = churn; }
-      else if (d.status === 'open' || d.status === 'new') { ck = 'forecast'; cv = num(det.rArr) > 0 ? num(det.rArr) : num(d.estVal); }
-      if (ck && cv > 0) {
+      // churn comes ONLY from the VL-Churn field. Status sets the kind:
+      //   won  → partial (deal closed but shrank)   [actual]
+      //   lost → lost    (renewal lost, carried churn)[actual]
+      //   open/new → forecast (renewal may shrink)   [forecast]
+      if (churn > 0) {
+        const ck = d.status === 'lost' ? 'lost' : (d.status === 'won' ? 'partial' : 'forecast');
+        const cv = churn;
         if (ck !== 'forecast') churnTotal += cv;
         if (sYr === CUR) quarters[sQ].churn.push({ customer: row.customer || row.name, industry: row.industry,
           reason: det.statusRenewal || '', kind: ck, when: MONTHS[start.getMonth()], value: cv });
