@@ -1,124 +1,161 @@
 /* ============================================================
-   CSM tab — PROPOSED design (no reference screenshot existed)
-   Customer success: health, renewals, NRR, at-risk, onboarding
+   CSM tab
+   Table 1 (built): "All contracts ending in <year>" — renewal book,
+   filtered by the Quarter/Month selector, sourced from Teamleader
+   (contract end date, responsible user, Risk?, Status renewal).
+   Other cards below are placeholders to be reworked next.
    ============================================================ */
 (function () {
   const { Card, KpiCard, SortableTable, HBarList } = window;
 
-  // ---- mock book of business ----
-  const ACCOUNTS = [
-    { customer: 'Johan Cruijff ArenA',          industry: 'Stadium & Venues',        owner: 'Lotte Bakker', arr: 28400, health: 'healthy', last: '2026-06-04', renewal: '2026-09-15' },
-    { customer: 'Gemeente Rotterdam',           industry: 'Public Sector',           owner: 'Sven Janssen', arr: 21900, health: 'healthy', last: '2026-05-28', renewal: '2026-10-01' },
-    { customer: 'Heineken Music Hall',          industry: 'Events',                  owner: 'Lotte Bakker', arr: 14200, health: 'risk',    last: '2026-04-30', renewal: '2026-07-20' },
-    { customer: 'BAM Infra',                    industry: 'Construction & Industry', owner: 'Sven Janssen', arr: 18700, health: 'healthy', last: '2026-06-08', renewal: '2026-11-30' },
-    { customer: 'Trigion Beveiliging',          industry: 'Security',                owner: 'Lotte Bakker', arr: 9600,  health: 'risk',    last: '2026-03-12', renewal: '2026-07-05' },
-    { customer: 'Vrije Universiteit Amsterdam', industry: 'Public Sector',           owner: 'Sven Janssen', arr: 12300, health: 'healthy', last: '2026-06-01', renewal: '2026-12-15' },
-    { customer: 'Lowlands Festival',            industry: 'Events',                  owner: 'Lotte Bakker', arr: 16800, health: 'watch',   last: '2026-05-10', renewal: '2026-08-31' },
-    { customer: 'NEC Nijmegen',                 industry: 'Stadium & Venues',        owner: 'Sven Janssen', arr: 7400,  health: 'healthy', last: '2026-06-07', renewal: '2026-09-30' },
-    { customer: 'Strukton',                     industry: 'Construction & Industry', owner: 'Lotte Bakker', arr: 11200, health: 'risk',    last: '2026-02-20', renewal: '2026-07-18' },
-    { customer: 'Jaarbeurs Utrecht',            industry: 'Events',                  owner: 'Sven Janssen', arr: 13500, health: 'healthy', last: '2026-06-09', renewal: '2026-10-22' },
+  /* ---- Renewal contracts (demo — mirrors the "Renewal 2026" sheet).
+     Live data will populate window.DATA.contracts with the same shape:
+       { customer, endDate 'YYYY-MM-DD', owner, risk 'Yes'|'No'|'',
+         status (Status renewal custom field), signed (bool) }      ---- */
+  const DEMO_CONTRACTS = [
+    { customer: 'Liquicity',                  endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: 'Churn',              signed: false },
+    { customer: 'Flowfirm',                   endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'PEC Zwolle',                 endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Matrixx Events',             endDate: '2026-03-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Sagro Decom',                endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'Yes', status: 'Churn',              signed: false },
+    { customer: 'NVT Betonrenovatie',         endDate: '2026-05-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Dutchbase',                  endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Zwarte Cross',               endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Dekmantel',                  endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: '',                   signed: false },
+    { customer: 'Bospop',                     endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Nederlandse Veteranendag',   endDate: '2025-12-31', owner: 'Casper Derks',   risk: 'No',  status: 'Signed',             signed: true },
+    { customer: 'Gemeente Nijmegen',          endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Stichting Vierdaagsefeesten',endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: 'Signed',             signed: true },
+    { customer: 'Jens Security',              endDate: '2026-01-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Signed',             signed: true },
+    { customer: 'SV Wehen Wiesbaden',         endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Johan Cruijff ArenA',        endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: 'Signed',             signed: true },
+    { customer: 'Gemeente Utrecht',           endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'Messe München',              endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Roda JC',                    endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Escape',             signed: false },
+    { customer: 'Valencia CF',                endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'AZ Alkmaar',                 endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'F4SEC Security Group',       endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'NEC Nijmegen',               endDate: '2027-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'FC Ingolstadt 04',           endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'FC Twente',                  endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
+    { customer: 'Les Ardentes',               endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: 'Proposal',           signed: false },
+    { customer: 'Lokerse feesten',            endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Gemeente Weert',             endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
+    { customer: 'Appelpop',                   endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Reggae Geel',                endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Jaarbeurs Holding',          endDate: '2026-06-11', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'FC Utrecht',                 endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
+    { customer: 'Kooiker Logisitiek',         endDate: '2026-08-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'MNE',                        endDate: '2026-08-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'BV Sport',                   endDate: '2026-10-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Jorritsma Bouw',             endDate: '2026-10-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'ACV Groep',                  endDate: '2026-10-31', owner: 'Casper Derks',   risk: '',    status: 'Proposal - positive',signed: false },
+    { customer: 'Vigilans Group',             endDate: '2026-11-30', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'Profi-sec Security',         endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'TRIBE Security',             endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'ES Company',                 endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Stichting Zevenheuvelenloop',endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: 'Proposal - positive',signed: false },
+    { customer: 'CSD München',                endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'VR Zeeland',                 endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
   ];
-  const ONBOARDING = [
-    { name: 'Stadion Feijenoord (De Kuip)', stage: 'Kickoff',     pct: 30 },
-    { name: 'Gemeente Amsterdam',           stage: 'Integration', pct: 60 },
-    { name: 'Ahoy Rotterdam',               stage: 'Training',    pct: 85 },
-  ];
-  const HEALTH_LABEL = { healthy: 'Healthy', watch: 'Watch', risk: 'At risk' };
+
+  // date helpers
+  const isoToEU = s => { if (!s) return '—'; const [y, m, d] = s.split('-'); return `${d}-${m}-${y}`; };
+  const quarterOf = s => 'Q' + (Math.floor(new Date(s).getMonth() / 3) + 1);
+  const monthOf = s => new Date(s).getMonth();
+
+  // Status renewal → badge style. Signed deals show "Won".
+  function statusCell(r) {
+    const label = r.signed ? 'Won' : r.status;
+    if (!label) return <span className="muted">—</span>;
+    let cls = 'watch';
+    if (label === 'Won') cls = 'healthy';
+    else if (label === 'Churn') cls = 'risk';
+    return <span className={`tag ${cls}`}>{label}</span>;
+  }
+  function riskCell(r) {
+    if (r.risk === 'Yes') return <span className="tag risk">Yes</span>;
+    if (r.risk === 'No') return <span className="sub">No</span>;
+    return <span className="muted">—</span>;
+  }
+
+  // renewal status category: Won (signed) > Churn (status) > Open (everything else)
+  const renewalCategory = c => c.signed ? 'Won' : (c.status === 'Churn' ? 'Churn' : 'Open');
 
   function CSMTab({ ctx }) {
-    const { cur } = ctx;
-    const asOf = new Date('2026-06-09');
-    const in90 = new Date(asOf); in90.setDate(in90.getDate() + 90);
+    const { cur, year, quarters, monthIdx, periodLabel, renewalStatus } = ctx;
 
-    const totalArr = ACCOUNTS.reduce((a, c) => a + c.arr, 0);
-    const risk = ACCOUNTS.filter(a => a.health === 'risk');
-    const riskArr = risk.reduce((a, c) => a + c.arr, 0);
-    const renewals = ACCOUNTS.filter(a => new Date(a.renewal) <= in90).sort((a, b) => new Date(a.renewal) - new Date(b.renewal));
-    const renewArr = renewals.reduce((a, c) => a + c.arr, 0);
-    const counts = { healthy: 0, watch: 0, risk: 0 };
-    ACCOUNTS.forEach(a => counts[a.health]++);
+    const contracts = (window.DATA.contracts && window.DATA.contracts.length) ? window.DATA.contracts : DEMO_CONTRACTS;
+
+    // all contracts ending in the selected YEAR, then narrowed by quarter/month, then by status
+    const ending = contracts
+      .filter(c => new Date(c.endDate).getFullYear() === year)
+      .filter(c => monthIdx != null ? monthOf(c.endDate) === monthIdx : quarters.includes(quarterOf(c.endDate)))
+      .filter(c => !renewalStatus || renewalStatus === 'All' || renewalCategory(c) === renewalStatus)
+      .sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
+
+    const signedCount = ending.filter(c => c.signed).length;
+    const riskCount = ending.filter(c => c.risk === 'Yes').length;
+
+    // watchlist: contracts ending MORE than 6 months out that still have no
+    // renewal status set (and aren't signed) — i.e. not yet actioned.
+    const asOf = new Date(window.DATA.asOf || '2026-06-09');
+    const in6mo = new Date(asOf); in6mo.setMonth(in6mo.getMonth() + 6);
+    const noStatus = contracts
+      .filter(c => new Date(c.endDate) > in6mo && !c.signed && !c.status)
+      .sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
 
     const cols = [
       { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
-      { key: 'industry', label: 'Industry', sortable: true, render: r => <span className="sub">{r.industry}</span> },
-      { key: 'owner', label: 'CSM', sortable: true, render: r => <span className="sub">{r.owner}</span> },
-      { key: 'arr', label: 'ARR', num: true, sortable: true, render: r => window.fmtFull(r.arr, cur) },
-      { key: 'health', label: 'Health', sortable: true, render: r => <span className={`tag ${r.health}`}>{HEALTH_LABEL[r.health]}</span> },
-      { key: 'last', label: 'Last contact', sortable: true, render: r => <span className="sub tnum">{r.last}</span> },
-      { key: 'renewal', label: 'Renewal', sortable: true, render: r => <span className="tnum">{r.renewal}</span> },
-    ];
-
-    const renewRows = renewals.map(r => ({
-      name: r.customer, sub: `${r.renewal} · ${HEALTH_LABEL[r.health]}`, value: r.arr,
-    }));
-
-    const dist = [
-      { k: 'healthy', label: 'Healthy', color: 'var(--green)' },
-      { k: 'watch', label: 'Watch', color: 'var(--amber)' },
-      { k: 'risk', label: 'At risk', color: 'var(--red)' },
+      { key: 'endDate', label: 'Verloopdatum contract', sortable: true, sortVal: r => new Date(r.endDate).getTime(), render: r => <span className="tnum">{isoToEU(r.endDate)}</span> },
+      { key: 'owner', label: 'Representative', sortable: true, render: r => <span className="sub">{r.owner}</span> },
+      { key: 'risk', label: 'Risk', sortable: true, sortVal: r => (r.risk === 'Yes' ? 0 : r.risk === 'No' ? 1 : 2), render: riskCell },
+      { key: 'status', label: 'Status renewal', sortable: true, sortVal: r => (r.signed ? 'Won' : r.status) || 'zzz', render: statusCell },
     ];
 
     return (
       <React.Fragment>
-        <p className="intro" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span className="ribbon">✦ Proposed design — no reference existed</span>
-          <span>Customer success view — account health, upcoming renewals, and net revenue retention across the book of business.</span>
+        <p className="intro">
+          Renewal book — every contract with an end date in <b>{year}</b>, scoped to <b>{periodLabel}</b>.
+          Risk, representative and renewal status come straight from Teamleader; a contract flips to <b>Won</b> once its renewal deal is signed.
         </p>
 
-        <div className="grid g-4">
-          <KpiCard eyebrow="ACTIVE CUSTOMERS" value={ACCOUNTS.length}
-                   sub={<span><span className="lead">{window.fmtK(totalArr, cur)}</span> ARR under management</span>} />
-          <KpiCard eyebrow="NET REVENUE RETENTION" value="104%"
-                   sub={<span>Trailing 12 months · <span style={{ color: 'var(--green-ink)', fontWeight: 650 }}>+6 pts</span> QoQ</span>} />
-          <KpiCard eyebrow="CUSTOMERS AT RISK" dotColor="red" value={risk.length} valueRed
-                   sub={<span><span className="lead">{window.fmtK(riskArr, cur)}</span> ARR at risk</span>} />
-          <KpiCard eyebrow="RENEWALS · NEXT 90 DAYS" value={window.fmtK(renewArr, cur)}
-                   sub={<span>{renewals.length} accounts up for renewal</span>} />
+        <div className="grid g-3">
+          <KpiCard eyebrow={`CONTRACTS ENDING · ${periodLabel}`} value={ending.length}
+                   sub={<span>up for renewal in this period</span>} />
+          <KpiCard eyebrow="RENEWED (WON)" dotColor="green" value={signedCount}
+                   sub={<span>{ending.length ? Math.round(signedCount / ending.length * 100) : 0}% of the period signed</span>} />
+          <KpiCard eyebrow="FLAGGED AT RISK" dotColor="red" value={riskCount} valueRed={riskCount > 0}
+                   sub={<span>marked Risk = Yes in Teamleader</span>} />
         </div>
 
-        <div className="grid" style={{ gridTemplateColumns: '1.55fr 1fr' }}>
-          <Card title="Customer health" count={`${ACCOUNTS.length} accounts`} total={window.fmtK(totalArr, cur)}>
-            <div className="scroll-y" style={{ maxHeight: 420 }}>
-              <SortableTable columns={cols} rows={ACCOUNTS} initialSort={{ key: 'arr', dir: 'desc' }} />
+        <div className="grid g-1">
+          <Card title={`All contracts ending in ${year}`} count={`${ending.length} contract${ending.length !== 1 ? 's' : ''}`}>
+            <div className="scroll-y" style={{ maxHeight: 560 }}>
+              <SortableTable columns={cols} rows={ending} initialSort={{ key: 'endDate', dir: 'asc' }} />
+              {!ending.length && <div className="empty">No contracts ending in this period</div>}
             </div>
           </Card>
-
-          <Card title="Renewals · next 90 days" total={window.fmtK(renewArr, cur)}>
-            <HBarList rows={renewRows} cur={cur} color="green" emptyText="No renewals in the next 90 days" />
-          </Card>
         </div>
 
+        {/* ---- watchlist + placeholder ---- */}
         <div className="grid g-2">
-          <Card title="Onboarding pipeline" count={`${ONBOARDING.length} in flight`}>
-            <div>
-              {ONBOARDING.map((o, i) => (
-                <div className="hbar-row" key={i}>
-                  <div className="htop">
-                    <span className="nm">{o.name}<small> &nbsp;{o.stage}</small></span>
-                    <span className="vv tnum">{o.pct}%</span>
-                  </div>
-                  <div className="hbar-track"><i style={{ width: o.pct + '%' }} /></div>
+          <Card title="Ending in 6+ months · no renewal status" count={`${noStatus.length} contract${noStatus.length !== 1 ? 's' : ''}`}>
+            <div className="scroll-y" style={{ maxHeight: 360 }}>
+              {noStatus.length ? (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {noStatus.map((c, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--border)' }}>
+                      <span><b style={{ fontWeight: 600 }}>{c.customer}</b><small className="sub" style={{ marginLeft: 9 }}>{c.owner}</small></span>
+                      <span className="tnum" style={{ color: 'var(--text-2)' }}>{isoToEU(c.endDate)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : <div className="empty">Every contract beyond 6 months already has a renewal status</div>}
             </div>
           </Card>
-
-          <Card title="Health distribution">
-            <div style={{ display: 'flex', height: 14, borderRadius: 999, overflow: 'hidden', marginTop: 10, marginBottom: 18 }}>
-              {dist.map(d => counts[d.k] > 0 && (
-                <div key={d.k} style={{ width: (counts[d.k] / ACCOUNTS.length) * 100 + '%', background: d.color }} />
-              ))}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {dist.map(d => (
-                <div key={d.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 14, fontWeight: 550 }}>
-                    <span className="sw" style={{ width: 11, height: 11, borderRadius: 3, background: d.color }} />{d.label}
-                  </span>
-                  <span className="tnum" style={{ fontWeight: 700 }}>{counts[d.k]} <span className="muted" style={{ fontWeight: 600, fontSize: 12.5 }}>account{counts[d.k] !== 1 ? 's' : ''}</span></span>
-                </div>
-              ))}
-            </div>
+          <Card title="More CSM views" headRight={<span className="ribbon">↻ reworking next</span>}>
+            <div className="empty" style={{ padding: '40px 16px' }}>Churn, NRR and renewal-value tables come next — once this table is signed off.</div>
           </Card>
         </div>
       </React.Fragment>

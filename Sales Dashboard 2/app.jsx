@@ -156,6 +156,7 @@
     const [period, setPeriod] = useState(saved.period || 'Q2');
     const [month, setMonth] = useState(saved.month || 'Jun');
     const [rep, setRep] = useState(saved.rep || 'All reps');
+    const [renewalStatus, setRenewalStatus] = useState(saved.renewalStatus || 'All');
     const [theme, setTheme] = useState(saved.theme || 'light');
     const [goalsOn, setGoalsOn] = useState(saved.goalsOn != null ? saved.goalsOn : true);
     const [goalsModal, setGoalsModal] = useState(false);
@@ -167,8 +168,8 @@
     const [dataVersion, setDataVersion] = useState(0);
 
     useEffect(() => {
-      localStorage.setItem(STORE, JSON.stringify({ tab, year, cur, gran, period, month, rep, theme, goalsOn }));
-    }, [tab, year, cur, gran, period, month, rep, theme, goalsOn]);
+      localStorage.setItem(STORE, JSON.stringify({ tab, year, cur, gran, period, month, rep, renewalStatus, theme, goalsOn }));
+    }, [tab, year, cur, gran, period, month, rep, renewalStatus, theme, goalsOn]);
 
     useEffect(() => {
       document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -204,10 +205,10 @@
     // goals: for YTD compare against quarters elapsed so far; otherwise the selected scope
     const goalQuarters = isYTD ? window.ytdQuarters() : quarters;
 
-    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, year, goalsOn, financeReady };
+    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year, goalsOn, financeReady };
 
-    const showDealFilters = tab === 'overview' || tab === 'pipeline';
-    const showRep = showDealFilters;
+    const showPeriod = tab === 'overview' || tab === 'pipeline' || tab === 'csm';
+    const showRep = tab === 'overview' || tab === 'pipeline';
     const showGoals = tab !== 'csm';
 
     const TabComp = {
@@ -254,7 +255,7 @@
             </select>
             <Seg options={[['EUR', '€ EUR'], ['USD', '$ USD']]} value={cur} onChange={setCur} />
 
-            {showDealFilters && (
+            {showPeriod && (
               <React.Fragment>
                 <Seg options={['Quarter', 'Month']} value={gran} onChange={setGran} />
                 {gran === 'Quarter'
@@ -267,6 +268,10 @@
               <select className="select" value={rep} onChange={e => setRep(e.target.value)}>
                 {window.DATA.reps.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
+            )}
+
+            {tab === 'csm' && (
+              <Seg options={['All', 'Open', 'Won', 'Churn']} value={renewalStatus} onChange={setRenewalStatus} />
             )}
 
             {showGoals && (
