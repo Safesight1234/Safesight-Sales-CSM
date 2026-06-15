@@ -1,0 +1,2269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales and numbers — Safesight</title>
+  <style>
+/* ============================================================
+   Safesight — Sales & numbers dashboard
+   Design tokens + base + layout
+   ============================================================ */
+
+:root {
+  /* surfaces */
+  --bg:        #f6f7f6;
+  --surface:   #ffffff;
+  --surface-2: #f5f5f3;   /* soft gray KPI/secondary cards */
+  --surface-3: #eeeeec;   /* segmented control track */
+  --border:    #e7e7e3;
+  --border-2:  #dcdcd7;
+  --hover:     #f3f3f1;
+
+  /* text */
+  --text:    #18191b;
+  --text-2:  #5f6166;
+  --text-3:  #9a9ca1;
+  --label:   #8a8c90;
+
+  /* accents */
+  --green:       #18c77c;
+  --green-ink:   #0e9c60;
+  --green-soft:  #e8f8ef;
+  --blue:        #5b8def;
+  --blue-ink:    #3f6fcf;
+  --blue-soft:   #eaf0fd;
+  --red:         #ef5b4c;
+  --red-ink:     #d8412f;
+  --red-soft:    #fdeceb;
+  --amber:       #f0a93b;
+  --amber-soft:  #fbf0db;
+  --purple:      #a78bf5;
+  --gray-series: #9aa0a8;
+
+  /* shape */
+  --r:    14px;
+  --r-sm: 10px;
+  --r-xs: 8px;
+  --pill: 999px;
+  --shadow: 0 1px 2px rgba(20,22,26,.05), 0 1px 1px rgba(20,22,26,.03);
+  --shadow-pop: 0 8px 28px rgba(20,22,26,.14), 0 2px 6px rgba(20,22,26,.08);
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --maxw: 1640px;
+}
+
+.dark {
+  --bg:        #0d0e10;
+  --surface:   #17191c;
+  --surface-2: #1a1d20;
+  --surface-3: #23262b;
+  --border:    #292c31;
+  --border-2:  #34383e;
+  --hover:     #1f2226;
+
+  --text:    #f1f2f3;
+  --text-2:  #a6abb2;
+  --text-3:  #6c7177;
+  --label:   #7c8188;
+
+  --green-soft:  #10271d;
+  --blue-soft:   #14213a;
+  --red-soft:    #2c1714;
+  --amber-soft:  #2a2010;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 1px rgba(0,0,0,.3);
+  --shadow-pop: 0 10px 34px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.4);
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum" 1, "ss01" 1;
+}
+
+/* subtle page wash */
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 460px at 88% -8%, color-mix(in oklab, var(--green) 9%, transparent), transparent 70%),
+    radial-gradient(820px 460px at 4% 4%, color-mix(in oklab, var(--blue) 6%, transparent), transparent 65%);
+}
+
+.shell {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 30px 40px 80px;
+}
+
+/* ---- typography helpers ---- */
+.h-title { font-size: 23px; font-weight: 800; letter-spacing: -.02em; margin: 0; line-height: 1.05; }
+.h-sub   { font-size: 13px; color: var(--text-2); margin: 3px 0 0; font-weight: 450; }
+.eyebrow { font-size: 11px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--label); white-space: nowrap; }
+.card-title { font-size: 16.5px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
+.muted  { color: var(--text-3); }
+.tnum   { font-variant-numeric: tabular-nums; }
+
+/* ===========================================================
+   Header
+   =========================================================== */
+.topbar { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.topbar .brand { flex: 0 0 auto; }
+.topbar .tabs { margin: 0 0 0 22px; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; margin-left: auto; flex-wrap: wrap; }
+.status-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.status-dot.ok { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+.status-dot.demo { background: var(--red); box-shadow: 0 0 0 3px var(--red-soft); }
+.status-dot.busy { background: var(--text-3); animation: pulse 1.1s infinite; }
+.brandrow { display: flex; align-items: center; gap: 14px; }
+.brand-logo { height: 30px; width: auto; display: block; }
+.dark .brand-logo { filter: brightness(0) invert(1); }
+.brand-div { width: 1px; height: 26px; background: var(--border-2); }
+.brand-name { font-size: 15px; font-weight: 600; letter-spacing: -.01em; color: var(--text-2); white-space: nowrap; }
+
+.tabs {
+  display: inline-flex; gap: 2px;
+  background: var(--surface-3);
+  border-radius: var(--pill);
+  padding: 4px;
+  margin: 2px auto 0;
+}
+.tab {
+  appearance: none; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  color: var(--text-2);
+  background: transparent;
+  padding: 8px 18px; border-radius: var(--pill);
+  transition: background .15s, color .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] {
+  background: var(--green);
+  color: #073d27;
+  box-shadow: 0 1px 2px rgba(14,156,96,.35);
+}
+
+.head-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+/* ===========================================================
+   Buttons / pills / controls
+   =========================================================== */
+.btn {
+  appearance: none; font-family: inherit; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-2);
+  padding: 8px 14px; border-radius: var(--pill);
+  box-shadow: var(--shadow); transition: background .14s, border-color .14s, transform .05s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--hover); }
+.btn:active { transform: translateY(.5px); }
+.btn.icon { padding: 8px; width: 36px; height: 36px; justify-content: center; border-radius: 10px; }
+.btn svg { width: 15px; height: 15px; }
+
+.toolrow { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+.filterrow { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.filterrow .spacer { margin-left: auto; }
+
+.select {
+  appearance: none; font-family: inherit; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border-2);
+  padding: 8px 30px 8px 14px; border-radius: var(--pill);
+  box-shadow: var(--shadow);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8c90' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat; background-position: right 11px center;
+}
+
+/* segmented control */
+.seg { display: inline-flex; background: var(--surface-3); border-radius: var(--pill); padding: 3px; gap: 2px; }
+.seg button {
+  appearance: none; border: 0; cursor: pointer; font-family: inherit;
+  font-size: 13px; font-weight: 600; color: var(--text-2);
+  background: transparent; padding: 6px 13px; border-radius: var(--pill);
+  transition: background .14s, color .14s, box-shadow .14s; white-space: nowrap;
+}
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] {
+  background: var(--green); color: #073d27;
+  box-shadow: 0 1px 2px rgba(14,156,96,.3);
+}
+.seg.plain button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+.data-asof { font-size: 12.5px; color: var(--text-3); font-weight: 500; }
+.data-asof b { color: var(--text-2); font-weight: 650; }
+
+/* sync status chip */
+.sync-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 550; padding: 6px 12px; border-radius: var(--pill);
+}
+.sync-chip.ok    { color: var(--green-ink); background: var(--green-soft); }
+.sync-chip.busy  { color: var(--text-2);    background: var(--surface-3); }
+.sync-chip.demo  { color: var(--text-2);    background: var(--surface-3); }
+.dotpulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 1.1s infinite; }
+@keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:1} }
+.spin { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===========================================================
+   Cards + grid
+   =========================================================== */
+.intro { font-size: 13.5px; color: var(--text-2); margin: 18px 0 4px; max-width: 1100px; line-height: 1.5; }
+.intro b { color: var(--text); font-weight: 650; }
+
+.grid { display: grid; gap: 18px; margin-top: 20px; }
+.g-4 { grid-template-columns: repeat(4, 1fr); }
+.g-3 { grid-template-columns: repeat(3, 1fr); }
+.g-2 { grid-template-columns: repeat(2, 1fr); }
+.g-1 { grid-template-columns: 1fr; }
+@media (max-width: 1080px) { .g-4 { grid-template-columns: repeat(2,1fr); } .g-3,.g-2 { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+}
+.card.soft { background: var(--surface-2); }
+.card.pad-lg { padding: 22px 24px; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.card-head .count { font-size: 13px; color: var(--text-3); font-weight: 550; }
+.card-head .total { font-size: 16px; font-weight: 750; letter-spacing: -.01em; }
+
+/* ===========================================================
+   KPI cards
+   =========================================================== */
+.kpi { position: relative; min-height: 152px; display: flex; flex-direction: column; }
+.kpi .eyebrow { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.kpi .corner { position: absolute; top: 18px; right: 20px; font-size: 13px; font-weight: 650; color: var(--text-3); }
+.kpi .big { font-size: 44px; font-weight: 800; letter-spacing: -.03em; line-height: 1; margin: 14px 0 0; }
+.kpi .big.red { color: var(--red); }
+.kpi .sub { font-size: 12.5px; color: var(--text-2); margin-top: auto; }
+.kpi .sub .lead { color: var(--text); font-weight: 650; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.dot.green { background: var(--green); }
+.dot.blue  { background: var(--blue); }
+.dot.red   { background: var(--red); }
+.dot.amber { background: var(--amber); }
+
+/* progress bar */
+.bar { height: 7px; border-radius: var(--pill); background: var(--surface-3); overflow: hidden; margin: 14px 0 10px; }
+.bar > i { display: block; height: 100%; border-radius: var(--pill); background: var(--green); transition: width .5s cubic-bezier(.2,.7,.2,1); }
+.bar.blue > i { background: var(--blue); }
+.kpi-foot { display: flex; align-items: baseline; justify-content: space-between; font-size: 12.5px; }
+.kpi-foot .pct { font-weight: 700; }
+.kpi-foot .goal { color: var(--text-3); }
+.kpi-foot .goal b { color: var(--text-2); }
+
+.shimmer {
+  display: inline-block; border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--hover) 37%, var(--surface-3) 63%);
+  background-size: 400% 100%; animation: sh 1.3s ease infinite;
+}
+@keyframes sh { 0%{background-position:100% 0} 100%{background-position:0 0} }
+
+/* ===========================================================
+   Lists (won/open deals)
+   =========================================================== */
+.list { display: flex; flex-direction: column; }
+.list-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.list-row:last-child { border-bottom: 0; }
+.list-row .rank { width: 16px; font-size: 13px; color: var(--text-3); font-weight: 600; flex: 0 0 auto; }
+.list-row .name { font-size: 14px; font-weight: 550; flex: 1 1 auto; min-width: 0; }
+.list-row .name small { display: block; color: var(--text-3); font-weight: 500; font-size: 12px; margin-top: 1px; }
+.list-row .val { font-size: 14px; font-weight: 700; flex: 0 0 auto; }
+.list-row .type { font-size: 13px; font-weight: 600; flex: 0 0 auto; }
+.type.nl { color: var(--green-ink); }
+.type.up { color: var(--blue-ink); }
+
+/* underline-progress deal row */
+.uline { position: relative; }
+.uline::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px;
+  background: var(--border);
+}
+.uline > i {
+  position: absolute; left: 0; bottom: 0; height: 2px; border-radius: 2px; z-index: 1;
+  background: var(--green);
+}
+.uline.up > i { background: var(--blue); }
+
+/* horizontal value bar (open deals / leaderboard) */
+.hbar-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.hbar-row.clickable { cursor: pointer; transition: background .12s; border-radius: 8px; }
+.hbar-row.clickable:hover { background: var(--hover); }
+.hbar-row.clickable:hover .htop .nm { color: var(--blue-ink); }
+.hbar-row:last-child { border-bottom: 0; }
+.hbar-row .htop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.hbar-row .htop .nm { font-size: 14px; font-weight: 550; }
+.hbar-row .htop .nm small { color: var(--text-3); font-weight: 500; font-size: 12px; }
+.hbar-row .htop .vv { font-size: 14px; font-weight: 700; }
+.hbar-row .htop .vv span { color: var(--text-3); font-weight: 600; font-size: 12.5px; margin-left: 6px; }
+.hbar-track { height: 8px; border-radius: var(--pill); background: var(--surface-3); margin-top: 9px; overflow: hidden; }
+.hbar-track > i { display: block; height: 100%; border-radius: var(--pill); background: var(--green); transition: width .5s cubic-bezier(.2,.7,.2,1); }
+.hbar-track.blue > i { background: var(--blue); }
+
+.empty { text-align: center; color: var(--text-3); font-size: 13.5px; padding: 40px 0; }
+
+/* scroll area inside cards */
+.scroll-y { overflow-y: auto; padding-right: 10px; }
+.scroll-y::-webkit-scrollbar { width: 9px; }
+.scroll-y::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+
+/* ===========================================================
+   Tables
+   =========================================================== */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tbl thead th {
+  text-align: left; font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--label); padding: 0 14px 10px 0; white-space: nowrap; cursor: default; user-select: none;
+}
+.tbl thead th.sortable { cursor: pointer; }
+.tbl thead th.sortable:hover { color: var(--text-2); }
+.tbl thead th .arr { opacity: .4; font-size: 9px; margin-left: 4px; }
+.tbl thead th[aria-sort] .arr { opacity: 1; color: var(--green-ink); }
+.tbl thead th.num, .tbl td.num { text-align: right; padding-right: 0; }
+.tbl tbody td { padding: 12px 14px 12px 0; border-top: 1px solid var(--border); vertical-align: middle; }
+.tbl tbody tr:hover td { background: var(--hover); }
+.tbl tbody td.num { font-weight: 650; font-variant-numeric: tabular-nums; }
+.tbl td .co { font-weight: 600; }
+.tbl td .sub { color: var(--text-3); font-size: 12px; }
+.tbl tfoot td { padding: 13px 14px 13px 0; font-weight: 750; border-top: 2px solid var(--border-2); }
+.tbl tfoot tr { background: var(--surface-2); }
+
+.tag { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 650; padding: 3px 9px; border-radius: var(--pill); white-space: nowrap; }
+.tag.nl { color: var(--green-ink); background: var(--green-soft); }
+.tag.up { color: var(--blue-ink); background: var(--blue-soft); }
+.tag.healthy { color: var(--green-ink); background: var(--green-soft); }
+.tag.watch { color: var(--amber); background: var(--amber-soft); }
+.tag.risk  { color: var(--red-ink); background: var(--red-soft); }
+
+/* highlighted historical column */
+.tbl td.hot, .tbl th.hot { background: var(--green-soft); }
+.tbl td.hot { font-weight: 750; }
+
+/* ===========================================================
+   Charts
+   =========================================================== */
+.chart-wrap { position: relative; width: 100%; }
+.chart-wrap svg { display: block; width: 100%; height: auto; overflow: visible; }
+.legend { display: flex; gap: 18px; align-items: center; }
+.legend .li { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); font-weight: 550; }
+.legend .li .sw { width: 11px; height: 11px; border-radius: 3px; }
+.legend .li.dash .sw { width: 16px; height: 0; border-top: 2px dashed var(--text-3); border-radius: 0; }
+
+.tip {
+  position: absolute; pointer-events: none; z-index: 20;
+  background: var(--text); color: var(--bg);
+  border-radius: 9px; padding: 9px 11px; font-size: 12px; font-weight: 500;
+  box-shadow: var(--shadow-pop); transform: translate(-50%, -112%); white-space: nowrap;
+  transition: opacity .1s; line-height: 1.5;
+}
+.dark .tip { background: #f1f2f3; color: #17191c; }
+.tip .tt-title { font-weight: 700; margin-bottom: 3px; }
+.tip .tt-row { display: flex; align-items: center; gap: 7px; justify-content: space-between; gap: 16px; }
+.tip .tt-row .k { display: inline-flex; align-items: center; gap: 6px; }
+.tip .tt-row .k i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.tip .tt-row .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.gridline { stroke: var(--border); stroke-width: 1; }
+.axis-label { fill: var(--text-3); font-size: 11px; font-weight: 500; }
+.goal-line { stroke: var(--text-3); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.goal-tag { fill: var(--text-3); font-size: 11px; font-weight: 600; }
+
+/* CSM proposal ribbon */
+.ribbon {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600;
+  color: var(--blue-ink); background: var(--blue-soft); padding: 5px 12px; border-radius: var(--pill);
+}
+
+.section-gap { height: 4px; }
+
+/* ============================================================
+   Login gate
+   ============================================================ */
+html.locked, html.locked body { overflow: hidden; }
+/* [hidden] must win over the .login-screen/.* display rules below
+   (equal specificity → author display:flex would otherwise override the
+   browser's [hidden]{display:none}, leaving the overlay stuck on screen). */
+.login-screen[hidden], #root[hidden] { display: none !important; }
+.login-screen {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(120% 90% at 50% -10%, var(--surface-2) 0%, var(--bg) 60%);
+}
+.login-card {
+  width: 100%; max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-pop);
+  padding: 40px 36px 34px;
+  text-align: center;
+}
+.login-logo { height: 40px; width: auto; display: block; margin: 0 auto 26px; }
+.dark .login-logo { filter: brightness(0) invert(1); }
+.login-title { font-size: 21px; font-weight: 700; letter-spacing: -.02em; color: var(--text); margin: 0 0 6px; }
+.login-sub { font-size: 14px; color: var(--text-2); margin: 0 0 26px; }
+.login-form { display: flex; flex-direction: column; gap: 12px; }
+.login-field { position: relative; }
+.login-field input {
+  width: 100%; box-sizing: border-box;
+  font-family: inherit; font-size: 15px; color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-sm);
+  padding: 13px 44px 13px 15px;
+  transition: border-color .14s, box-shadow .14s, background .14s;
+}
+.login-field input::placeholder { color: var(--text-3); }
+.login-field input:focus {
+  outline: none; background: var(--surface);
+  border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft);
+}
+.login-eye {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0;
+  background: none; border: none; cursor: pointer; color: var(--text-3);
+  border-radius: var(--r-xs);
+}
+.login-eye:hover { color: var(--text-2); background: var(--hover); }
+.login-eye svg { width: 18px; height: 18px; }
+.login-eye.on { color: var(--green-ink); }
+.login-error { font-size: 13px; font-weight: 500; color: var(--red-ink); text-align: left; margin: -2px 2px 0; }
+.login-btn {
+  appearance: none; font-family: inherit; cursor: pointer;
+  font-size: 15px; font-weight: 600; color: #06351f;
+  background: var(--green); border: 1px solid var(--green);
+  padding: 13px 16px; border-radius: var(--r-sm);
+  margin-top: 4px; transition: filter .14s, transform .05s;
+}
+.login-btn:hover { filter: brightness(1.04); }
+.login-btn:active { transform: translateY(1px); }
+@keyframes login-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+.login-card.shake { animation: login-shake .42s cubic-bezier(.36,.07,.19,.97) both; }
+
+</style>
+</head>
+<body>
+  <!-- ===== Login gate ===== -->
+  <div id="login" class="login-screen" hidden>
+    <div class="login-card">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAaEAAAB5CAYAAACQsp40AAAQAElEQVR4AeydCXwUtffAs7stLUcpRQptEUSw5VCRSxEUUYqggBe0KqeA/1JFEUEURX7cgqCggIKlWpD7KKCAKEjxAAEPFC+OoogotAJylaPQ65/vwNTtdne7M7vdbmH48DozycvLy0vyXvKSTczC+GdIwJCAIQFDAoYESkgChhEqIcEb2RoSMCRgSMCQgBCGETJawZUnAaPEhgQMCfiMBAwj5DNVYTBiSMCQgCGBK08ChhG6gup8//6/2+zatavfV9u+mbVi1dqDC5cuz5uRODtv6oxZ+cD32nUbvvt+x0+jU3//vUteXp7lChKRUVRDAperBHy2XIYR8tmqcZ+xw4cPR37yacqWYaNeyevSo29el8f+L+WeR/omdOs3MG7IyPERo1+bJqbOmiNmzF6QD3w//eKopp26x43o3KNf8j2du2VjrNznxqBgSKB0SICBV9K8hXlagQEcA7zSUUrf4dIwQr5TFx7jhBkPhufe2F6p8c8Nb7Fy7afit/1/iZzcXFElJFiBkIoVRIVyZe0CceFVQkRAGX+xV6Y7cvRfj/FmEDIk4OsSOHLkSO1xU2aIidMSNMHw16YL6UKI8/Xy+Rp/hhHytRpxkx/cbMx4ln+0Pt/olCsbKPwsFmExmzVT9/ezCH9/f83pSGCAIYHSKoGg8vYHaI4GboSHBgcZfUVHhWvXSjoyMZJ4RwITJk/LGzR8bAQzHjqFxex+9WZl54jAwADvFMDIxWMSwKX0+aYtS3GlAqzz4Z71WAYGIUMCHpKA+1rKQ4wYZNyTAAbonfcXKa42i9mz1RoYYBgh92rHe6mloQmjLdRp0ir7saeeix0+4Q3B2h/rfI3uui/1yWdfyGPTifc4utJyMsqrVQKe1VZaczfwPSIBXHCqAfIIQRsilYKDt9sEGZ8+KAF2Pt7avnPanMXLBet6rP/xZFbMk3W+zd9sF2w6YdHdB4tgsHQFSsAwQqW80uXIN/LlcZMiQoKDiq0kZrPpQrERNwh7RAJsp7/tge4JFSuUUzabOCJaRq7vYYyGvzpVsJvLEZ4RbkjAWxIwjJC3JF1M+bw3b3Fqbl6erk0HrrCUk5MjgoKCfnEF18ApGQmw/tO171PJNape5XI7wBCNe/MdYWwpLpk6M3L9TwKGEfpPFqXuDeUzd8kKUbYYNw5k5eRK+oFppU44VxDDckaTffzUaWUHpJZih4ZUFMPHTTK2FGsRmoHrcQkYRsjjIvUewXUbNm46n5Xt8uhXL2cVgsr/pDetka54JcBAZNXHnwq2FGvNiW37+w4cFKwlaU1b4vgGA5eNBAwjVIqr8suvtrUI8PdzuwRs6T5/IUsAZ89lKs9s6YZTCVcKCjKMkCoMH3v++efB1j+n7tM8C1KLYbFYxA8/70xQv42nIQFvS8AwQt6WuAfzS/lyiwgIKKObIkYHN05IcEXR5MYGokP0HaLXI53F/e3biOtq1RDEHUr/V4SGhu7TnYmRsFglcDD90KP+Fv3dmEHMXwcPFSuPBnFDAs4koL/1OqN6Wcb5VqFww6QfPabbFYeBwfDMmzklcePqZX5zZ003TRo30vTSc8+Yxo962bR8fpJp27oVUTNefVmYTKYc3yq9wY0nJZCbm+dJcgatUigB9Mnhw4fD9IC7xTWMkLsSLKH0u3fvfhxXip7sMUBxPR4WGJ7bbr2lnyMjU7Vq1b394/qY9ORhpPGOBEJDr1rH5hG9ubGmWK1qFb3JjXSXiQRenTI9+5G+/dN6xg90GcDv3f+5NGm4It0Rg2GE3JFeCab95+jxtnqyZ63nmuphghmPnvRGGt+SQGTt2h/UrhGunBOohzO24De68YYxjtIa4VeGBDIyMsShf46I9CNHXYZjJ06KU6cz3BaQYYTcFmHJEDh79mxtPTlnnr8gHuzQTk9SI40PSoBZbMe724hzmec1c8eAhFMVmjRqOFJzYiPBZScBfz8/ZYMLuyZdAdn2PCIDwwh5RIzeJ3Li5MmmenLFCN104w3L9KQ10vimBB7v+WgUnLHLkaercOLUaTF22BDjSCZXBWbgFYsEfM8IFUsxL0+i/n4WzQVj/aBWjZrvaE5oJPBZCVSVa3cJUyYsO/DPUZd5ZF2we+dOokP7ts1cTmQgGhIoBgkYRqgYhOoNkpnntbtf4CszK0uUK1dmJ+8GXD4SuLNVy4dXvPfWsj/SDgt+6+WoZLjg0o4eF2xMYRekIzwj3JCAtyRgGCFvSdqH8pEj53QfYsdgRQiPyABDtHvzJ+H3tbtL7P07Xfmd1+mz5wTAzAcDVbvm1WLNgsQxxsYUj4jcIOIBCRhGyANCNEgYEvAVCTDA4PdeJ3/7wW/GpNFbRz7/jABeHz3s0PfrV0WvXDjbZGxE8JXaMvhAAoYRQgoGGBK4zCRgMply7rk7umW3h7uYgM73d6heq9bVGy+zYhrFKc0SuMS7YYQuCcJ4GBIwJGBIwJCA9yVgGCHvy9zI0ZCAIQFDAoYELknAMEKXBGE8rgQJGGU0JGBIwNckYBghBzVidaBfJGcjSVAO9yPcQRIj2IMSQM6AB0kapEpIAvSd/fv/bsO9Rdzk+vmmLUsBvgknvoRYK9Fsad+y7JHIAOD9EoQRV6LMeTFzjxghKbgwGtSKVWsPvj0rKW/YqFfynnz2hbxe/QYozxeGj1bCJkyeljd1xqw88BC6rwha8h9Jp4A3eIfvjrG9lAP97nu0T+q9sb1SO/fqpxzs17l732ziKdPEN6bnrV234TvK4sk6c0UumTqOaYHHQH9/IcsbxntR4AofRdFwFg8fKCVV7k8NflFpM1169M1DzkCP/+uvtCHqBXlTT6RzRtebcciI+qcdzEicrbRz67ZPmeCdtg//C5cuz0v9/fcuvlSG4pAX9UqZqT/Zh9JaduySEh3TO6Fbv4Fxjz31XCzAN+EchImMSIM8i4MfX6Ep6z0yad5CpU3Tvlt3eji1Sbv7U5DDre07p0Y/2DUVecT0fDwbHbNC6lTSuMO/r6fVbYQQjCrMdl16pNGghowcHzEt8X2xat1Gsfmb7eKHX3Yqz483filWrv1UzF2yQsyYvUCAh9Bb3ftQNh12qjRM3+/4abQ3hUWDnyiNCAqPyqdTwBu8f//zTnEwPV0cP3lKnM/KUg6HPH3mrHKw374Dfwvi16Z8KeYsWi6efnFUU8oCHZQQcnGnHMjhns7dsh/q1ifPGSz78CNRNjBAc1ahIRVF/LND05zRVuPa3BebrTmDIhIwWEFO1HubB7qmoZSQO+3ji63fKrL9bf9fAjkDP+/eq7Qh6gV5U0+0N7WDloTSknUchnKAB9owSoR2MHXWHKWdb/r6v7b/5bZvlf5A24f/4RPeEHfe3y1ZDmzSGMygqDGs7pQDmULrKWnEtQBp6AdFVJmmaOTSIaZnXuzjA+IoM/VHHwqvEiIAzqpTgW+AgzCpf9pCszvvzUYm++XMyVHG5EH70VJW6soRPW+E06/ht1XH2NRxU2YI2gjtu1zZQHFteFVFNiEVK4gycpCI3qEPoGPQlbKfpGKkqWetvNKuqGfydgZbv/tB+Gk8gcViNotz5zLFyPGvpzqjbRtnWxeajRDCpAHc3PaB1InTEhQFgWBoTAixQrmyIqCMvyJMBKoCwgaIBw98FDuVgRLq1D1uxO33PJiXNG9hsV1uQiVieG66/e48GjxKgcqGHzoGvME7wAF+FrNZua/HYr74JAwgHqA8pKUs0EEJYdBoMCgq5KIVzmVmhu/+fX++Eqah2gMaqsWsufqUAwrt0bMXtn3Xb1rZt4uPLKhXlBODFeTEIAUZqnJHlnwDyNgaaEOEgwM+magdtFGrdtlT5SCGPAgvTkAxoiClIklDOcADbRglQjug/cAjvMKzCnwTDoBHe+GcNwYzKGoMa+M72ivKV5YjUmsZjp3MaLbm868ERlwLbPjqG5GRkXGD1vzs4WPMqN9Bw8dGMICjjJSXerSYnbdTcMClbpELMmFgh6ylPMJs80v/55+ItRs3uVzejZu3iW93/CxQyLa0ivtb8h+JEUC/UTe0EdoAbYJy28vfYjYr/RQcFRcjfc8jfROQiZZyHDlyJPSDlKJlpVefCPkPHU7ZXAHqYos0eDJZ/n/nrSMfTSguHCxa24d7jyBTGgwCpaNZzC6TsaIoFAWPoKFDo804fUYwSmja+p48RocFkN34wPhgOG97oHsChsdkMgn4p+E7aghas4MO5aDRLP9ovUBRffJpyhatdMDnniDoOQOLWZ/Moe+MrnVcBR0zLegLqz8Yn7s7d0+jXlXlhJxoN1Zoml4tZrMy0EHWJpNJTE2cK5gdMULWREgDMoau9f2xKShI+Cdv2q7FrK8eLOaLZaAN0hZhZc7i5bSbVGTGtxYIknUFP1ogUA4WteThCJdBFzMf6pey0IYc4RYVbjGbBTJBHyAP2g4GzjZdYEAZpQ24Ut4yspzutDfbvF39ZsDOYJ3BBuWBV1fT2uIhE2SLTDrKpQKMmy2Oo28/y8W2Rv6OwGLW147J0xFNu+Gy3jitm3QquJQzwpQj/DSsGKM+iKsEPPn0s1gEnZvRUOfHn461nbZpzYsRAzQwPhhOeKcyLWaXiq01u3x8lBSusm5PPd+CDpofcQW90GaY2WJ8TCaTUq/Ur6dFYDGbFdrQffql0RGeljedvf1DXfMwdCgB2g95eRosZrOg3QCjX5sucIky8/J0Pp6kB3/UMYMulKyn6xdZmEwmcV+vJ+KYAXiS9+KmRfu/s0uvESHBQYqx9FR+yOTAwUMCFx1t01N0S5JOkdqY0TzCrFihnDJC8QazFrNZ8ZN+KNeWUAB6hA3fN7Zsm716/WcKreIynI7kYTFfLMPiDz8WTMcd4V2O4cwamDEzs2VQYTEX2czcFoPFbBYoQk/Kmw0EdPZD/xzON3RuM+oCAYzd3j8OCFxSKDMXkngdBe8C/FHHKMbiYsBivtiP3nl/kcATU1z5eIBuPgkGv7T/yKvDFG9PfoSHXtBlFjm7kbP/VA+RLFEyTrUDLrG+zw5rUVzCLKrkNO5vf90jZi9YoknYKEH4ZqGtuEauRfGuxqOEv/7hJ8GMTA27nJ/MRJg1MOv09MjYFbmp8nbX8O+XC+Ode/RLprOXhCsHRRNULlA8N3zMCFfK7U0cjDPehaqVg5W1C2/kjWH++LPNgjXdQOl6NMsZkjfy1ZKHytPLo8dnV6tUUUtSzbj0rXOZ50VpmyHaK6hDI0QnHPjSyFgamr2E3gjjyPmhT/YRQwcNMLmaH5Uy8e33lFGxxeyweK6S8wgexnTJqk8E23M9QtBHiWCAmIlgCEqSReTtruGPH/R8CnqOzl4SZeHk65tvul58tibZ5bbvDT6lVyLsnpjHkmtWq1Iso3xnZaBdLVy+SiQtWOo1r4wzfmzjWHv6+dddym5Ibwx+aeevJcwR6GpbXkrTt0MtPfHNaSkXLmR5vaGpwlMM0FOPazJApOWWyUb1o8R5yTvfeiEnxumqEQAAEABJREFUN1dw9wrAu146ajp8w1PfSWKDh+bdTyoN26cvfWP8F6xY41W3lbPy00Hnr1yry/Azk967/y9lh6ezPIorjmsXmjduKOa/O8OnDBDlHf3qlLQAf78S0wsMCtgWDC++BvDGzi9msd7ijRnXrDnvp3grv+LIx64Rwg237ostJTbawAANf/YJMbB/P82dsGrVqnvnzJgcVbN6hCZDhLHhMrCjx08q97AE+PuLsNAqCgT4+wt4YnQKnp6KsJjN4kTGac2uRT15eTvNilVrD05PWqDsONSbN4MG5IsC5glQH3rlDR+sEfG7HDl6d9nwg4s7kVE3NLwNlPveu24Xc2dN19z2i5tX1llXrvusxPRCcZfPE/QxRJ6g4yoNZlx4H1iHcjWNr+HZNUJJ8xbFlpN+V73M0pFQIMwgVFCV+IWsLKdkwRv34kDRP66P7k6IIZrx+oRoVwwRSg7Dg8Hp9UhnsXDW1MRt61ZErV48O/yTFQv9AN5TkufE9+/TXTFKlM9pIRxElpUyXb0uhdlQmAOUUhfM+sBLYydG6HXb0k4wQK2aNxUD+/UW3HvD/Te8Ux9cwoZhop70CCdAjtpfnzbT5TXFRckfpOq5Nl3ljfLQPtR2zxP+Acqp4tl7gvNA+zbi7SmvmuzFl2QYSm7c5Okt+LFzSfIhhJG7rQRycnLEx+tTvrYNLy3fhYwQ/sUfd+7Wta0QRUFHQ4F8sWZp1Prl8/MBJT70mXjR+IYGyk2P9owRxgAD1LdnN7c7IXenYIiqh1UV9vKiguj0KLmZr43djrHhtsnbbr2lH0ZMQrrJZMoBeK9fv/4sZmbgUQ6UDQoGOq6CxWwWh/45Kr774ac1ztLQqJClM3CWvqg4Z3St4zKLGDCQz5gJk5PZ928xF2pKRDsE8kFZP9ThbrFi/qyYmW9OMjHw4N4b7r/hnfpYsSDJL2napGUMEpC5Q4IOIhgp4pZjN5cDlALB785fouskCogcP3VaUJ51yxZEW7f9jSsXR2NcO0TfoczO7ZWDtI8+cK/gQjpo+RrMnr8om7br6ZE+7QDQ2pd8TT6u8EMZKasKfLuSrigcJgybt37d1BkeeTkDZ2mLilPL49IzO6cQuUKaY+ee3ZNOyM5UCLOIAAoYVKG8mDvzjTEoEKm491oDShzjgpthUeL0MTc1qKsYI5UsnXDk8wMEOGqYu08MUcIbr0VXqRxSwBAhLPIb0v9xwU2THdq3bYaxcSU/8OBx5uTxy+ToUDnSx5V0Kg4N5qN1Gxw2mLKBgWm1a1YXGEdnULZsoEpS05OyO6NrHdegdk2ntJPmLczb9M0PmgcsDFQwKrSD8aNeNkXVqbPcUUbIm2urMf53trylQJtxlMY2vHLFCtINujTBNtz2m1ndwaPHda13YFDfenXUdspDu7Nu+3xjXDEwGNw2t9+quHzV/GmLGCDSqmG+9JQuyrCE2QsEP9PwBF/UP2VGZ1QPC1Paekjwxd1khBNPnCfy8gUaDDooV4Xy5ZSyqn2Mb8Lpk+7wyYaIHb/sdkgiNDhIkJcz0Du4IJ1aHleeeKeYGFgzW8gI/fjLzqblpNvIGsmV91Onz4phg57e3qRRw5FF4YPDomuXju2UzkhFjHtpkEcNkMoDCiBh6sSYcoGByiiUCpeKTcybOSURY6niOXnajUIxThz54la2SdpFcBDIlt/f/vjT4REiyIYdURhHZ3DHrTcr5XGQjcPgI8dPiYQ3J4Y7o63Gbf7kA4czUlUxseHCYWZ2IpiVRl5bU2BUKKsdFLtBss5ymC21ua25oFPbRXIQyELxklWf4AaNdICiBO/bt/+5SlJRKB8a/sBP70e7CAYzRSXD4OJuYwCE4aLt+7IBojwbPt+UdkSulVrMhdQF0S4DxoUy43pldrt0zsyYj5bN9aO9LUmaEb78/Xej6ZetW9wsAvz9dQ04XGbGC4joGsqLW/mjhYnxK+bOiqKsKvA9Y9LordfVquFWWTEEO3al2tUpcjCUzsycvJxAeGs5wKN+tIiF8kVIT5NaHleea5PnmdD91vkUalUH/vpbWCwWa5wi3xm1hIYEi2aNG3YtEtkKgZFfXI+HBQYIF4xVlEdf6fjzEqfFmC6pVFwluN3czeSeu6NbYkjPnst0mRQN5mD6YbF79+7HXU7kABG3nYMoh8G42GiYDhFcjEj+8CPNiklptNWqClxsJunqdDGrAmgYoqsqV1J2LhaIKOKDY17WrNvgdG3o2PETLfSsB53NPC/uuO3WxCJYKBDNAIi1L183QDC9dn2KCCpfllfdgDJm8MHslzpkEEe/VNsBbZIBI/0SIy3XYaP6dotRBlq0G90Zl1BCeM7JyRWUF7cyniBZxr3W7PCNDlk+P8mEHkFG1vFa3x3pFORKXk4g3c/PT2t2Cr7ZfEmpKl/6/hQyQmfOntNHSWcqKqg4DZDKFg1++bxZMYsTp8VTGWq4u89+vR+LPp+l7bDpjDNnxT9Hj7d1N++SSi/dkJY16zZqVkyZ5y+IEUMHJaqKRy//zLihpSU961afb9rqNEnm+fNO451F4kZ1Fm8vjnY/Xroj7cWVeNglBlhL27h1u1s/SmWtF4PCSLmJC54SsqaP8vvAFXK9EDe/1lE6NEoKGJRnnDkn4N3V8tIOGkTW1jy4UssYWMZf/HHgYD/1uzQ9Cxmh3NzCC0dFFchiNgum63v37X++KNySjMcQMSLxJA+MMtq3bqmM2Fyly6j81127Y13F9zW8LV9/O5PpP7M6V3nLzskR/PiSka6raRzh4faqFFRB03ocLrnN3/6AS87hzkTddzQFlBHbvt3ucycbOJKflvD1n21K4OQGLWmscTFArPViUKzDXX2nz0o3UjjrCKXFELE0gZsN3l0tJ3hvjB8b/dfhf3nVDP5+FpF++LDDtWbNBL2YoJARCqpQQVf2FSuUE88MHRG3YtXag7oIlOJENWtcLbS4xhiV/3ngr1Jb4o8++TQuWKN7hpFht9jO2z1V6GaNbhTZdnbaOKNPHe3c89s0RziVgiuKLI00ocUPYydOnyW4J4lZImGXC3z7/Q7BoElPeXAv9e/Tze21XjkrSp+XMDW8klxgZzCjhxdvpYG/SLnGg5tNa54MaP/v4Qc0DWit88jIOG39WWreCxmhkErBmhSqWlKL2ayMTLlnpe7NrfP4Bb22wxdVSr7zZPF9//6/2+CS4Dh5fqy3dt2G73gCvBN+/PhxTetoFotZ/L7/T98pqEZO9vz2u2BHjpZkDFIa1K33gpY0znCjrqutuZ2iTHfu3uNwBlopOFi3keRsM+5JqnVTy+ynBr+Y9/mmLUtLu0GS7T/yx517dLniLmRliRvq1tF84omjOscQjXv5hWV6du46olkc4Qy24vv0PKSX9gOd7k1kjVFrerPJpHnDjtY8igu/kBG6oUE9cV7jGofKnMVsVo5tYWTIvStd4waMuOn2u/N6/F//PM5Nwyih1FX8kn6iJOCJ2RvnnsHnXZ1i8pq36ZjXqFW7PO4y6dT1sZTOjz2Z0HfA83H9XxjZghs0eQK893xycNy6zzcL3D1aynNa+oy14PsKLvW35/c/NSumCuXLid1794xD3u4CgwI2g1g0bqBhBvr3Qcf64dqa1WdlunHcE+0eY8TlXn2feSGWU9y56G3qjFl5DFbYAu4r9egKH7jXcS25gmuLwyx13MvPx9uGu/PNZoYObVoV+LmFO/SKI235sgHihuvrPqOXdmTtWq8F+GvfJEBfYDCsN9+STFfICDW+sUG8JxjiR4J0SpPJJHb8ukeMfm2awCh1eez/Uh7q1ieP03DpmCg1T+TnKg0UAQaR67i5mrl7v2dGMHvj5kL4PHbipDTCF091YM0D46KWhaNc7AF4ruYPnslk8umOBI+O4NiJY62P6fgdGed9DRkxvgVtwF1gULB45WrNhp8y/X0onYddYL3QX85S7UZqCKTN0E54HkxPV660Z7AS+9gTyQxyGPAwk6YtaiDrddQ9e3+LQ7lpzZi1m5uluxR5ak1bFP4z8X3iz5zTv4GkKPruxLMhgZ+CaF0Lss5Tzvj24mWAlnW4K+/e3lTmCk+u4BQyQjScm+pHCnybrhAoCsdiNivKAoMEINx9B/4WcxYtF3TMR/rGp3DsPrMRZiZF0dMTL90KYarh6dKzX/LwCW+I3/b/JU6fOaucg4XCwNCgNDAoFrNZWMyFRKMna4dpsrKzWSSPdIjgoxG7U/eOYCeOHvaQL23AXaCuqCetPFikgTl67ITd31OotLp37uRRtwZ8Ul7aGO8MchjwMJN+uPeTyQzIkuYtzJNt1Ofawj+Hjwo9o3LcSQ92utfxlFMVto5n/fr1ZzW+Pspj+kkHCw6TSP0lKsl1RYcILkYElinjIuZ/aHJcK3Jzc/8LKEVvdjVtz0djD+HbLI5yWMxmQWdEkdAxz0vf8Q+/7BTMRtrcF5uNsRAe/EcH79yrX5pqeLgbhnzhwWK2W3wP5u6YVJYbbh/HVIs/5i/pztKjmIqfs6JzMJlM4t9jx8SRI0dCHWH37vlozMlidJXS7tS2bzGbBQMybp+979E+qVOl2+7w4cNhjnjzdjjuHYtGlyc8BpUv65ZLChrOoO51dQQn/DvDKYm4nJxcEXpVSElkLQdWQpSemVBBEdnVwhwxcvvNjT06IiyY7X9fFrNZOTIfw8Ao8aVxrwtcZfj9/8PS/oab78lnX8gb/dp0kXH6jLJWhQLQTql4UmTn5IizZy/UKB7qxUc1Nzev+IgXM2WL2ay6WoMcZYUrZUDf7m79gt0RbXvhtEnaPoOxGbMXiEf69k/DVWcP19thepQano7KlYJFpaCgr4qL3+vqXCty83yzHQZXvHj8UHGV/XKka9cIUdAxw4ZGV6xQXlyQMxW+vQF0yCohwSJ135/iwV5PJOidFbHW1OOJp1M+3/KNcr0AdL3Bv6t5WMwXxX4h53zJDJtcZdQOnt7RsR1SJRJ0/vyFIvPlB9T8cJDND0UiewjBYjYL3HYMxOKfG96C3aUeIq2bTK5078jJo6b0uKTwNoSGhh7RlFADcqXgSoeydGyl15CFbtTy5dw7WUJ3xqU44UVtaKcA7Fmf8/br8cEVg4Q3OyOs0Ii59uDp4a8IrYaInVfxg16KY/aD2wN6vgiMGH2Rr8uUp/xinXdx52fCmxPDG0TV9tqMSGWQARMDscT5SwVbvdXwkniapWH0xQlHZua5CH6cWRIycZYnv0PTe/yNM7qXe5xDI0TBWQRcMXdWFKcXc9CiNxWnxWwW14ZXFUNGTxLMbOCnKJD+9MgnB780wmIxK+tOwkP/KLc14Erjh3gq8O2hrHyeTEhIiObf5/h8oewwWLVq1fTl85NMHExK2/d2HeOiW7PhC/H2rKQS9TtpnQmZTCZx5tw51t1q2xGrR4KOHP3XI3Q8TcSiY/3M0zyURnpOjRAFkp1x78w3J5m4D4W9/97ukKEhFcXQUePj5DTfAj/OYMjwsX7B+RAAABAASURBVKmn5PoPo0lneM7iUDaqcWGrKd8Ws1nZLWcxXxRX7ZpXKxewcW8Sdwvd1KCe5t06FvNFWs548cU4s9nki2wVG0+45jjZmasnaPu0iWLLzIYwM6KXJk4TJbWVGy+I1pmQxWwWR/49Lv4+lN7Dpjge+0z9bZ/gN18eI3i5Eiol5XJZE7JZ4ZetKSZOvOZAQc6EQlmjpIuzrBgULtOa+e6cbGf58At1zgbT64I7ey5TpB09LlA2GJek6a8lrln0fvSOTev9tn/xiUkF+W3iIEZOQQa4W+jWm5sIrQdqMrNyVh5fjQutcpXuRWEUOHIuSThx5qxm0XLe3bqVi0ycB1a3zjVKO8EgFXfbh9Frql0lxk18M5l3b0O1qqEiK9tpt3PI0qYt20Y4jHQjAm/Htu07hJ+fxQ0qRlJfkoDLRkhlmpN/uWfm05XzY5gFsBPmj7TDAqNEx7xQDBsZ2PK5Zt1G4Ww2NHVmYmw5HfcgYQzSpPHhzo8tHy2PRtlgXFA8rIuZXLhyQPKliueyf9aNvC5Rq8FFKFzC1z3mAYGcSxKej+8NOxn80QqcB4aLbsdnq8PxDHAPzN6/0/PbPkaW9qSVrjN81kc/SNkk2O3pDK844mpcfbWuDQBlZT9cmPyh0/6ql98Nn29KRc9YzJpVl94sjXROJJDrgd2yumuSrazMAriAbffmT8Lff3vyMmZJXN9NI0Gx8/SEUWI2xKnNju7LoIP+uGuv8qNYJ/IqFIXCwMW47L3pibhdMDqFkFwIkIbKBazLA6V6WMRix75vx2U8cTJDdO3SORo5lzRUles9jjktOob0eAYwSKd+32FaOGtqIm2/Q/QdgvbEoIy2z4yPNlY0RecY4ZWDxZZvvk5xjuX52PqR147Wc4yRxSxdcsdPiqK8F1o5loM9y/uLkjVfIaI1HwPfuxLQbYSs2aRTcq4Ts6S5s6ab9v2w2cSsgo55b5s7BB0S1507HZLj5H/4eWeCdb7q+849uyep71qex6VinDvzjTHMerSks8XNkrM/s+nKWCu55prqX9yk40QN3DobN33pdUVqW1fF8U37oe1PGjfS9It0WctBWRQzpYc63C0C/P2VmZI7rjvWP37Zubs4WHdK86qrrvqsRrUqysHEThHtRLKxYnri+x5dz3p1yvTs/X8f8uimIzusG0EaJHBWLmNoQLeL6hEjZI8yswq1Y25btyIc112F8uV0/+4IJe+oI/74y86mAf5+9thwGIbwnnisq2jSqOFIh0guRhw8lCb0zA5cJO9TaCbpnqwfdZ3Q+ot1TrBO/vBjnypLcTEjB2V7mSlxUdnXGz8yvTHuf4fYzMJgTE+eFotZ7Er9TU9St9JQjro6TitXM+UMtPiBQz2ynsWxXnMWL1d+S6XS95XnlcqH1AXKTkjW6dyRgSYjJDPTdaSIbMzpuO5WzJ0VHlX7GoHvXCvTfnIhMtvBIumvu3ZrNgKcb9XilmbLtPJhi4+L4NsdP2teKLWYNYneNtsS/W4Xfdcy5KeFCVyqv/95QKBMtKQrCpeDcHft2tWvKDxPxFPXeuhgkNjM8ugD9+r6zR2d/cix43qydjvNna1aSEWj78BQ6pydcpyPp1d2FIA2M2LC5AjWmvg2wDckYDGbPbITUpMmjH92aBqdXq8IMEYvD3l2DK4ZrTTYKsoPUO2lO5h+WBohTUURWTm5olqVkA326GkJ+3h9ytd/HkwXFrO2/N1xTWrhrzhwW9/eomvtmtWFVhcTSmTim29HyMFMpCf44jc0M2YvFD2eGJSAovIETUc0OMHgsfhn9G0Vu0T0lZHD/LQab5JazGbBmhrv3oZO7dtGuZMnh9bu/eOA4MR6V3/vp+aH4eLE8ZfGToxgEGoxa+tjKh3jWbwScHcnpMu1+sLw0Xk/ysX/qe/OFxwKqrdYlStV/qJSkLarmcnLJJdczA4a4dmz54TJJBFAdBH8LWZx7GRGMxfR7aJJZRo29Z33mgaV9/JRHXa58V6gSbrkHuzQTvO2dIvZLEfVmeLJwS+momDc4ZjDPifPTFKOZcKgcwAuCstduvZ4or1zggE/AaAf2MNxJQy51YiopnmNhfKVLxvoShYex5EDx73tW7fU5b1QmcEQMYDs+eTgOOpoVxEzV+qQk1I40Hj5R+sVF5zF7LKqUrM1nl6QAAPLpIXLRFF16owVl2qWDr9k1SfKIaDhVUIEp/4yMqSxOCNuL+7YiWOt+UGpxexS1vkksrNzBD+eyw+weilXrizbQa1Cin4tFxggNm/9Oq5oTMcYo1+dknalLpR2jXkwigVzFKRjCRWOQSHtTN0nYno+ni2NuOYZEW0ORTY1ca7SHsnBYr54mSIKq3P3vtnudAjoWcOKVWsPTpyWoOTFYvuH6zYKDsZlR6Y1nqvv/ObNYtbW9mWZxVWVK7uahcfx7ru33fYMHb+vsmYE1xzy4xqLjt3iErhAEr2CseE3fsySkDV1e0/nbtkcZMw5epynZ03HeC8+CXDskFbqFvPFttz/+f8luNrvUn//vYts0/k/9LpIwUnOjAInvv2eMuJU0WhMLBJ2jO2VzVltanhRT5TOK6+/OcKi43iL81nZgltf7eVRIyJc5Ej3mr04R2H8qHXe0g90WXDKwR1IH3+2WRmlOcrjcg5nhNzz4QfFuUzt6wXInkNq7+7cPRUlZN0gnckMZaWOjmmDtrgV5GAE1487h99a00QxvjxuUoG1CPLY9PV2wY27Wk+7ZhaldQMN/NC2G91Qj9cSgXvbRTevV6eWZverPWape+ru5917xTtzFgquWHnsqediu/UbGMdsFiOVfuSoom8wXFY0jNdilEBwsP7Tv6knBgz0OwYR9Avsgi1gS+gDXfs+lXzkyJHaanGcGqG16zZ8x1UIzH7UBOqTzngwPV081Ct+BActgotyVuPVJyNGOjNrSe269Ejd8/ufgtGwGu/qEyvd+MYG8fbwr68fJY1Qjr0op2EW6ZLr2m9gArw7RbwUSVkYvVGO73/eqYyOL0VpfljMTkWvmV5JJOjT/ZFwPa5VeOVHmNI9pSihW6M7ZdM+MDLIWLYjZQOMfEbSdjBUvfoNyOv2xKBYGjttDxr2gLZFPCNp2qWrBs6WFqM6DsJlh5fFXLCuyIM1ir7PDmvBiB7+GN3Z0oB/OiKdr/1DXfOYRaGEbfGK+mYdydEArKi0noiX9ZQT36fnoROnTnuCnEIDxYUsMEgcTwTwThhxCpLxx2sSqFE9QjDQ15shdUa/WyU9Bf1fGNkCu2ALeNBWr/9MgGudT8HeZRVD53/6xVFNQ4IdXr2iEKPxfLntWwFuo7vuS72xZXRe8zYd8xq1apcXcX3zvJYdu6QwypmzaLlCnQ6svGj4k52TI5rcUE/Uq1fvPXvJmjdrukyPAFVhPPn8/5qiJGYkzs6j3ChCFVAuKBlcMJSFO1/gQU85SHc5gZwNpY9+afDWw8dO6iqWxXzRjcZdOrQPRsTIuN7t96RVjmqSJ5+ptJ3Rr00TGH0GQ2qdFZUh7XLj5m0CA4dBKQrfOh7jweCEQYqj/Cxms4AfRvSM5u+8v1ty3ZtbK22/aet78q5p2ELhn45I50uXo3s6qXU+rr5z1FDbO1u5tUHA1bwc4bHDr1nD+kLPzlZHNI1w35FAvajIMXp+mGxbAvQigwn6ny0QHhBQxjaJsGuE6LRPDH4pjgV3i9kuSgFCjGrJgE7JO0oFBL4BmGGEYzEXTYt0tpBx5pyQnZDNBzm2cXzzQ1meesBiNitTf5TE1FlzBEoPRQgAKBeUDC4YyoIisZj1lcOaP61rKdZpfemdo2x6x97v1pUHFrNZ0D5oJ8iY09NVIAyZ07i1lhuamRcuiOaduiYwG3E1fede/VKZeTsyQNZ0wFHbPnzS9qlb+KYMPIkHzzqdq+8XsrJEpztvE9Lg73U1TXHhTR43JvqYnA1RvuLKw6BbMhK4OiJspt4fJrvLcSFtyiiw91NDEsxSMejtOBazWfOWZUcFYRYUUa2K6B/Xx+mvUfX+BkPNl7KiRFAaKEJrQInoUYIq7cv9yY8yI6qF+uQomXr1s5hFoxtvGONKPfCblhMnM5Tbfl3Bt8WxmD3X9qH984F0MWbY0GjeSxr4AfqaBYljdvxxsKRZMfL3sATkICc9+o6WwpVLHz2cdcGZEP7zR/r2Tz2bmam42jydmR56R46fEuNefmEZfmln6Z/tHxfOlb/eHqUxUvV2ns7kUFJxnCEYelWIrh9jFifPHDC6eu47iU0aFX0yBi7XnXv36VqzLI4ycMLC1GEDBcq/OOjbp+k8FDl+lTw7Ebk6x/R8LK5ABqWep2xQRAI9H+kcf1J6nXj3JhSYCbG9lR9e4lLzJhOO8uIgyHEvDhSuuNuw5BP+N/QQ58E5oufpcI7+ubfNHeKFAfFuuaM8zVdJ0du4eplf04YNlLMCS4oHNV+UFe3n8+Vzx3C2mxru6MmGkyVrN/jMbkcMEL/PGdi/n7YfwDkqoAfDkefHC2YlckgxcvYgaYekkAensOu5u8shUSOigATq168/y13XegGCLn4UMEITxw6PuaZ6WIkrVGYWKJCxQ54WHPfjYlkEi6f9+3TzihJkVBZWtYqYOHaEX2BgWV1H3rtartKCx2x1/rszTPG9HhFc7eEtBWUrHwYHkhexYemcMYzcbePtfT/zZJwfay/wbS/em2EoXAzQzDcn+ZwBUuWAIUpJnhPP/Vvwq4YXxxP6yIPT14MqlBc5Gn+OURw8Xa40OdXD2671AkaI6xmWJM0Ib9uqhTeVSIH6RLnz25P50ydtf6pfX82dcOigAaa4Hg8r/Bcg7MGP02fPiephVcXst96MlsrO7mYJD2ZX6khRB1ztEVimjFcHNLQdjMh97e4S65fPD3fVACFg6pET4Ac/0Ue5tC47x/vVSp4o3IFxvYQvGyDkBdSXI+dPViz0Y9AB38ifcE8C9XnvXbfnyyM3N1c3eepYd+IrJCEyQq9xQkdx1Kc9MRYwQiDg1np7yqvKyb+MOmhcdA7iihPIgwYXeW1NsXpxUkyH9m2b6c2PEdPQAf2UGZEnBanyiJGelzA13Jd89XplVVzpcKGuXjw7qkvHdso6EbOTHDcUiDM+qWPaaaPr6wqM36RxI020Y2dpHMXh/uJ+qephYUr7oc4d4XoqHLnAf+VKwSJp2qRl8OAp2sVNB6XFoOOjhYnxrVvcrMjM3bpGHgz0APox+sjdclgsTvc1uUv+skqPXqPvcoswOpn6KM4CFjJCama4tjj1+rkn+wo6B8zQuDzZKSkcCgTadPoJw4cIThtmRqbyoffZP66Pad7MKYmqIMmH/PTQIy08Igd4pFNYK7nMzHMRbOlFNq4A9MDXw4t1mvNZ2cqv2F3J8z8c/SNJ67xdeZcy2svOuRXvz4x/qMPdokL5csoMVSm/mwaJ8qCkzp7LFE1ubCC4ehtXIMbPFd6c4eBqWps8z8SdQOoVDORFnnrbkG1v7cLfAAAQAElEQVR+ObL8yIF2FRJcUTD7wQuhl38O5IU/LeCJNqiWi1kR/SJ59owx1nVN/cCTM7kRB44qjwB/f9H70S5i3bIF0fRjNQ93nmUD/TUlz5Euv2w5G4Y3V0HPwcz2mGKbP8eUXcjKEq4Ceefmem72Tt/l0saRzw9Q7sRikIQ87PGrJSyPk6htEjg0QuBJRtJxidE5uD2SxkWnVBsLHZN3AAYBexVGuAo0SgoE0Pm4jRLaHy2b68f9Q+TrKUCZIMiEyeO2tmreVJAfnV7lW+XJmmc1jDLBI7iMsLkThoV3ezxWCg7ezrEmyMYVYLZ3Xa2aoowlQPf5/NWqhop6da4VruRnjdMwspanxOsyHRSUYozmzoqa+drY7YyYVYOEfOloyN26HqzfiaM+aDvUH9/X1aoh+vfpLj5c9F4MbjR+r+QyQy4iKgOxBUl+jPLJ68Z6kcJiNiuGFL7hR+Udnqx5Vt8JV4EykI4yBPj7C9okbZP+xeynqs4bX8sGBqbVvbaG5rZQr04tIdcz/3ZRHC6hNWnUcOSlug6nX6MzqCv6HgTU8tO3kANPi9ms8I4uoH0wCsebwYicNNZwRrrCrb9dec+RBqV8ufKuoObjVAoOEniCaKeuAqeHBAU5/nF/PvEiXlo0baQMrG6/palwFZo3bihqXl29CMrao1mTl/URPnxwf7kEEaZ4Nagz2nK2NNKA2tZtn8QB4NJXSCdnzoI7qkJDQ/ep3Dg1QioSnQOFTuNiprJi/qwYGtjAfr3F/e3bKAKjobFISYUF+Psr1jPA318Z/RKOIqQT0ygZYdKx6Xy4TqAtmfOcGVcZv/REQeFjJz+VbxQhPMMXPAMhwRUFvMInHQI+Vy9OimGEjUJyxCOuw3UrF5mQjRaw18kusVzkA6XFaF1LfuBu/uQDU5HEiwlBtqO9yIoRs5xlR62cmzCGyw7vuPVmRQkh/wD/gm2HMOqEgUCvRzoLlNSH82dHM7hABlF16lw8iqOYeKbOMaLkRTtY/v670SrftOXGNzQQtCNm8rShAP+C/MM7ceDQpigv6ZckJUTTJmmbUi7p7rCP4meLPPWrBWizemdeRfFLmejX6AzqSva9KGT3wdx34in/W6+O2k5fRA8QDt/oAtqHTGv3h7lyFG3JOH1acJJFUfnbxrOJyDbM0Tf5r5ADJq2wWrqfH+/5aLgjuq6G0y4YWPF0FcBH1q7moQVPykO5D46JAoM+9CJtmTZN+7Zt9wH+BfU+ngr6yuujhx36YF5SNLzSr1QezOqLlicdnwbGVJmCQ5SGRqOm4uhgKvDN4iWNjE4MPgqdjk3htOTrLi75qXyjCOEZviSP4RKiZEcJpwzwSYeAT8rqbr5G+sISkHWxF+XZt2c3E3VBPSB/td3wVOuE9kOdMDpGSbljvAtzoi2EvFW+actq22dAcJHfhGh4B/iGd+Joa7Qpykt66GjLuXRjU9+UmX5P+alH+iLfhLtSuiNHjtQ+lH6Yk1NcQc/HwVVVPUKbbYBfneDWgCKfaR98wXCgD9GLtGXaNPqSdk57twbCaPv0a/oIfYV09upalxFyJh8qjoxU4BvmnaUp6TjJY7qEvRIu2wZU0jJ2JX/kr7YbnvJbqRNfbz9q2eAXvlXgu7TwrpbBl5879/z2SvrRY8Ji1qa2srJzRI2rrz7ky2UrzbzRztU2rz4Jc7Xta6vN0iwpg/crUgJGoS8fCaxP+Sw2qHw5zQViA0b9yGtHa05oJPCKBAwj5BUxG5kYErj8JJA0b2Get0rFafZcE6D1DMec3FwRVqWyKFs26Ddv8Wrko00ChhHSJi8D25CAIQEpAa48eXbUJHFXp5g8rj2RQcX6/43pCcl6MsjLyxNXR1TzqfP39JRDW5rShW0YodJVXwa3hgR8QgJc9VI7oqrgksH2sd1TuHOruBjjnq91X2zRdbDshQtZou51dYqLNYOuByRgGCEPCNEgYUjgSpLAhMnT8i5kZSsbBPwsFlE2MEC5Ifehbn2USyE9KQuMG/d8cZ2KHrpnM8+LdtF3LdOT1kjjHQkYRsg7cr7cczHKd4VI4PsdP42enrRAcPeWWmSL2SwwEnv/OCD6Dng+jisxwFPj9Txx8T01+MU8LpS0zksLLdaDakhXXIO6172sJZ2B610JGEbIu/I2cjMkUKol8NzwMSNCQyraLQObBjAYm7/ZLrrGDRjRpUffPGYybCqQazMWu4msAg8fPhyG8Xph+Oi8+7o9lrJx8zbFuFmhaHrl6BuufmC7sKaEBrJXJWAYIa+K28jMkEDplcDEN6bncd8YLjhnpeA+MozRb/v/Utx09z3aN5m7ypghDRv1Sh7uPGvA6PTqNyDvkb790x7qFT9ibcqXys22XM/uLJ+i4jLOnBWxD91ffK64ohgw4l2SgGGEXBKTgWRI4MqWADOUGbMXapqZYKxw02GQ9h34WzBDYpv13CUrhDVgdL7/eac4fvKUqBISrGsDgm3tcGZZkxvquXQhpm1a49u7EjCMkHflbeRmSKBUSmDspDdGVKpYQTfvGCRmSLjsmOFYA2GAxew5dXTi1GnR89FY45QE3TXmvYSeq3Xv8XwF52QU3ZCA9yUwdcasvB937RUYEu/nrj1HTm1ufWszwVll2lMbKbwtAcMIeVviRn6GBEqRBHDDTU2cq8kNV5LFY0cc+Y8ZNjSapwG+LwHDCPl+HRkcGhIoEQmwo234uNdGBJUvWyL5q5m6+sQAHfjnqEh4Y0IiB2m6ms7AK1kJGEaoZOVv5G5IwGclsG7Dxk1rt33vs/xZM8ZGhMPHTooNS+eM4YoI6zjj3bclYBgh364fgztDAiUmAS7c2/VpcjwXl3ErZokxUkTGrAFlnDkntny0PJq7iopAN6J9TAKGEbJXIUaYIQFDAooEuHSOi8viejws/kg7LFD4SoQP/MH9dvT4SdHo+rpi27oV4YYLzgcqRQcLhhHSITQjiSGBK00C3GqLqwuFn3b0eIkaI4zP6bPnhFyzEhOGDxHculu1atX0K61OLpfyXnZGiKM/OEiR40Iul0oyymFIwAsSKDILXF0o/DULEsd0iL5DnD2XKXDTMTtiTaZIAm4gYHjIh5lPhfLlxDNxj4lPVywI7/ZwF5MbZI2kPiABsxYedu3a1Q+Qij5SSzpwSecMXKXJOVQqHXtp9u7bP2bll9+IelGRY1S8op7w5wrI/MKs87elS5xKxzbO9tsaV01j/eQAR+5swZhylD1PtstKHgrJHloqfWsa1u9qPE81nDz4dgTQlaPNIs/8UunxBB++OZaFY1p6/F//PI5kgX/iwLEFWaYw0vB7FPVYF/DJ3xZX/bbl2RFt2zLyrdLg3ZaO+u2InppWxYOGGmb7hH8Vj6dtPN/kQxyg0qKe+QaQDXi2QJwKjnBs03jqu0mjhiMnjRtp+mLN0vDXRw87dH/7NoJ1IwwEM5QLWVnCHaOEwSE9Rgd6zLxCgisK8nn/7cnLNn280u+pfn1NxuzHUzVasnRcNkJ0jPq335dw2wPdE3rGD0zVynZs36eVtNExvRPsQede/VLfnpWU54zu2nUbvrvz/m7JpK9/d0xC8ocfFeJj89av4+5qVF8h07xTVyVPeLYFaADQKaoTy/hIzrfibKsHuj6u5G9Lj7z6PvVc/sVbHbvF2S2nmg46HPD4+aYtSxVmrf6gwLs89n8p3foNjHtp3Oti4vRZgmen7nEj7nu0TypneFmhizETJidDt/7N9ySgmKzj1Hf4ASdu0EsJatjEN6elwDdysAede/RLvqdzt2xXb9CkLODD99wlK8Smr7eLH3fuERzJwmnIHWN7ZdvyR1lk3aeRZsbsBWLl2k/FnMXLlTPHkBFGSco/TOWZJ4qb8qg8U4ez5y/KJs4WOnV9LEXFo6yvTXsrRcVxVH5oUw5H7RHjQp7Q5S4dlZ71Ex7jBw5V6gU88sbIWuPw/sOPP4+AFvGz5ryv8DblrXdG8E19DRk+Ng08a0DOxAH0q7NnLzSwjvfWO0aAH4SOH/WyaV7C1PBPV86PYYZy+y1NReVKwUI1IGnSfceMiW97QBwAHvHMdK6rVUMw24IeM68lSTPCyefOVi0fNplMOd4qo5FP8UvAZSO0OHnliBuirhHXhlcVP6fuExglLezVrB4hGtSuKepeWyMfeK9dI1wElQsUJ09liP+9/pbA0Nij+8mnKVsGDR/btHLFCiK8SoioG15FBAYGCNt/X3z1jWjRrLG4OiJs/u2NbxStm91UCDrccauoWjlYoXNN5Yq2JAp8Mzpt16VH6ofrNopD/xwRFSuUFy0aX1+IZnTzxuLGelH5aUNDgvPzoJwAZYWfm6Jqi9y8PLHn9z/FY089F0seakJmDYnzlyo+94oVygnOv+rQppVo1rC+IqfMCxcEZ3hhFNU0QRUqiOpSJhHXhAlLmTL/quHWT/gBp2KFoPzgIFmWmlWvUuQAb/CoAjLmLpb0I0fFkLGvixWr1h7MT2jnBePS7YlBseCHBAeJ89w3YzGLcoGBAjr+fhbx77Fj4tz5rOpqcowtZck4fUYEBpRRgitKnspeqtcyZfzF8o/WC4y/tYxApDxqHd5QI0xs/GIzwQUAno6dOq2Uj/JQ1vLlyubjUP5rql0sP21QjYBXyvHK1AQBj2q4+lz+wUfJ9SNCBTQzz18QGAU1zvpZqWKQqHFJvpFXh4kp78wWtuUoG+B/sHZoiKh+VSURFHSxbsYNHxbNd81qVcSaz78q1NemzkyMjbgqRIRKOU8a9dJ2X1iQxyBF1amznBnKzDcnmTAa65YtiP581cKYlOQ58cyYBvbrLaxh6DPxYuTzzwjiZkwavRU80qyYOytq+fwkE7Mt6DVp1HAk9K1la7xfPhIwu1IUORKNnL9yrXKwIFNlDMF7cxeOcCWtijNnxuQoGpdsnFHWQNgHc9+Jj6hWVdCx3pu3sKmaRn3iqhkyYnwLvpvc2ECULRvIayGgg+/+/Q9xQ4N6QjbavWuT55lWLpxdCAY//cSYc5nnFZ92p7atwXW4qDli/MSU81LRlPH3E21btRBLkhKi6SD26NL5rJniKPlqoaFi9ltvRlNmyrpiQZKffA+nA2ZlZwuLxSK2fPO1MgLGBfXFtu9EUPmyIlQqmXemTEgkH+iS59TxI7bm5OQqhzy+s2hlIeVknbeWd9weE0cNS4QvCUr9LH//3ejhg/sLbqZEkc5bvCzCGc3eTw1JCA2pKOQoVUFDsXw4f7Ysd0J08uwZYx6QLpslUnYoFBAYVLyWMEcpC4q8b7cYQTtYvXh21AfzkqJRSoymA6VxOvLvcTFo2P8UGZHWFjh3bMevewQzFOu4VZ9sSAiWsrQOs33Pk3Nv1jZQhihBoH+f7iI3N1cxMu+8v0jQ/tV08j1sQfKHIkDyRVhFOVBImrcolndnkCPpBcm1jOHjxhcoh7VRVtPXqnX1xucH9BPHT2YIZP/K62/m97WkeQuVI3RycnIEMu3Qvm0zPfIB1wAAEABJREFUNZ0vPWX/S6ccGKb69evP6nx/h+r94/qYrKFvz24m1nSIYzs4eKSRaff6UlkMXopXAi4ZoWUfrEkNKheo+HlDgisKPzmqXbnus0KjOmes0rAcAY3vzttbCDrW73/+XYAMM64nBr8Ux2i6zW3Nxevj/hd1Ti6IZmXnFMDjY/9fB57Yd+S4aNa0UQzfjoDDGDEqjNaff+bpaEd4UuFEMhLlsMV/T54WI18cHE4ncYRvG24yXQwhjVp2k3QlyPf0Tu3bhmeczRQB/n7iz78uTjIS5y4SleRMj8MXxw1/IfG2W2/pd5HCxb901LiejyjGk5Fy8ger85XTRQz9f0NDr1oHXxL2AvCMkqDskmexc+8+lHEBt5iaG7PX9KPHBGeLoTjfHD9qGYoFGgCGh1Et72qal8e91oKR/umz5wRKf+igAab6UlmpeVPWhKkTYzC6frK9ff/LboHhUtPzlC4vUatGhMDQ0z42bPwy3x1K/LylHyht9fq6kQpvtC/CbeG8nLVdU7NGIvkDA/v3MzW+oYHAOGdJo//3ofQeapo16zakkZfFbFYGQwwiaCO2BlDF54lc1H6zcev2AjOnsnImBI4tIHtmwZR/6w+/KmlkewybNmuOMkipKGeM/f/vcYdt15ae8W1IwFclUKQRkh3dkrRgqfD38xMsPo4cOnjZqdNnBUZpycqVBUZ1egtJHt9s/0GZFVjM/7GEO6XXk4NGnDl3XrRs2lDMlNP80NDQfdlyFGgvr/Upn8XefkOkYPRlL54w3EooNGgOjOslrBUj8dbw/Y8/v19Jjl7JDxecVJAOZ0zW6Vx537nnt2mB0t2EWw5FTxruauFZI6KasDVAhAOtWt46BiXISPzLbd8S5BVgtuIoI7kO15RRPkq7e+dORR6fj8LmNyfQqxRUQaD0ebcF6nFw/8cFs1boS5ebMhtW8XKkgahapYpo1eJm2T4t4tPPvlSjBLNnXHHU84Od7nV6mrK/NHL5CS+9ZJw+LdvjxbZobSiSP/xYuhgDFKM2Uc4eMbrVKlUUuOguJS3wgMerKlcWA/r1PQQuLsRnh43KnznZmwmpBCaOHR5DGZhh4oJ7fdrMtPNyVs4gZeizTx1y1nZVGsbTkICvS+BiL3PC5crVHx9g10uWdB091jUmX8EESncEI01GZ06SF4jC3TRs1Ct51rum2D1V75Y7s7lvhDxi7u+gpMG1xqIrYfXqXCumjB8VTsSRI0dCedqDlC+3iDtuvdlelBKGsRsycnwEsw3uOXGk/BRk+efY8ROK0kOR1L2ujgy5+B+em7a+J695m475wDcbDS5iXPxrlgb11OkMQZmtgfWcp1/4X2xF6crJkLOhZk0aJVJeUuEGql2zBq92gbUuRucWs1ns+6vQmrXdNK4ElrEEHLfFY9MAriopN1G7ZnUhBwBHbHH43pX6m6KwMY7tou9aRpgz2Ldv/3MYdxRq5/vucYYqmDEekW4pi8Usfvx1dyHcM3Im1T76zjFZcmbMbI2BC0gfffJpHAOlCLmu0qRhw56spRFuD2jL8xcnx6l1xLocV1WDi9G46qqrVvHO2s+OXanKjD36jpbKQIEBA2tXrONJOVnAs4VzmeeUE5052ZnZ2Ck5iEO24JV1MBMiDiM89KnHRcaZc4L+wb07Fum+7SDXCJlpgmOAIYHSIAFnPJqdRRK3YtWaCJSl2WQS+G8JYwbBWgFKB/cEYUXBU4NfzBsyepKy+2njV1+LLdt/Epu//UF5kpbRHQr5xcED/DBs9z7cI4UOy9oI60lFzUIYXe/9O000a9LY4aj35dHjswP8/cSR46fEK8Of30q+ziDz/HklGj6Ul0t/jp3IEGlHjwtcUEeOnxQoOGYBublygeESDg+TySROnzkrFsvR84IVawTAQvvHG79U3EQH/jkqxr04UFFm5cqV2cmInDUK68Vz6FhDaGjovsysLCXotFzXUl7c+CNZFKyptOzYJaVinUZ5KlSOapI3Z9FywSwNecU+0JH1nhx7WWGoCEdOFYMq7OLdGZw9d/4a4pkFhla5ileHIMurGD6TySTOnDtXCC83N0dIwzyz8fVRIksaovWfbUoACZnz7NblAR7ScOQqT9s/kqwyq9n8zXZlEwT18/UPP0la2eKPtCMC16La9pYs/yCW9VD47vlI53ho9e/bU6izxNkOduiBB4wZNjT6z3/+VU6knjhztkvubAZKoSHBJFfqCRkPffaZaCXA+GNI4DKQgFMjxHrMxq3bhVmOuhtE1VYWwnFzBAVVkCNfiwiSi764J4qSAwbi4882K7vFykgXVNtWLQTHgKjAIn3C5HFbD/6yzc8k10xadYxNY8QXVrWKkIv54VIJ5C9Uyvd0iaO4XzIzz/OraWX0+cuve6Yd+/eUuP3WZnfa44eyvLNwuaL827RoKlhzsIdnHRYYEKDk4yfdNdlyJqjGvTDwyWVJb47fCs8swPvJ0anFUliUcmQsKkh3HuV84rGuAqh1dYQiT2ht+3hZDL5/3ikXSpT3DOkK4mkP5EywdqC/vxJV4dIuMuXDzT9B5QJFFbkepYIyU5FrJXv/The9Y+8XLCg7yqJaaBVFyVukHA4fOXK3Izw1vHJIpa9Qpgxs/jl8VA22+2QLc5AsZ7Y0MMjOHhKyu6PlrUrU55u3Ctao+GBQ07bNHU7XBzH64AZXDFI2g0RUCxWsPbJO9VPKmmi2BBPPDGvtxk1K+wGHXYi0a9aSiA+SfWHekhW8OgTcZ2Of669sXWanIpteQGbwwdMRTBz98jJmQ2flWugTvbsJ6DjCNcINCZQ2CZidMcy2bEZ+KFk2DMT06T+i55OD416bPksZlRH+q3TF4KZwRgf3C/H4xGe/NXnM21NeNXEMiAooYoyCNC45uKVQHozOT2WcFvfG9kq7oUV0ngo3tozOs5jNgiuDE95fKIKva6z89iTl8y8j2t9xs5AKKd9gkacKHEnPTqODcgbDFlg13NkzIjx8GaNcs8zv2x0/56OimOAXkEavKTufcNnlI1x6yc3NFRUrBAm1nDwnjHxpDLM+1jlWrlqbfAlVeTDitVjM4pc9v+UbVyXC6s/effuf95c42XJdrFH9KCXGLPlDmRJ+OuNMQyXQ5g8zNvACyvgViCEd9Tj0mXjx1qujtmNUreG3reuj+H1GgUQ2H82bNVZmDijiiVNnKi5MG5QCnw3qXvfMceliYpY1PWlBoV1t1sjswmQmniUHAS2bO3a13ts+OibzQpY4lH5YjH/jraZB0ijgSsOldSHnfIg1Tet3jCH1N/+dt6I3f/KB6bM1ySbWHpmB1Kp19UYVVxqYhHLSGFrMZkG7fKDr48n3Pdo3OX7QS3G0RWS478DBQpsn1PTqE7ploSMNNm1q9oKlCaRX4+09/f39ThDODMz/0gCEbwMMCVwOEnBohDAG/DYmQM5cTp89J3AdnZCuJeCfE6cUdxSdFwWRNK/oLaoIi7UM6TqZz7szOJT+r0IflxfA4qwKp6Q/nXxJj0vw1InT4tjJjGZfbP1WtJF+esJtIWnewjy2bmNQno/v7fJIEmMDLRQMmwZY0+LbGlR3kXWYs3d2irF4D07SwmTBCJt3gHUGyoSx/mLz1kWE2YKy1iFnV5SlvVwbIP7q6hFyJpKj/NZm6zffFdoxx4gdBZ0jF/LDqhZcUkMJQ6NT+7ZRHdq3bcZagzU4MuqkUaFju3bRacdOKm4t5KSud6jxPPm9jTpYkTTTu9/XTlyQbkUGOWMmTE4+fPhwGHjWgLyZQZeRijdDrp21dTKrwdg0v6mB4hpl9yTyiev5qDU5h+/MWB1GygjJW+S6zzYJNoMwG/kj7bCgD7BWdejf40pbpU2yeeLDj9YVaYRx8VHHGOF1nxf+fZPM0vhvSOCKkYBDI7Tk0s6309IA8QOzY6nfm/7ds91PhR2frQ5n2ymja9Z2rJWpI+kxUme7K53aHmD4ypUrs3PX5tXx/F7DHqycmzCGfOGr1yOdReo36xR3y4HD/4qbbmiw1TZvaL4x8z3FdcgIlNmILY6z75HPD1CUDBsZxr4+XbApAaPGLjuAdQCL2Szdkw5FWYh8v96PReOKKuPvJ4a/8lqCitC756Mx57OyBRsnRk+cEovSlgrSQjzyIl/WLPz8LCJDKuWuMQ8qU6E7brs1kfU5yjd38XLlh6UYHsr+/Y6fRqPkQ0MqCgx5q5bNIVcA/OVA4+zZC453QxTALvzBjAE3EwMG5IRx7dVvQB5GhCOH2LAxR/IVP/il2KkzZikLZ4MGxMcwK6Us/MaHUxOIQ6akIz3yhh6/pscliKEpnPt/IWzzx/gQkiXdd21atYjn3V3gZI7Tsh8we6XN2esLFrNZcdXhskP2zOqFg38MbthcwDoiAxwHaEawIQGtEiiV+HY1p1R4YavXpcj1ED+BYutw993RQv6jY6nAaDbm/g7Kzh182rgVJIrT/yjXZ14cMeK+R/uk2gOOWNm87bvt9evXn+UImEmUkSNjlE01uWaEYvrzwF9xp85niSY33djZloEZ776XcubceYXPEc8/e8g2vqhvXIUD+nZXDBG43/74qxg3ZYYYNHxsBMB7tnSN4Xo7f+G/k2MIuyANSk7Of2GkB1Da+PaZ1fEbEBQv4ZRlSP/HBe66dLlWgtLm+JgOMT3zpJJOJS9/Pz9lVvrWhJGHqlatupd0t916Sz/Wm7jU69TpMwpvHLnD0T8P9YofAc9sLnjg7tb5m0tIp0KWdGOp73qfuJlUOWFgcTUNn/CGeH3GeyJ1359KW8o4mymYSZAHZV3x3lvLWOvJkq62EyczBMf2DBk5PmL0a9MER/1YpMsKw3bvXbcLey7BHCn3c5mZkFOg3V2t4snjgpxhhcrFfNqQEiH/gIs7S75q+s8g4MO16xX+KVeXBzsqgx61H/CU9ZD+8IMdBfUZGFBGzJm3ON/NSr6UzzbToc9e3FxAOwGK4u0inRzctLakjG9DAqVaAnaN0Hc//LQGxcTOtHatb3Povro7unVMZK0agoXaH3/dLRh5O5IGnYg4juc5KxWHPciQ7r7MzHMR4DkClAJ8hVWpLN1PAQra2vUpov3NDQXKQAm49IdNFF9s+UZcUz1M3H5zY2Wb7KUoTQ9mT5xf9VCHu5VTE26qHynq1amlAOXn91NVKoeIKpUr5dO9vm6kuPmm68V11yobwfLD1Rc5iwlvdUtjwSaJBUuT88vMBoCEyeO23tzoRsFvaA6mHxYHDh4SKOmIalVEq+ZNxeq57yTiMlNp8YTHhe+8sazN7bcK6FYKDlLcY/DZvHFD8e6UV7az1gGuNRSl/Kxxi3qHB2avzBbYyBIqDQHrRFUqh4jWLW4W8AeOSocZwZpF70dzWkLktTUVRU87YYBRvmygoKykYQ1RTaM++e1NmByEVK1SRQ0S9eXghd9zsckgvk/3/PAyloDj4EZUC5WzFb/8cF4of450U/JuD3CLnjh5Stm0gGyj6tRZbmWeL2wAAAKdSURBVA/vofs7xNDOyGPHL7uVda6gChUE+YbK8gubfwxE+A1UUIXygvZDmy4ny2yDlv/JVvAIWf9lneDkIxsvhgRKkQTsGqF720U3X714dviSpBnh/NLdUXnokBxcCB5POpY93PZt27T6YtWyaI5xWb3w/WhHAE7X2M4FtYQNQUaeU8aPCoc/dcv4/E++EB3uvssGUwi5kP0kePA3d9b0S+cXFEJzKaBJo4YjGY2jEDl6h/JaA3m8Pu5/ym+ZIEh+HHsPPt+2gMEkHuBIHut4NjyQXvIehZJWYcXcWVEYEmY+1vjqO0qd/KAJLunhEVqs96h46nPIM09GcVYXx+k4qjsV19HTNhxDgKGhTORPnSMb+II/W3zyHTpogAmZUk4OwQRIS1ntpaENzJkxWWmfo4cNyZc5tJPnvecnyx7ODJZvgDzgAXhl5LD89qWWn3zBAdcWWt/eoqvkRcnrrckT8tPa4tEXoA/AG9+0B74T3pxYgEc1LTzCK3XE85kn4+zSp76JB/r06GoXR6VpPA0JlDYJ2DVCdHKUJFBUgcBRwREu9OjkrgC4juio4db5MdsRJ06Lm268odCPJKFljaumd/dpTVelrz7dpW2dXtLcay0zvq3jnb2DewkcnvJAvErfGS29cSp9+XTIg0obmcILyhuQaRRXoxpv+5Tx6SpYx0GHcOsw3gkDiOcbkN/58uXbHoAv8ZS8eLeHo4apeDwJ46kC3/ZAjefpjD7xgDMce/SNMEMCvi4Bu0bI15m25u+fw0c7PnR/G2FvxGyNZ7wbEjAkYEjAMxIwqHhSAqXeCLE2wknTnhSKQcuQgCEBQwKGBLwjgVJvhLwjJiMXQwKGBAwJGBIoDgkYRqg4pOp5mgZFQwKGBAwJXJYS+H8AAAD//220qe4AAAAGSURBVAMAjH70h0yOFY0AAAAASUVORK5CYII=" class="login-logo" alt="Safesight" />
+      <h1 class="login-title">Safesight dashboarding</h1>
+      <p class="login-sub">Enter the password to continue</p>
+      <form id="login-form" class="login-form" autocomplete="off" onsubmit="return false">
+        <div class="login-field">
+          <input id="login-pw" type="password" placeholder="Password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" />
+          <button type="button" id="login-toggle" class="login-eye" aria-label="Show password" tabindex="-1">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
+        <button type="submit" class="login-btn">Unlock dashboard</button>
+      </form>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v2 · 15 Jun</div>
+    </div>
+  </div>
+
+  <div id="root" hidden></div>
+
+  <script>
+  /* Login gate — inlined so there is no separate file to cache or misplace.
+     Client-side only: deters casual access; not strong security. */
+  (function () {
+    var PASSWORD = 'lEidTlhN7Lg#Xs6%';
+    var KEY = 'safesight_auth_v1';
+    var login = document.getElementById('login');
+    var root = document.getElementById('root');
+
+    function reveal() {
+      if (login) { login.hidden = true; login.style.display = 'none'; }   /* inline style beats any stylesheet rule */
+      if (root) { root.hidden = false; root.style.display = ''; }
+      document.documentElement.classList.remove('locked');
+    }
+
+    var unlocked = false;
+    try { unlocked = sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+    if (unlocked) { reveal(); return; }
+
+    document.documentElement.classList.add('locked');
+    if (login) login.hidden = false;
+    if (root) root.hidden = true;
+
+    function tryUnlock() {
+      var pw = document.getElementById('login-pw');
+      var err = document.getElementById('login-error');
+      // strip surrounding whitespace AND any zero-width / non-breaking chars a
+      // mobile keyboard or password manager may inject around the value.
+      var entered = pw ? String(pw.value).replace(/[\s\u200B-\u200D\uFEFF\u00A0]/g, '') : '';
+      var expected = PASSWORD.replace(/[\s\u200B-\u200D\uFEFF\u00A0]/g, '');
+      if (entered === expected) {
+        try { sessionStorage.setItem(KEY, '1'); } catch (e2) {}
+        reveal();
+        return true;
+      }
+      if (err) err.hidden = false;
+      if (pw) { pw.value = ''; pw.focus(); }
+      var card = document.querySelector('.login-card');
+      if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+      return false;
+    }
+
+    var form = document.getElementById('login-form');
+    var pw = document.getElementById('login-pw');
+    var err = document.getElementById('login-error');
+    var toggle = document.getElementById('login-toggle');
+    var btn = document.querySelector('.login-btn');
+
+    if (form) form.addEventListener('submit', function (e) { e.preventDefault(); e.stopPropagation(); tryUnlock(); return false; });
+    if (btn) btn.addEventListener('click', function (e) { e.preventDefault(); tryUnlock(); });
+    if (pw) pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); } });
+    if (pw && err) pw.addEventListener('input', function () { err.hidden = true; });
+    if (toggle && pw) toggle.addEventListener('click', function () {
+      pw.type = pw.type === 'password' ? 'text' : 'password';
+      toggle.classList.toggle('on', pw.type === 'text');
+    });
+    if (pw) setTimeout(function () { try { pw.focus(); } catch (e) {} }, 80);
+  })();
+  </script>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script data-from="data.js">
+/* ============================================================
+   Safesight dashboard — data model + formatters
+   One coherent set of numbers. Q2 2026 reconciles exactly:
+     New logo 20,353 + Upsell 18,440 = 38,793 (9... 8 won deals)
+   ============================================================ */
+(function () {
+
+  const Q2_WON = [
+    { name: 'Landeshauptstadt München',                    type: 'New logo', value: 19500, industry: 'Events',                  owner: 'Yannick Stegehuis' },
+    { name: 'Bravo Beveiliging',                            type: 'Upsell',   value: 7000,  industry: 'Security',                owner: 'Edo Haan' },
+    { name: 'Jorritsma Bouw',                               type: 'Upsell',   value: 4878,  industry: 'Construction & Industry', owner: 'Casper Derks' },
+    { name: "FC Twente '65 B.V.",                           type: 'Upsell',   value: 2800,  industry: 'Stadium & Venues',        owner: 'Eva de Vre' },
+    { name: 'Nijmegen Eendracht Combinatie B.V. (NEC)',     type: 'Upsell',   value: 1960,  industry: 'Stadium & Venues',        owner: 'Eva de Vre' },
+    { name: 'Stichting Vierdaagsefeesten',                  type: 'Upsell',   value: 1300,  industry: 'Events',                  owner: 'Casper Derks' },
+    { name: '2Can Productions Limited',                     type: 'New logo', value: 853,   industry: 'Events',                  owner: 'Yannick Stegehuis' },
+    { name: 'Koninklijke Reesink',                          type: 'Upsell',   value: 502,   industry: 'Construction & Industry', owner: 'Casper Derks' },
+  ];
+
+  const Q2_OPEN = [
+    { name: 'Gebroeders Oomen',                              type: 'New logo', value: 6500,  prob: 0.5, owner: 'Yannick Stegehuis', close: '2026-06-28', thisMonth: true },
+    { name: 'Van der Straaten Aannemingsmaatschappij B.V.',  type: 'New logo', value: 5000,  prob: 0.5, owner: 'Yannick Stegehuis', close: '2026-06-28', thisMonth: true },
+    { name: 'Brands Bouw',                                   type: 'New logo', value: 10000, prob: 0.5, owner: 'Yannick Stegehuis', close: '2026-06-30', thisMonth: true },
+    { name: 'PSV Eindhoven',                                 type: 'New logo', value: 15000, prob: 0.4, owner: 'Yannick Stegehuis', close: '2026-06-30', thisMonth: false },
+    { name: 'Sparta Rotterdam',                              type: 'New logo', value: 7500,  prob: 0.4, owner: 'Yannick Stegehuis', close: '2026-06-30', thisMonth: false },
+  ];
+
+  const Q2_LOST = [
+    { name: 'Vissers Ploegmakers',  customer: '',          type: 'New logo', owner: 'Yannick Stegehuis', refused: '2026-06-30', value: 7750 },
+    { name: 'Liquicity',            customer: 'Liquicity', type: 'Upsell',   owner: 'Eva de Vre',        refused: '2026-06-30', value: 1355 },
+    { name: 'Vierdaagse Nijmegen',  customer: '',          type: 'New logo', owner: 'Yannick Stegehuis', refused: '2026-05-31', value: 5000 },
+    { name: 'ISG Security',         customer: '',          type: 'New logo', owner: 'Yannick Stegehuis', refused: '2026-04-30', value: 4500 },
+    { name: 'Borussia Dortmund',    customer: '',          type: 'New logo', owner: 'Yannick Stegehuis', refused: '2026-04-30', value: 6500 },
+    { name: 'Roostairfield Festival',customer: '',         type: 'New logo', owner: 'Yannick Stegehuis', refused: '2026-04-30', value: 3600 },
+  ];
+
+  // Churn is derived from renewal (Customer-growth) deals, dated to the month
+  // the contract should have (re)started:
+  //   kind 'lost'     → renewal not won; the full renewal ARR churns
+  //   kind 'partial'  → renewal won but smaller; the "VL - Churn" amount churns
+  //   kind 'forecast' → renewal still open; at-risk value (not actual yet)
+  const Q1_CHURN = [
+    { customer: 'Liquicity',      industry: 'Events',       reason: 'Did not renew — full contract lost', kind: 'lost',     when: 'Jan', mon: 0, value: 1355 },
+  ];
+  const Q2_CHURN = [
+    { customer: 'NVT Betonrenovatie', industry: 'Construction & Industry', reason: 'No dedicated project manager at client side.', kind: 'lost',     when: 'May', mon: 4, value: 9688 },
+    { customer: 'Sagro Decom',        industry: 'Construction & Industry', reason: 'Did not renew',                                kind: 'lost',     when: 'May', mon: 4, value: 11712 },
+    { customer: 'A.Z. N.V.',          industry: 'Stadium & Venues',        reason: 'Renewed at reduced scope',                     kind: 'partial',  when: 'May', mon: 4, value: 1740 },
+    { customer: 'Les Ardentes',       industry: 'Events',                  reason: 'Open renewal flagged at risk',                 kind: 'forecast', when: 'Jun', mon: 5, value: 1895 },
+  ];
+
+  // Q1 2026 — large quarter (New logo 159,300 + Upsell 8,500 = 167,800)
+  const Q1_WON = [
+    { name: 'Stadion Feijenoord (De Kuip)', type: 'New logo', value: 64000, industry: 'Stadium & Venues', owner: 'Yannick Stegehuis' },
+    { name: 'Gemeente Amsterdam',           type: 'New logo', value: 48300, industry: 'Public Sector',    owner: 'Edo Haan' },
+    { name: 'Ahoy Rotterdam',               type: 'New logo', value: 27000, industry: 'Events',           owner: 'Casper Derks' },
+    { name: 'Lowlands Festival',            type: 'New logo', value: 20000, industry: 'Events',           owner: 'Yannick Stegehuis' },
+    { name: 'Jaarbeurs Utrecht',            type: 'Upsell',   value: 5200,  industry: 'Events',           owner: 'Eva de Vre' },
+    { name: 'Heijmans',                     type: 'Upsell',   value: 3300,  industry: 'Construction & Industry', owner: 'Casper Derks' },
+  ];
+
+  const QUARTERS = {
+    Q1: { won: Q1_WON, open: [], lost: [], churn: Q1_CHURN },
+    Q2: { won: Q2_WON, open: Q2_OPEN, lost: Q2_LOST, churn: Q2_CHURN },
+    Q3: { won: [], open: [], lost: [], churn: [] },
+    Q4: { won: [], open: [], lost: [], churn: [] },
+  };
+
+  // demo-only: stamp a month (0-11) on mock deals that have no date, so month
+  // filtering has something to show in the preview. Deals that already carry a
+  // date (open/lost) keep it. Live data carries real dates instead.
+  const QMON = { Q1: [0, 1, 2], Q2: [3, 4, 5], Q3: [6, 7, 8], Q4: [9, 10, 11] };
+  Object.keys(QUARTERS).forEach(q => {
+    ['won', 'open', 'lost', 'churn'].forEach(k => {
+      QUARTERS[q][k].forEach((d, i) => {
+        if (d.mon == null && !(d.refused || d.close)) d.mon = QMON[q][i % 3];
+      });
+    });
+  });
+
+  const LEADERBOARD = {
+    Q1: [
+      { name: 'Yannick Stegehuis', value: 84000 },
+      { name: 'Casper Derks',      value: 30300 },
+      { name: 'Edo Haan',          value: 48300 },
+      { name: 'Eva de Vre',        value: 5200 },
+    ],
+    Q2: [
+      { name: 'Yannick Stegehuis', value: 20353 },
+      { name: 'Edo Haan',          value: 7000 },
+      { name: 'Casper Derks',      value: 6680 },
+      { name: 'Eva de Vre',        value: 4760 },
+    ],
+  };
+
+  // Historicals — values in € (per quarter, index 0..3 = Q1..Q4)
+  const HIST = {
+    newLogo: {
+      2023: [103400, 76700, 59800, 52200],
+      2024: [50600, 31100, 110100, 51100],
+      2025: [80300, 33100, 8300, 43800],
+      2026: [159300, 20353, 0, 0],
+    },
+    upsell: {
+      2023: [13300, 22300, 6000, 2300],
+      2024: [10600, 16700, 37600, 2200],
+      2025: [29700, 14900, 19000, 11800],
+      2026: [8500, 18440, 0, 0],
+    },
+  };
+  HIST.combined = {};
+  Object.keys(HIST.newLogo).forEach(y => {
+    HIST.combined[y] = HIST.newLogo[y].map((v, i) => v + HIST.upsell[y][i]);
+  });
+
+  window.DATA = {
+    asOf: '2026-06-09',
+    currentMonth: 'June',
+    years: [2026, 2025, 2024],
+    reps: ['All reps', 'Yannick Stegehuis', 'Edo Haan', 'Casper Derks', 'Eva de Vre'],
+    goals: { sales: 75000, newLogo: 55000, upsell: 20000 },
+    // Per-quarter targets (from "Goals New logo + Upsell 2026")
+    goalsByQuarter: {
+      Q1: { newLogo: 85000, upsell: 15000, combined: 100000 },
+      Q2: { newLogo: 55000, upsell: 20000, combined: 75000 },
+      Q3: { newLogo: 90000, upsell: 10000, combined: 100000 },
+      Q4: { newLogo: 85000, upsell: 15000, combined: 100000 },
+    },
+    quarters: QUARTERS,
+    leaderboard: LEADERBOARD,
+    historicals: HIST,
+    // pulled "live from finance" — populated after a successful Teamleader sync
+    finance: { arrTotal: 312400, totalSafesight: 234300, churnTotal: 21400, safesightPct: 0.75 },
+  };
+
+  /* ---------------- formatters ---------------- */
+  const FX = { EUR: { symbol: '€', rate: 1 }, USD: { symbol: '$', rate: 1.09 } };
+  window.FX = FX;
+
+  // compact: €38.8k  /  €312.4k  /  €1.2m
+  window.fmtK = function (v, cur) {
+    const fx = FX[cur || 'EUR']; const n = v * fx.rate; const s = fx.symbol;
+    const a = Math.abs(n);
+    if (a >= 1e6) return s + (n / 1e6).toFixed(1) + 'm';
+    if (a >= 1000) return s + (n / 1000).toFixed(1) + 'k';
+    return s + Math.round(n).toLocaleString('en-US');
+  };
+  // full: €38,793.0
+  window.fmtFull = function (v, cur) {
+    const fx = FX[cur || 'EUR']; const n = v * fx.rate; const s = fx.symbol;
+    return s + n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  };
+  // plain integer with currency
+  window.fmtInt = function (v, cur) {
+    const fx = FX[cur || 'EUR']; const n = v * fx.rate; const s = fx.symbol;
+    return s + Math.round(n).toLocaleString('en-US');
+  };
+  window.pct = function (num, den) { return den ? Math.round((num / den) * 100) : 0; };
+
+  // helper: sum a deal list by type
+  window.sumBy = function (list, type) {
+    return list.filter(d => !type || d.type === type).reduce((a, d) => a + d.value, 0);
+  };
+
+  /* ---- value/month helpers (work for both live + demo rows) ---- */
+  // A deal's own sales value = sum of its pipeline-specific custom fields
+  // (NL-ARR+One-off+Onboarding, or US-ARR+One-off+Onboarding). Falls back to
+  // .value for demo rows that don't carry the component fields.
+  window.ownValue = function (d) {
+    if (d.arr != null || d.oneoff != null || d.onboarding != null) {
+      return (+d.arr || 0) + (+d.oneoff || 0) + (+d.onboarding || 0);
+    }
+    return +d.value || 0;
+  };
+  // sum a list by ownValue, optional type filter
+  window.sumOwn = function (list, type) {
+    return list.filter(d => !type || d.type === type).reduce((a, d) => a + window.ownValue(d), 0);
+  };
+  // month index (0-11) of the deal's relevant date
+  window.dealMonth = function (d) {
+    if (d.mon != null) return d.mon;
+    const s = d.refused || d.close;
+    return s ? new Date(s).getMonth() : -1;
+  };
+  // sum per-quarter goals over a set of quarters for a key (newLogo|upsell|combined)
+  window.goalSum = function (quarters, key) {
+    const g = window.DATA.goalsByQuarter || {};
+    return quarters.reduce((a, q) => a + ((g[q] && g[q][key]) || 0), 0);
+  };
+  // quarters elapsed so far this year, e.g. June -> ['Q1','Q2']
+  window.ytdQuarters = function () {
+    const cq = Math.floor(new Date().getMonth() / 3) + 1;
+    return ['Q1', 'Q2', 'Q3', 'Q4'].slice(0, cq);
+  };
+
+  /* ------------------------------------------------------------
+     THE SEAM — this is the only place the dashboard touches data.
+     - Tries to load LIVE data from the Teamleader connection
+       (a Netlify Function the developer fills in).
+     - If that isn't built/connected yet, it quietly falls back to
+       the bundled demo data above, so the dashboard ALWAYS renders.
+     A developer only needs to make /.netlify/functions/dashboard-data
+     return JSON in the same shape as window.DATA. Nothing else changes.
+     ------------------------------------------------------------ */
+  window.loadData = async function () {
+    const LS_KEY = 'safesight_live_payload_v1';
+    const isComplete = p => p && p.quarters && p.quarters.Q1 && p.historicals && p.finance;
+
+    // 1) try the live endpoint
+    let live = null;
+    try {
+      const res = await fetch('/.netlify/functions/dashboard-data', { cache: 'no-store' });
+      if (res.ok) live = await res.json();
+    } catch (e) { /* offline / not deployed */ }
+
+    // 2) a complete live payload wins — use it and remember it
+    if (isComplete(live)) {
+      Object.assign(window.DATA, live);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(live)); } catch (e) {}
+      return 'live';
+    }
+
+    // 3) server returned nothing usable (refreshing / partial / error).
+    //    Fall back to the LAST GOOD live payload if we have one, so we never
+    //    regress to demo numbers once real data has been seen.
+    try {
+      const cached = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      if (isComplete(cached)) { Object.assign(window.DATA, cached); return 'live'; }
+    } catch (e) {}
+
+    // 4) truly nothing live ever seen → demo data already in window.DATA
+    return 'mock';
+  };
+
+})();
+
+</script>
+  <script data-from="export.js">
+/* ============================================================
+   Finance export — builds a real .xlsx (no library) matching the
+   Safesight finance format: 3 sheets — Goals, New Bookings, Churn.
+   Exposes window.exportFinance({ quarters, monthIdx, year, label, filename }).
+   Amounts are in euros, integers (rounded), matching the sample file.
+   ============================================================ */
+(function () {
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  /* ---- xml helpers ---- */
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function colName(n) { let s = ''; n++; while (n) { n--; s = String.fromCharCode(65 + n % 26) + s; n = Math.floor(n / 26); } return s; }
+  function cellXml(ref, val) {
+    if (typeof val === 'number' && isFinite(val)) return `<c r="${ref}"><v>${val}</v></c>`;
+    return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${esc(val)}</t></is></c>`;
+  }
+  function sheetXml(rows) {
+    let body = '';
+    rows.forEach((row, ri) => {
+      let cells = '';
+      row.forEach((val, ci) => { if (val === null || val === undefined || val === '') return; cells += cellXml(colName(ci) + (ri + 1), val); });
+      body += `<row r="${ri + 1}">${cells}</row>`;
+    });
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${body}</sheetData></worksheet>`;
+  }
+
+  /* ---- zip (stored, no compression) ---- */
+  const CRC = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
+  function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function cat(arrs) { let n = 0; arrs.forEach(a => n += a.length); const o = new Uint8Array(n); let p = 0; arrs.forEach(a => { o.set(a, p); p += a.length; }); return o; }
+  const u16 = n => new Uint8Array([n & 255, (n >> 8) & 255]);
+  const u32 = n => new Uint8Array([n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >> 24) & 255]);
+  function zip(files) {
+    const enc = new TextEncoder(); const local = []; const central = []; let offset = 0;
+    files.forEach(f => {
+      const name = enc.encode(f.name); const data = typeof f.data === 'string' ? enc.encode(f.data) : f.data; const crc = crc32(data);
+      const lh = cat([u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), name, data]);
+      local.push(lh);
+      central.push(cat([u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset), name]));
+      offset += lh.length;
+    });
+    let cSize = 0; central.forEach(c => cSize += c.length);
+    const eocd = cat([u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(cSize), u32(offset), u16(0)]);
+    return new Blob([...local, ...central, eocd], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  function buildWorkbook(sheetDefs) {
+    const files = [];
+    files.push({ name: '[Content_Types].xml', data:
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheetDefs.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>` });
+    files.push({ name: '_rels/.rels', data:
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` });
+    files.push({ name: 'xl/workbook.xml', data:
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetDefs.map((s, i) => `<sheet name="${esc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>` });
+    files.push({ name: 'xl/_rels/workbook.xml.rels', data:
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetDefs.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheetDefs.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` });
+    files.push({ name: 'xl/styles.xml', data:
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs></styleSheet>` });
+    sheetDefs.forEach((s, i) => files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: sheetXml(s.rows) }));
+    return zip(files);
+  }
+
+  /* ---- assemble the finance data for a scope ---- */
+  window.exportFinance = function ({ quarters, monthIdx, year, label, filename }) {
+    const D = window.DATA;
+    const ownV = window.ownValue, dealMonth = window.dealMonth;
+    const inMonth = d => monthIdx == null || dealMonth(d) === monthIdx;
+
+    const won = quarters.flatMap(q => D.quarters[q].won).filter(inMonth);
+    let churn = quarters.flatMap(q => D.quarters[q].churn);
+    if (monthIdx != null) churn = churn.filter(c => c.when === MONTHS[monthIdx] || c.when === MONTHS_FULL[monthIdx]);
+
+    const achNL = window.sumOwn(won, 'New logo');
+    const achUP = window.sumOwn(won, 'Upsell');
+    const achC = achNL + achUP;
+    const goalNL = window.goalSum(quarters, 'newLogo');
+    const goalUP = window.goalSum(quarters, 'upsell');
+    const goalC = window.goalSum(quarters, 'combined');
+    const vrow = (cat, goal, ach) => [cat, goal, Math.round(ach), (ach - goal).toFixed(2), goal ? ((ach - goal) / goal * 100).toFixed(1) + '%' : '—'];
+
+    const goalsRows = [
+      ['Category', 'Goal', 'Achieved', 'Variance', 'Variance %'],
+      vrow('New Logo', goalNL, achNL),
+      vrow('Upsell', goalUP, achUP),
+      vrow('Combined', goalC, achC),
+    ];
+
+    const bookingRows = [['Title', 'Customer Name', 'Date Closed', 'Item Name', 'Amount (Euros)', 'Sales Rep', 'Industry', 'Bookings Type']];
+    won.forEach(d => bookingRows.push([
+      d.name, d.customer || '', d.refused || '', d.name, Math.round(ownV(d)),
+      d.owner || '', d.industry || '', d.type === 'Upsell' ? 'Upsell' : 'New Logo',
+    ]));
+
+    const churnRows = [['Customer Name', 'Month ARR gets impacted', 'Item Name', 'Amount (Euros)']];
+    churn.forEach(c => churnRows.push([c.customer || '', c.when || '', c.reason || '', Math.round(c.value || 0)]));
+
+    const blob = buildWorkbook([
+      { name: 'Goals', rows: goalsRows },
+      { name: 'New Bookings', rows: bookingRows },
+      { name: 'Churn', rows: churnRows },
+    ]);
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (filename || 'safesight-export') + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    return { won: won.length, churn: churn.length };
+  };
+})();
+
+</script>
+  <script type="text/babel" data-from="charts.jsx">
+/* ============================================================
+   Charts — SVG, viewBox-scaled, HTML tooltips on hover
+   Exports: BarChart, MiniBar, LineChart
+   ============================================================ */
+(function () {
+  const { useState, useRef } = React;
+
+  const COLORS = {
+    newLogo: 'var(--green)',
+    upsell: 'var(--blue)',
+    2023: 'var(--gray-series)',
+    2024: 'var(--blue)',
+    2025: 'var(--purple)',
+    2026: 'var(--green)',
+  };
+
+  function niceTop(max) {
+    if (max <= 0) return 10;
+    const pow = Math.pow(10, Math.floor(Math.log10(max)));
+    const n = max / pow;
+    const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return step * pow;
+  }
+
+  /* ---------- Tooltip primitive ---------- */
+  function Tip({ x, y, children, w }) {
+    return (
+      <div className="tip" style={{ left: `${x}%`, top: `${y}%`, opacity: 1 }}>{children}</div>
+    );
+  }
+
+  /* =========================================================
+     Stacked bar chart — quarters on X, New logo + Upsell, goal line
+     props: bars = [{label, newLogo, upsell}], goal, cur
+     ========================================================= */
+  function BarChart({ bars, goal, cur }) {
+    const [hover, setHover] = useState(null);
+    const W = 640, H = 360, padL = 8, padR = 8, padT = 30, padB = 34;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const maxVal = Math.max(goal || 0, ...bars.map(b => b.newLogo + b.upsell), 1);
+    const top = niceTop(maxVal * 1.1);
+    const yOf = v => padT + plotH - (v / top) * plotH;
+    const n = bars.length;
+    const slot = plotW / n;
+    const bw = Math.min(86, slot * 0.42);
+
+    const goalY = goal ? yOf(goal) : null;
+
+    return (
+      <div className="chart-wrap" onMouseLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`}>
+          {/* goal line */}
+          {goal ? (
+            <g>
+              <line className="goal-line" x1={padL} x2={W - padR} y1={goalY} y2={goalY} />
+              <text className="goal-tag" x={padL} y={goalY - 7}>{window.fmtK(goal, cur)}</text>
+            </g>
+          ) : null}
+          {bars.map((b, i) => {
+            const cx = padL + slot * i + slot / 2;
+            const x = cx - bw / 2;
+            const total = b.newLogo + b.upsell;
+            const nlH = (b.newLogo / top) * plotH;
+            const upH = (b.upsell / top) * plotH;
+            const baseY = padT + plotH;
+            const isH = hover && hover.i === i;
+            return (
+              <g key={i}
+                 onMouseMove={() => setHover({ i, cx: (cx / W) * 100, cy: (yOf(total) / H) * 100, b })}>
+                {/* hit area */}
+                <rect x={padL + slot * i} y={padT} width={slot} height={plotH} fill="transparent" />
+                {b.newLogo > 0 && (
+                  <rect x={x} y={baseY - nlH} width={bw} height={nlH}
+                        rx="4" fill={COLORS.newLogo} opacity={isH ? 1 : 0.92} />
+                )}
+                {b.upsell > 0 && (
+                  <rect x={x} y={baseY - nlH - upH} width={bw} height={upH}
+                        rx="4" fill={COLORS.upsell} opacity={isH ? 1 : 0.92} />
+                )}
+                <text className="axis-label" x={cx} y={H - 12} textAnchor="middle">{b.label}</text>
+              </g>
+            );
+          })}
+        </svg>
+        {hover && (
+          <Tip x={hover.cx} y={hover.cy}>
+            <div className="tt-title">{hover.b.label}</div>
+            <div className="tt-row"><span className="k"><i style={{ background: 'var(--green)' }} />New logo</span><span className="v">{window.fmtK(hover.b.newLogo, cur)}</span></div>
+            <div className="tt-row"><span className="k"><i style={{ background: 'var(--blue)' }} />Upsell</span><span className="v">{window.fmtK(hover.b.upsell, cur)}</span></div>
+            <div className="tt-row" style={{ marginTop: 3, borderTop: '1px solid rgba(128,128,128,.3)', paddingTop: 4 }}>
+              <span className="k">Total</span><span className="v">{window.fmtK(hover.b.newLogo + hover.b.upsell, cur)}</span></div>
+          </Tip>
+        )}
+      </div>
+    );
+  }
+
+  /* =========================================================
+     Mini single-series bar (New logo OR Upsell vs goal)
+     props: bars=[{label,value}], goal, color('green'|'blue'), cur, name
+     ========================================================= */
+  function MiniBar({ bars, goal, color, cur, name }) {
+    const [hover, setHover] = useState(null);
+    const W = 520, H = 230, padL = 8, padR = 8, padT = 26, padB = 30;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const top = niceTop(Math.max(goal || 0, ...bars.map(b => b.value), 1) * 1.1);
+    const yOf = v => padT + plotH - (v / top) * plotH;
+    const n = bars.length, slot = plotW / n, bw = Math.min(70, slot * 0.4);
+    const fill = color === 'blue' ? 'var(--blue)' : 'var(--green)';
+    const goalY = goal ? yOf(goal) : null;
+    return (
+      <div className="chart-wrap" onMouseLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`}>
+          {goal ? <line className="goal-line" x1={padL} x2={W - padR} y1={goalY} y2={goalY} /> : null}
+          {bars.map((b, i) => {
+            const cx = padL + slot * i + slot / 2;
+            const h = (b.value / top) * plotH;
+            const baseY = padT + plotH;
+            const isH = hover && hover.i === i;
+            return (
+              <g key={i} onMouseMove={() => setHover({ i, cx: (cx / W) * 100, cy: (yOf(b.value) / H) * 100, b })}>
+                <rect x={padL + slot * i} y={padT} width={slot} height={plotH} fill="transparent" />
+                {b.value > 0 && <rect x={cx - bw / 2} y={baseY - h} width={bw} height={h} rx="4" fill={fill} opacity={isH ? 1 : 0.92} />}
+                <text className="axis-label" x={cx} y={H - 10} textAnchor="middle">{b.label}</text>
+              </g>
+            );
+          })}
+        </svg>
+        {hover && (
+          <Tip x={hover.cx} y={hover.cy}>
+            <div className="tt-title">{name} · {hover.b.label}</div>
+            <div className="tt-row"><span className="k"><i style={{ background: fill }} />Achieved</span><span className="v">{window.fmtK(hover.b.value, cur)}</span></div>
+            {goal ? <div className="tt-row"><span className="k">Goal</span><span className="v">{window.fmtK(goal, cur)}</span></div> : null}
+          </Tip>
+        )}
+      </div>
+    );
+  }
+
+  /* =========================================================
+     Multi-series line chart (historicals: years across Q1..Q4)
+     props: series=[{key,label,color,points:[v,v,v,v]}], labels, cur
+     ========================================================= */
+  function LineChart({ series, labels, cur }) {
+    const [hi, setHi] = useState(null);
+    const W = 640, H = 360, padL = 44, padR = 14, padT = 16, padB = 30;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const allVals = series.flatMap(s => s.points);
+    const top = niceTop(Math.max(...allVals, 1));
+    const yOf = v => padT + plotH - (v / top) * plotH;
+    const xOf = i => padL + (labels.length === 1 ? plotW / 2 : (plotW * i) / (labels.length - 1));
+    const ticks = 4;
+
+    return (
+      <div className="chart-wrap" onMouseLeave={() => setHi(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`}>
+          {/* y gridlines + labels */}
+          {Array.from({ length: ticks + 1 }).map((_, t) => {
+            const v = (top / ticks) * t; const y = yOf(v);
+            return (
+              <g key={t}>
+                <line className="gridline" x1={padL} x2={W - padR} y1={y} y2={y} />
+                <text className="axis-label" x={padL - 8} y={y + 4} textAnchor="end">{window.fmtK(v, cur)}</text>
+              </g>
+            );
+          })}
+          {/* x labels */}
+          {labels.map((l, i) => (
+            <text key={l} className="axis-label" x={xOf(i)} y={H - 8} textAnchor="middle">{l}</text>
+          ))}
+          {/* hover guide */}
+          {hi != null && <line x1={xOf(hi)} x2={xOf(hi)} y1={padT} y2={padT + plotH} className="gridline" style={{ stroke: 'var(--border-2)' }} />}
+          {/* lines */}
+          {series.map(s => {
+            const d = s.points.map((v, i) => `${i === 0 ? 'M' : 'L'}${xOf(i)},${yOf(v)}`).join(' ');
+            return <path key={s.key} d={d} fill="none" stroke={s.color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" opacity="0.95" />;
+          })}
+          {/* dots */}
+          {series.map(s => s.points.map((v, i) => (
+            <circle key={s.key + i} cx={xOf(i)} cy={yOf(v)} r={hi === i ? 4.5 : 3} fill={s.color} stroke="var(--surface)" strokeWidth="1.5" />
+          )))}
+          {/* hit columns */}
+          {labels.map((l, i) => (
+            <rect key={'h' + i} x={xOf(i) - plotW / (labels.length * 2)} y={padT}
+                  width={plotW / labels.length} height={plotH} fill="transparent"
+                  onMouseMove={() => setHi(i)} />
+          ))}
+        </svg>
+        {hi != null && (
+          <div className="tip" style={{ left: `${(xOf(hi) / W) * 100}%`, top: `${(padT / H) * 100}%`, opacity: 1 }}>
+            <div className="tt-title">{labels[hi]}</div>
+            {series.map(s => (
+              <div className="tt-row" key={s.key}>
+                <span className="k"><i style={{ background: s.color }} />{s.label}</span>
+                <span className="v">{window.fmtK(s.points[hi], cur)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  Object.assign(window, { BarChart, MiniBar, LineChart, SERIES_COLORS: COLORS });
+})();
+
+</script>
+  <script type="text/babel" data-from="components.jsx">
+/* ============================================================
+   Shared UI primitives
+   Card, KpiCard, ProgressKpi, SegmentedControl, DealList,
+   HBarList, SortableTable, Badge helpers
+   ============================================================ */
+(function () {
+  const { useState } = React;
+
+  function Card({ children, soft, className = '', style, title, count, total, headRight }) {
+    return (
+      <div className={`card ${soft ? 'soft' : ''} ${className}`} style={style}>
+        {(title || total || headRight) && (
+          <div className="card-head">
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+              {title && <h3 className="card-title">{title}</h3>}
+              {count != null && <span className="count">{count}</span>}
+            </div>
+            {headRight ? headRight : (total != null && <span className="total">{total}</span>)}
+          </div>
+        )}
+        {children}
+      </div>
+    );
+  }
+
+  function TypeDot({ type }) {
+    return <span className={`dot ${type === 'Upsell' ? 'blue' : 'green'}`} />;
+  }
+
+  /* KPI with a big number + optional progress bar + footer */
+  function KpiCard({ eyebrow, dotColor, corner, value, valueRed, progress, progressColor, footLeft, footRight, sub, soft = true }) {
+    return (
+      <Card soft={soft} className="kpi pad-lg">
+        <div className="eyebrow">
+          {dotColor && <span className={`dot ${dotColor}`} />}{eyebrow}
+        </div>
+        {corner != null && <span className="corner">{corner}</span>}
+        <div className={`big tnum ${valueRed ? 'red' : ''}`}>{value}</div>
+        {progress != null && (
+          <div className={`bar ${progressColor === 'blue' ? 'blue' : ''}`}>
+            <i style={{ width: Math.min(100, progress) + '%' }} />
+          </div>
+        )}
+        {(footLeft || footRight) && (
+          <div className="kpi-foot">
+            <span className="pct">{footLeft}</span>
+            <span className="goal">{footRight}</span>
+          </div>
+        )}
+        {sub && <div className="sub">{sub}</div>}
+      </Card>
+    );
+  }
+
+  /* Won-deals style list: rank · name · type · value, with underline progress */
+  function DealList({ deals, cur, showType = true, showBar = true, emptyText = 'No deals' }) {
+    if (!deals.length) return <div className="empty">{emptyText}</div>;
+    return (
+      <div className="list">
+        {deals.map((d, i) => {
+          const isUp = d.type === 'Upsell';
+          return (
+            <div className={`list-row uline ${isUp ? 'up' : ''}`} key={d.name + i}>
+              <span className="rank">{i + 1}</span>
+              <span className="name">{d.name}{d.ownerLine && <small>{d.ownerLine}</small>}</span>
+              {showType && <span className={`type ${isUp ? 'up' : 'nl'}`}>{d.type}</span>}
+              <span className="val tnum">{window.fmtK(d.value, cur)}</span>
+              {showBar && <i style={{ width: '100%' }} />}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  /* Horizontal-bar list (open deals / leaderboard) */
+  function HBarList({ rows, cur, color = 'green', max, emptyText = 'No deals', onRowClick }) {
+    if (!rows.length) return <div className="empty">{emptyText}</div>;
+    const mx = max || Math.max(...rows.map(r => r.value), 1);
+    return (
+      <div>
+        {rows.map((r, i) => (
+          <div className={`hbar-row ${onRowClick ? 'clickable' : ''}`} key={r.name + i}
+               onClick={onRowClick ? () => onRowClick(r) : undefined}
+               role={onRowClick ? 'button' : undefined} tabIndex={onRowClick ? 0 : undefined}
+               onKeyDown={onRowClick ? (e => { if (e.key === 'Enter') onRowClick(r); }) : undefined}>
+            <div className="htop">
+              <span className="nm">
+                {r.rank != null && <span style={{ color: 'var(--text-3)', fontWeight: 600, marginRight: 10 }}>{r.rank}</span>}
+                {r.name}{r.sub && <small> &nbsp;{r.sub}</small>}
+              </span>
+              <span className="vv tnum">{window.fmtK(r.value, cur)}{r.tail && <span>{r.tail}</span>}</span>
+            </div>
+            <div className={`hbar-track ${color === 'blue' ? 'blue' : ''}`}>
+              <i style={{ width: (r.value / mx) * 100 + '%' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  /* Sortable table.
+     columns: [{key,label,num,sortable,render(row), th}]
+     rows: array of objects
+     footer: optional object rendered as bold tfoot row keyed by column.key (or pass footRender)
+  */
+  function SortableTable({ columns, rows, initialSort, footer, maxHeight }) {
+    const [sort, setSort] = useState(initialSort || null); // {key, dir}
+    const sorted = React.useMemo(() => {
+      if (!sort) return rows;
+      const col = columns.find(c => c.key === sort.key);
+      const arr = [...rows].sort((a, b) => {
+        let av = col.sortVal ? col.sortVal(a) : a[sort.key];
+        let bv = col.sortVal ? col.sortVal(b) : b[sort.key];
+        if (typeof av === 'string') { av = av.toLowerCase(); bv = (bv || '').toLowerCase(); }
+        if (av < bv) return sort.dir === 'asc' ? -1 : 1;
+        if (av > bv) return sort.dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+      return arr;
+    }, [rows, sort, columns]);
+
+    function toggle(col) {
+      if (!col.sortable) return;
+      setSort(s => {
+        if (!s || s.key !== col.key) return { key: col.key, dir: col.num ? 'desc' : 'asc' };
+        if (s.dir === (col.num ? 'desc' : 'asc')) return { key: col.key, dir: col.num ? 'asc' : 'desc' };
+        return null;
+      });
+    }
+
+    const body = (
+      <table className="tbl">
+        <thead>
+          <tr>
+            {columns.map(c => (
+              <th key={c.key} className={`${c.num ? 'num' : ''} ${c.sortable ? 'sortable' : ''}`}
+                  aria-sort={sort && sort.key === c.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                  onClick={() => toggle(c)}>
+                {c.label}
+                {c.sortable && <span className="arr">{sort && sort.key === c.key ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span>}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((r, i) => (
+            <tr key={i}>
+              {columns.map(c => (
+                <td key={c.key} className={`${c.num ? 'num' : ''} ${c.cellClass ? c.cellClass(r) : ''}`}>
+                  {c.render ? c.render(r) : r[c.key]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+        {footer && (
+          <tfoot>
+            <tr>{columns.map(c => <td key={c.key} className={c.num ? 'num' : ''}>{footer[c.key] != null ? footer[c.key] : ''}</td>)}</tr>
+          </tfoot>
+        )}
+      </table>
+    );
+
+    if (maxHeight) return <div className="scroll-y" style={{ maxHeight }}>{body}</div>;
+    return body;
+  }
+
+  Object.assign(window, { Card, KpiCard, DealList, HBarList, SortableTable, TypeDot });
+})();
+
+</script>
+  <script type="text/babel" data-from="tab_overview.jsx">
+/* ============================================================
+   Overview tab
+   ============================================================ */
+(function () {
+  const { useMemo, useState } = React;
+  const { Card, KpiCard, DealList, HBarList, SortableTable, BarChart, MiniBar } = window;
+  const ownV = window.ownValue, sumOwn = window.sumOwn, dealMonth = window.dealMonth;
+
+  function RepModal({ rep, deals, cur, periodLabel, onClose }) {
+    const total = deals.reduce((a, d) => a + ownV(d), 0);
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={e => e.stopPropagation()} className="card" style={{ maxWidth: 560, width: '100%', boxShadow: 'var(--shadow-pop)' }}>
+          <div className="card-head">
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+              <h3 className="card-title">{rep}</h3>
+              <span className="count">{deals.length} won · {periodLabel}</span>
+            </div>
+            <span className="total tnum">{window.fmtK(total, cur)}</span>
+          </div>
+          <div className="scroll-y" style={{ maxHeight: 420 }}>
+            <DealList deals={[...deals].sort((a, b) => ownV(b) - ownV(a)).map(d => ({ name: d.name, ownerLine: d.customer || '', type: d.type, value: ownV(d) }))} cur={cur} emptyText="No won deals in this period" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function OverviewTab({ ctx }) {
+    const { cur, quarters, goalQuarters, monthIdx, periodLabel, rep } = ctx;
+    const D = window.DATA;
+    const [repView, setRepView] = useState(null);
+    const repOK = d => rep === 'All reps' || d.owner === rep;
+    const inMonth = d => monthIdx == null || dealMonth(d) === monthIdx;
+
+    const gather = (kind, withRep) => quarters
+      .flatMap(q => D.quarters[q][kind])
+      .filter(inMonth)
+      .filter(d => !withRep || repOK(d));
+
+    const won   = useMemo(() => gather('won', true).sort((a, b) => ownV(b) - ownV(a)), [quarters, rep, monthIdx]);
+    const open  = useMemo(() => gather('open', true).filter(d => ownV(d) > 0), [quarters, rep, monthIdx]);
+    const lost  = useMemo(() => gather('lost', true), [quarters, rep, monthIdx]);
+    const churn = useMemo(() => gather('churn', false), [quarters, monthIdx]);
+    const wonAllReps = useMemo(() => gather('won', false), [quarters, monthIdx]);
+
+    const salesTotal  = sumOwn(won);
+    const newLogoWon  = sumOwn(won, 'New logo');
+    const upsellWon   = sumOwn(won, 'Upsell');
+    const nlCount     = won.filter(d => d.type === 'New logo').length;
+    const upCount     = won.filter(d => d.type === 'Upsell').length;
+    const pipeline    = sumOwn(open);
+    const newLogoPipe = sumOwn(open, 'New logo');
+    const churnTotal    = churn.filter(c => c.kind !== 'forecast').reduce((a, c) => a + (c.value || 0), 0);
+    const forecastChurn = churn.filter(c => c.kind === 'forecast').reduce((a, c) => a + (c.value || 0), 0);
+
+    const goalCombined = window.goalSum(goalQuarters, 'combined');
+    const goalNewLogo  = window.goalSum(goalQuarters, 'newLogo');
+    const goalUpsell   = window.goalSum(goalQuarters, 'upsell');
+
+    // chart bars — one per quarter in scope (rep + month filtered)
+    const salesBars = quarters.map(q => {
+      const w = D.quarters[q].won.filter(inMonth).filter(repOK);
+      return { label: q, newLogo: sumOwn(w, 'New logo'), upsell: sumOwn(w, 'Upsell') };
+    });
+    const nlBars = quarters.map(q => ({ label: q, value: sumOwn(D.quarters[q].won.filter(inMonth).filter(repOK), 'New logo') }));
+    const upBars = quarters.map(q => ({ label: q, value: sumOwn(D.quarters[q].won.filter(inMonth).filter(repOK), 'Upsell') }));
+    const singleQ = quarters.length === 1 ? quarters[0] : null;
+    const barGoal = singleQ ? (D.goalsByQuarter[singleQ] || {}).combined : null;
+    const nlGoal  = singleQ ? (D.goalsByQuarter[singleQ] || {}).newLogo : null;
+    const upGoal  = singleQ ? (D.goalsByQuarter[singleQ] || {}).upsell : null;
+
+    // leaderboard — built from won deals (all reps), respects month/period scope
+    const leaderboard = useMemo(() => {
+      const m = {};
+      wonAllReps.forEach(d => { m[d.owner] = (m[d.owner] || 0) + ownV(d); });
+      return Object.entries(m).map(([name, value]) => ({ name, value }))
+        .filter(r => r.value > 0).sort((a, b) => b.value - a.value)
+        .map((r, i) => ({ ...r, rank: i + 1 }));
+    }, [wonAllReps]);
+
+    // open deals rendered in the SAME row style as Won deals (thin underline),
+    // sorted highest → lowest win probability.
+    const openDeals = [...open]
+      .sort((a, b) => b.prob - a.prob)
+      .map(d => ({ name: d.name, ownerLine: `${d.owner} · ${Math.round(d.prob * 100)}%`, type: d.type, value: ownV(d) }));
+
+    // ---- breakdown table ----
+    const arrOf = d => (d.arr != null ? +d.arr : ownV(d));
+    const oneoffOf = d => +d.oneoff || 0;
+    const onbOf = d => +d.onboarding || 0;
+    const breakdownCols = [
+      { key: 'name', label: 'Prospect', sortable: true, render: r => <span className="co">{r.name}</span> },
+      { key: 'industry', label: 'Industry', sortable: true, render: r => <span className="sub">{r.industry || '—'}</span> },
+      { key: 'type', label: 'Type', sortable: true, render: r => <span className={`tag ${r.type === 'Upsell' ? 'up' : 'nl'}`}>{r.type}</span> },
+      { key: 'arr', label: 'ARR', num: true, sortable: true, sortVal: arrOf, render: r => window.fmtFull(arrOf(r), cur) },
+      { key: 'oneoff', label: 'One-off', num: true, sortable: true, sortVal: oneoffOf, render: r => window.fmtFull(oneoffOf(r), cur) },
+      { key: 'onb', label: 'Onboarding', num: true, sortable: true, sortVal: onbOf, render: r => window.fmtFull(onbOf(r), cur) },
+      { key: 'total', label: 'Total', num: true, sortable: true, sortVal: ownV, render: r => <b>{window.fmtFull(ownV(r), cur)}</b> },
+    ];
+    const breakdownFoot = {
+      name: 'Total', arr: window.fmtFull(won.reduce((a, d) => a + arrOf(d), 0), cur),
+      oneoff: window.fmtFull(won.reduce((a, d) => a + oneoffOf(d), 0), cur),
+      onb: window.fmtFull(won.reduce((a, d) => a + onbOf(d), 0), cur),
+      total: window.fmtFull(salesTotal, cur),
+    };
+
+    const lostTotal = lost.reduce((a, d) => a + (d.value || 0), 0);
+    const lostCols = [
+      { key: 'name', label: 'Deal', sortable: true, render: r => <span className="co">{r.name}</span> },
+      { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="sub">{r.customer || '—'}</span> },
+      { key: 'type', label: 'Type', sortable: true, render: r => <span className={`tag ${r.type === 'Upsell' ? 'up' : 'nl'}`}>{r.type}</span> },
+      { key: 'owner', label: 'Owner', sortable: true, render: r => <span className="sub">{r.owner}</span> },
+      { key: 'refused', label: 'Refused', sortable: true, render: r => <span className="sub tnum">{r.refused}</span> },
+      { key: 'value', label: 'Value', num: true, sortable: true, render: r => window.fmtFull(r.value, cur) },
+    ];
+
+    const churnKind = r => ({ lost: ['Churned', 'risk'], partial: ['Partial', 'watch'], forecast: ['Forecast', 'up'] }[r.kind] || ['Churned', 'risk']);
+    const churnCols = [
+      { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
+      { key: 'industry', label: 'Industry', sortable: true, render: r => <span className="sub">{r.industry || '—'}</span> },
+      { key: 'kind', label: 'Type', sortable: true, render: r => { const m = churnKind(r); return <span className={`tag ${m[1]}`}>{m[0]}</span>; } },
+      { key: 'reason', label: 'Reason', render: r => <span className="sub">{r.reason || '—'}</span> },
+      { key: 'when', label: 'Contract start', sortable: true, render: r => <span className="sub">{r.when}</span> },
+      { key: 'value', label: 'Churn value', num: true, sortable: true, render: r => <span style={r.kind === 'forecast' ? { color: 'var(--text-2)' } : null}>{window.fmtFull(r.value, cur)}</span> },
+    ];
+
+    return (
+      <React.Fragment>
+        {/* ---- KPI row ---- */}
+        <div className="grid g-4">
+          <Card className="kpi pad-lg">
+            <div className="eyebrow">SALES · {periodLabel}</div>
+            <div className="big tnum">{window.fmtK(salesTotal, cur)}</div>
+            <div className="bar"><i style={{ width: Math.min(100, window.pct(salesTotal, goalCombined)) + '%' }} /></div>
+            <div className="kpi-foot">
+              <span className="pct">{window.pct(salesTotal, goalCombined)}%</span>
+              <span className="goal">Goal <b>{window.fmtK(goalCombined, cur)}</b></span>
+            </div>
+            <div className="sub" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+              <span className="lead">{won.length} won</span>
+              <span>{window.fmtK(pipeline, cur)} open pipeline</span>
+            </div>
+          </Card>
+
+          <KpiCard
+            eyebrow="NEW LOGO" dotColor="green" corner={nlCount}
+            value={window.fmtK(newLogoWon, cur)}
+            progress={window.pct(newLogoWon, goalNewLogo)}
+            footLeft={`${window.pct(newLogoWon, goalNewLogo)}% of ${window.fmtK(goalNewLogo, cur)} goal`}
+            sub={newLogoPipe > 0 ? <span>+{window.fmtK(newLogoPipe, cur)} pipeline</span> : null}
+          />
+
+          <KpiCard
+            eyebrow="UPSELL" dotColor="blue" corner={upCount}
+            value={window.fmtK(upsellWon, cur)}
+            progress={window.pct(upsellWon, goalUpsell)} progressColor="blue"
+            footLeft={`${window.pct(upsellWon, goalUpsell)}% of ${window.fmtK(goalUpsell, cur)} goal`}
+          />
+
+          <KpiCard
+            eyebrow="CHURN" dotColor="red"
+            value={window.fmtK(churnTotal, cur)} valueRed
+            sub={<span>{periodLabel} actual{forecastChurn > 0 ? <span> · <b style={{ color: 'var(--text-2)' }}>{window.fmtK(forecastChurn, cur)}</b> forecast</span> : null}</span>}
+          />
+        </div>
+
+        {/* ---- Sales by quarter + Won deals ---- */}
+        <div className="grid g-2">
+          <Card title={`Sales by quarter · ${ctx.year}`} headRight={
+            <div className="legend">
+              <span className="li"><span className="sw" style={{ background: 'var(--green)' }} />New logo</span>
+              <span className="li"><span className="sw" style={{ background: 'var(--blue)' }} />Upsell</span>
+              {barGoal ? <span className="li dash"><span className="sw" />Goal</span> : null}
+            </div>}>
+            <div style={{ height: 300, width: '100%', display: 'flex', alignItems: 'center' }}>
+              <BarChart bars={salesBars} goal={barGoal} cur={cur} />
+            </div>
+          </Card>
+
+          <Card title="Won deals" count={`${won.length} deals`} total={window.fmtK(salesTotal, cur)}>
+            <div className="scroll-y" style={{ height: 300 }}>
+              <DealList deals={won} cur={cur} emptyText="No won deals in this period" />
+            </div>
+          </Card>
+        </div>
+
+        {/* ---- Open deals + breakdown ---- */}
+        <div className="grid g-2">
+          <Card title="Open deals" count={`${open.length} deals`} total={window.fmtK(pipeline, cur)}>
+            <div className="scroll-y" style={{ maxHeight: 300 }}>
+              <DealList deals={openDeals} cur={cur} emptyText="No open deals in this period" />
+            </div>
+          </Card>
+
+          <Card title="Won deals breakdown" count={`${won.length} deals`} total={window.fmtK(salesTotal, cur)}>
+            <div className="scroll-y" style={{ maxHeight: 300 }}>
+              <SortableTable columns={breakdownCols} rows={won} footer={won.length ? breakdownFoot : null} />
+              {!won.length && <div className="empty">No won deals in this period</div>}
+            </div>
+          </Card>
+        </div>
+
+        {/* ---- Mini bars ---- */}
+        <div className="grid g-2">
+          <Card title={<span><span className="dot green" style={{ marginRight: 8 }} />New logo</span>}
+                headRight={<span className="total tnum">{window.fmtK(newLogoWon, cur)} <span className="muted" style={{ fontWeight: 600 }}>/ {window.fmtK(goalNewLogo, cur)}</span></span>}>
+            <MiniBar bars={nlBars} goal={nlGoal} color="green" cur={cur} name="New logo" />
+          </Card>
+          <Card title={<span><span className="dot blue" style={{ marginRight: 8 }} />Upsell</span>}
+                headRight={<span className="total tnum">{window.fmtK(upsellWon, cur)} <span className="muted" style={{ fontWeight: 600 }}>/ {window.fmtK(goalUpsell, cur)}</span></span>}>
+            <MiniBar bars={upBars} goal={upGoal} color="blue" cur={cur} name="Upsell" />
+          </Card>
+        </div>
+
+        {/* ---- Leaderboard + Lost ---- */}
+        <div className="grid g-2">
+          <Card title="Rep leaderboard" headRight={<span className="sub" style={{ fontSize: 12 }}>click a rep → their deals</span>}>
+            <HBarList rows={leaderboard} cur={cur} color="blue" emptyText="No data for this period"
+                      onRowClick={r => setRepView(r.name)} />
+          </Card>
+          <Card title="Lost deals" count={`${lost.length} deals`} total={window.fmtK(lostTotal, cur)}>
+            <div className="scroll-y" style={{ maxHeight: 320 }}>
+              <SortableTable columns={lostCols} rows={lost} initialSort={{ key: 'value', dir: 'desc' }} />
+              {!lost.length && <div className="empty">No lost deals in this period</div>}
+            </div>
+          </Card>
+        </div>
+
+        {/* ---- Churn ---- */}
+        <div className="grid g-1">
+          <Card title="Churn" count={`${churn.length} in ${periodLabel}`} total={`${window.fmtK(churnTotal, cur)} actual`}>
+            <SortableTable columns={churnCols} rows={churn} />
+            {!churn.length && <div className="empty">No churn in this period</div>}
+          </Card>
+        </div>
+
+        {repView && (
+          <RepModal rep={repView} cur={cur} periodLabel={periodLabel}
+                    deals={wonAllReps.filter(d => d.owner === repView)}
+                    onClose={() => setRepView(null)} />
+        )}
+      </React.Fragment>
+    );
+  }
+
+  window.OverviewTab = OverviewTab;
+})();
+
+</script>
+  <script type="text/babel" data-from="tab_pipeline.jsx">
+/* ============================================================
+   Pipeline tab
+   ============================================================ */
+(function () {
+  const { Card, DealList } = window;
+  const ownV = window.ownValue, dealMonth = window.dealMonth;
+
+  // map an open deal into the Won-deals row shape (thin underline bar)
+  const toRow = d => ({ name: d.name, ownerLine: `${d.owner} · ${d.close || '—'} · ${Math.round(d.prob * 100)}%`, type: d.type, value: ownV(d) });
+
+  function PipelineTab({ ctx }) {
+    const { cur, quarters, monthIdx, periodLabel, rep } = ctx;
+    const D = window.DATA;
+    const repOK = d => rep === 'All reps' || d.owner === rep;
+    const inMonth = d => monthIdx == null || dealMonth(d) === monthIdx;
+
+    // open deals across the scoped quarters; only deals with real NL/US value,
+    // sorted highest → lowest win probability
+    const open = quarters
+      .flatMap(q => D.quarters[q].open)
+      .filter(repOK).filter(inMonth)
+      .filter(d => ownV(d) > 0)
+      .sort((a, b) => b.prob - a.prob);
+
+    const total = open.reduce((a, d) => a + ownV(d), 0);
+    const weighted = open.reduce((a, d) => a + ownV(d) * d.prob, 0);
+    const nl = open.filter(d => d.type === 'New logo');
+    const up = open.filter(d => d.type === 'Upsell');
+    const nlSum = nl.reduce((a, d) => a + ownV(d), 0);
+    const upSum = up.reduce((a, d) => a + ownV(d), 0);
+    const nlW = nl.reduce((a, d) => a + ownV(d) * d.prob, 0);
+    const upW = up.reduce((a, d) => a + ownV(d) * d.prob, 0);
+    const thisMonth = open.filter(d => d.thisMonth);
+    const thisMonthTotal = thisMonth.reduce((a, d) => a + ownV(d), 0);
+
+    function KpiPipe({ eyebrow, dot, value, deals, weighted }) {
+      return (
+        <Card soft className="kpi pad-lg">
+          <div className="eyebrow">{dot && <span className={`dot ${dot}`} />}{eyebrow}</div>
+          <div className="big tnum">{window.fmtK(value, cur)}</div>
+          <div className="sub" style={{ marginTop: 14 }}>{deals} deal{deals !== 1 ? 's' : ''} · <span className="lead">{window.fmtK(weighted, cur)} weighted</span></div>
+        </Card>
+      );
+    }
+
+    return (
+      <React.Fragment>
+        <p className="intro">
+          Open pipeline — deals <b>not yet won or lost</b> that carry a New&nbsp;logo or Upsell value, scoped to <b>{periodLabel}</b> (by
+          expected close date). Renewals are excluded — they live on the CSM tab. Weighted = value × win probability.
+        </p>
+
+        <div className="grid g-3">
+          <KpiPipe eyebrow="OPEN PIPELINE" value={total} deals={open.length} weighted={weighted} />
+          <KpiPipe eyebrow="NEW LOGO" dot="green" value={nlSum} deals={nl.length} weighted={nlW} />
+          <KpiPipe eyebrow="UPSELL" dot="blue" value={upSum} deals={up.length} weighted={upW} />
+        </div>
+
+        <div className="grid g-2">
+          <Card title="To close current month" total={window.fmtK(thisMonthTotal, cur)}>
+            <DealList deals={thisMonth.map(toRow)} cur={cur} emptyText={`Nothing expected to close in ${D.currentMonth}`} />
+          </Card>
+
+          <Card title="All open deals" count={`${open.length} deals`} total={window.fmtK(total, cur)}>
+            <div className="scroll-y" style={{ maxHeight: 320 }}>
+              <DealList deals={open.map(toRow)} cur={cur} emptyText="No open deals in this period" />
+            </div>
+          </Card>
+        </div>
+
+        <div className="grid g-2">
+          <Card title="Open New Logo deals" total={window.fmtK(nlSum, cur)}>
+            <div className="scroll-y" style={{ maxHeight: 300 }}>
+              <DealList deals={nl.map(toRow)} cur={cur} emptyText="No open New Logo deals" />
+            </div>
+          </Card>
+          <Card title="Open Upsell deals" total={window.fmtK(upSum, cur)}>
+            <div className="scroll-y" style={{ maxHeight: 300 }}>
+              <DealList deals={up.map(toRow)} cur={cur} emptyText="No open Upsell deals" />
+            </div>
+          </Card>
+        </div>
+      </React.Fragment>
+    );
+  }
+
+  window.PipelineTab = PipelineTab;
+})();
+
+</script>
+  <script type="text/babel" data-from="tab_financials.jsx">
+/* ============================================================
+   Financials tab — company YTD + finance-sheet figures
+   ============================================================ */
+(function () {
+  const { useState, useEffect } = React;
+  const { Card } = window;
+  const sumOwn = window.sumOwn;
+
+  function FinancialsTab({ ctx }) {
+    const { cur, goalsOn } = ctx;
+    const D = window.DATA;
+
+    // ---- sales YTD, straight from won deals (NL + Upsell, all quarters so far) ----
+    const ytd = window.ytdQuarters();
+    const won = ytd.flatMap(q => D.quarters[q].won);
+    const nl = sumOwn(won, 'New logo');
+    const up = sumOwn(won, 'Upsell');
+    const sales = nl + up;
+    // goals here are the FULL-YEAR (annual) targets — all four quarters
+    const ALL_Q = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const goalSales = window.goalSum(ALL_Q, 'combined');
+    const goalNL = window.goalSum(ALL_Q, 'newLogo');
+    const goalUP = window.goalSum(ALL_Q, 'upsell');
+
+    // ---- ARR + Total Safesight: pulled live from the finance Google Sheet ----
+    const [fin, setFin] = useState(null);
+    const [finState, setFinState] = useState('loading'); // loading | ok | err
+    useEffect(() => {
+      let alive = true;
+      fetch('/.netlify/functions/finance', { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(j => { if (alive) { setFin(j); setFinState('ok'); } })
+        .catch(() => { if (alive) setFinState('err'); });
+      return () => { alive = false; };
+    }, []);
+    const arrTotal = fin ? fin.arrTotal : D.finance.arrTotal;
+    const safeTotal = fin ? fin.totalSafesight : D.finance.totalSafesight;
+
+    const Loadable = ({ value }) => finState === 'loading'
+      ? <span className="shimmer" style={{ width: 150, height: 42, borderRadius: 8 }}>&nbsp;</span>
+      : <span>{value}</span>;
+
+    return (
+      <React.Fragment>
+        <p className="intro">
+          Sales achieved year-to-date ({ytd.join(' + ')}), measured against the <b>full-year</b> goals.
+          <b> ARR &amp; Total Safesight</b> are pulled live from the finance sheet.
+        </p>
+
+        <div className="grid g-3">
+          <Card className="kpi pad-lg">
+            <div className="eyebrow">TOTAL SALES · YTD</div>
+            <div className="big tnum">{window.fmtFull(sales, cur)}</div>
+            {goalsOn && <div className="bar"><i style={{ width: Math.min(100, window.pct(sales, goalSales)) + '%' }} /></div>}
+            <div className="kpi-foot" style={{ marginTop: goalsOn ? 0 : 14 }}>
+              <span className="pct">{goalsOn ? `${window.pct(sales, goalSales)}%` : ''}</span>
+              <span className="goal">{won.length} deals won{goalsOn ? <span> · of {window.fmtK(goalSales, cur)} annual</span> : null}</span>
+            </div>
+          </Card>
+
+          <Card soft className="kpi pad-lg">
+            <div className="eyebrow"><span className="dot green" />NEW LOGO · YTD</div>
+            <div className="big tnum">{window.fmtFull(nl, cur)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(nl, goalNL)}% of ${window.fmtK(goalNL, cur)} annual goal` : 'New business closed this year'}</div>
+          </Card>
+
+          <Card soft className="kpi pad-lg">
+            <div className="eyebrow"><span className="dot blue" />UPSELL · YTD</div>
+            <div className="big tnum">{window.fmtFull(up, cur)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(up, goalUP)}% of ${window.fmtK(goalUP, cur)} annual goal` : 'Expansion revenue this year'}</div>
+          </Card>
+        </div>
+
+        <div className="grid g-3">
+          <Card soft className="kpi pad-lg">
+            <div className="eyebrow">ARR — TOTAL</div>
+            <div className="big tnum"><Loadable value={window.fmtInt(arrTotal, cur)} /></div>
+            <div className="sub" style={{ marginTop: 14 }}>
+              {finState === 'err' ? <span style={{ color: 'var(--red)' }}>Finance sheet unreachable — showing fallback</span>
+                : 'Annual recurring revenue · live from finance sheet (C6)'}
+            </div>
+          </Card>
+
+          <Card soft className="kpi pad-lg" style={{ borderColor: 'var(--green)', boxShadow: '0 0 0 1px var(--green-soft)' }}>
+            <div className="eyebrow"><span className="dot green" />TOTAL SAFESIGHT (75%)</div>
+            <div className="big tnum"><Loadable value={window.fmtInt(safeTotal, cur)} /></div>
+            <div className="sub" style={{ marginTop: 14 }}>Weighted company total · live from finance sheet (L6)</div>
+          </Card>
+
+          <Card soft className="kpi pad-lg">
+            <div className="eyebrow"><span className="dot red" />CHURN — TOTAL</div>
+            <div className="big tnum red">{window.fmtInt(D.finance.churnTotal, cur)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>Lost ARR · year to date</div>
+          </Card>
+        </div>
+      </React.Fragment>
+    );
+  }
+
+  window.FinancialsTab = FinancialsTab;
+})();
+
+</script>
+  <script type="text/babel" data-from="tab_historicals.jsx">
+/* ============================================================
+   Historicals tab
+   ============================================================ */
+(function () {
+  const { Card, LineChart } = window;
+  const YEARS = [2023, 2024, 2025, 2026];
+  const YCOLOR = { 2023: 'var(--gray-series)', 2024: 'var(--blue)', 2025: 'var(--purple)', 2026: 'var(--green)' };
+  const QLABELS = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+  function HistBlock({ title, data, cur, hotYear }) {
+    const total = data[hotYear] ? data[hotYear].reduce((a, b) => a + b, 0) : data[2026].reduce((a, b) => a + b, 0);
+    const series = YEARS.map(y => ({ key: String(y), label: String(y), color: YCOLOR[y], points: data[y] }));
+    return (
+      <Card title={title} headRight={<span className="total tnum">{window.fmtK(total, cur)}</span>}>
+        <div className="grid g-2" style={{ marginTop: 6, gap: 28, alignItems: 'center' }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Quarter</th>
+                {YEARS.map(y => <th key={y} className={`num ${y === hotYear ? 'hot' : ''}`}>{y}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {QLABELS.map((q, i) => (
+                <tr key={q}>
+                  <td><b>{q}</b></td>
+                  {YEARS.map(y => (
+                    <td key={y} className={`num ${y === hotYear ? 'hot' : ''} tnum`}>{window.fmtK(data[y][i], cur)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div>
+            <div className="legend" style={{ marginBottom: 8, justifyContent: 'flex-end' }}>
+              {YEARS.map(y => <span className="li" key={y}><span className="sw" style={{ background: YCOLOR[y], borderRadius: '50%', width: 9, height: 9 }} />{y}</span>)}
+            </div>
+            <LineChart series={series} labels={QLABELS} cur={cur} />
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  function HistoricalsTab({ ctx }) {
+    const { cur, year } = ctx;
+    const D = window.DATA;
+    return (
+      <React.Fragment>
+        <div className="grid g-1" style={{ marginTop: 20 }}>
+          <HistBlock title="Achieved New Logo" data={D.historicals.newLogo} cur={cur} hotYear={year} />
+          <HistBlock title="Achieved Upsell" data={D.historicals.upsell} cur={cur} hotYear={year} />
+          <HistBlock title="Achieved Combined (NL + Upsell)" data={D.historicals.combined} cur={cur} hotYear={year} />
+        </div>
+      </React.Fragment>
+    );
+  }
+
+  window.HistoricalsTab = HistoricalsTab;
+})();
+
+</script>
+  <script type="text/babel" data-from="tab_csm.jsx">
+/* ============================================================
+   CSM tab
+   Table 1 (built): "All contracts ending in <year>" — renewal book,
+   filtered by the Quarter/Month selector, sourced from Teamleader
+   (contract end date, responsible user, Risk?, Status renewal).
+   Other cards below are placeholders to be reworked next.
+   ============================================================ */
+(function () {
+  const { Card, KpiCard, SortableTable, HBarList } = window;
+
+  /* ---- Renewal contracts (demo — mirrors the "Renewal 2026" sheet).
+     Live data will populate window.DATA.contracts with the same shape:
+       { customer, endDate 'YYYY-MM-DD', owner, risk 'Yes'|'No'|'',
+         status (Status renewal custom field), signed (bool) }      ---- */
+  const DEMO_CONTRACTS = [
+    { customer: 'Liquicity',                  endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: 'Churn',              signed: false },
+    { customer: 'Flowfirm',                   endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'PEC Zwolle',                 endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Matrixx Events',             endDate: '2026-03-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Sagro Decom',                endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'Yes', status: 'Churn',              signed: false },
+    { customer: 'NVT Betonrenovatie',         endDate: '2026-05-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Dutchbase',                  endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Zwarte Cross',               endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Dekmantel',                  endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: '',                   signed: false },
+    { customer: 'Bospop',                     endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Nederlandse Veteranendag',   endDate: '2025-12-31', owner: 'Casper Derks',   risk: 'No',  status: 'Signed',             signed: true },
+    { customer: 'Gemeente Nijmegen',          endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Stichting Vierdaagsefeesten',endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: 'Signed',             signed: true },
+    { customer: 'Jens Security',              endDate: '2026-01-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Signed',             signed: true },
+    { customer: 'SV Wehen Wiesbaden',         endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Johan Cruijff ArenA',        endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: 'Signed',             signed: true },
+    { customer: 'Gemeente Utrecht',           endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'Messe München',              endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Roda JC',                    endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Escape',             signed: false },
+    { customer: 'Valencia CF',                endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'AZ Alkmaar',                 endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'F4SEC Security Group',       endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'NEC Nijmegen',               endDate: '2027-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'FC Ingolstadt 04',           endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'FC Twente',                  endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
+    { customer: 'Les Ardentes',               endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: 'Proposal',           signed: false },
+    { customer: 'Lokerse feesten',            endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Gemeente Weert',             endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
+    { customer: 'Appelpop',                   endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Reggae Geel',                endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Jaarbeurs Holding',          endDate: '2026-06-11', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'FC Utrecht',                 endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
+    { customer: 'Kooiker Logisitiek',         endDate: '2026-08-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'MNE',                        endDate: '2026-08-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'BV Sport',                   endDate: '2026-10-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Jorritsma Bouw',             endDate: '2026-10-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'ACV Groep',                  endDate: '2026-10-31', owner: 'Casper Derks',   risk: '',    status: 'Proposal - positive',signed: false },
+    { customer: 'Vigilans Group',             endDate: '2026-11-30', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'Profi-sec Security',         endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'TRIBE Security',             endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'ES Company',                 endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Stichting Zevenheuvelenloop',endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: 'Proposal - positive',signed: false },
+    { customer: 'CSD München',                endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'VR Zeeland',                 endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+  ];
+
+  // date helpers
+  const isoToEU = s => { if (!s) return '—'; const [y, m, d] = s.split('-'); return `${d}-${m}-${y}`; };
+  const quarterOf = s => 'Q' + (Math.floor(new Date(s).getMonth() / 3) + 1);
+  const monthOf = s => new Date(s).getMonth();
+
+  // Status renewal → badge style. Signed deals show "Won".
+  function statusCell(r) {
+    const label = r.signed ? 'Won' : r.status;
+    if (!label) return <span className="muted">—</span>;
+    let cls = 'watch';
+    if (label === 'Won') cls = 'healthy';
+    else if (label === 'Churn') cls = 'risk';
+    return <span className={`tag ${cls}`}>{label}</span>;
+  }
+  function riskCell(r) {
+    if (r.risk === 'Yes') return <span className="tag risk">Yes</span>;
+    if (r.risk === 'No') return <span className="sub">No</span>;
+    return <span className="muted">—</span>;
+  }
+
+  // renewal status category: Won (signed) > Churn (status) > Open (everything else)
+  const renewalCategory = c => c.signed ? 'Won' : (c.status === 'Churn' ? 'Churn' : 'Open');
+
+  function CSMTab({ ctx }) {
+    const { cur, year, quarters, monthIdx, periodLabel, renewalStatus } = ctx;
+
+    const contracts = (window.DATA.contracts && window.DATA.contracts.length) ? window.DATA.contracts : DEMO_CONTRACTS;
+
+    // all contracts ending in the selected YEAR, then narrowed by quarter/month, then by status
+    const ending = contracts
+      .filter(c => new Date(c.endDate).getFullYear() === year)
+      .filter(c => monthIdx != null ? monthOf(c.endDate) === monthIdx : quarters.includes(quarterOf(c.endDate)))
+      .filter(c => !renewalStatus || renewalStatus === 'All' || renewalCategory(c) === renewalStatus)
+      .sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
+
+    const signedCount = ending.filter(c => c.signed).length;
+    const riskCount = ending.filter(c => c.risk === 'Yes').length;
+
+    // watchlist: contracts ending WITHIN the next 6 months that still have no
+    // renewal status set (and aren't signed) — i.e. urgent, not yet actioned.
+    const asOf = new Date(window.DATA.asOf || '2026-06-09');
+    const in6mo = new Date(asOf); in6mo.setMonth(in6mo.getMonth() + 6);
+    const noStatus = contracts
+      .filter(c => { const d = new Date(c.endDate); return d >= asOf && d <= in6mo && !c.signed && !c.status; })
+      .sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
+
+    const cols = [
+      { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
+      { key: 'endDate', label: 'Verloopdatum contract', sortable: true, sortVal: r => new Date(r.endDate).getTime(), render: r => <span className="tnum">{isoToEU(r.endDate)}</span> },
+      { key: 'owner', label: 'Representative', sortable: true, render: r => <span className="sub">{r.owner}</span> },
+      { key: 'risk', label: 'Risk', sortable: true, sortVal: r => (r.risk === 'Yes' ? 0 : r.risk === 'No' ? 1 : 2), render: riskCell },
+      { key: 'status', label: 'Status renewal', sortable: true, sortVal: r => (r.signed ? 'Won' : r.status) || 'zzz', render: statusCell },
+    ];
+
+    return (
+      <React.Fragment>
+        <p className="intro">
+          Renewal book — every contract with an end date in <b>{year}</b>, scoped to <b>{periodLabel}</b>.
+          Risk, representative and renewal status come straight from Teamleader; a contract flips to <b>Won</b> once its renewal deal is signed.
+        </p>
+
+        <div className="grid g-3">
+          <KpiCard eyebrow={`CONTRACTS ENDING · ${periodLabel}`} value={ending.length}
+                   sub={<span>up for renewal in this period</span>} />
+          <KpiCard eyebrow="RENEWED (WON)" dotColor="green" value={signedCount}
+                   sub={<span>{ending.length ? Math.round(signedCount / ending.length * 100) : 0}% of the period signed</span>} />
+          <KpiCard eyebrow="FLAGGED AT RISK" dotColor="red" value={riskCount} valueRed={riskCount > 0}
+                   sub={<span>marked Risk = Yes in Teamleader</span>} />
+        </div>
+
+        <div className="grid g-1">
+          <Card title={`All contracts ending in ${year}`} count={`${ending.length} contract${ending.length !== 1 ? 's' : ''}`}>
+            <div className="scroll-y" style={{ maxHeight: 560 }}>
+              <SortableTable columns={cols} rows={ending} initialSort={{ key: 'endDate', dir: 'asc' }} />
+              {!ending.length && <div className="empty">No contracts ending in this period</div>}
+            </div>
+          </Card>
+        </div>
+
+        {/* ---- watchlist + placeholder ---- */}
+        <div className="grid g-2">
+          <Card title="Ending within 6 months · no renewal status" count={`${noStatus.length} contract${noStatus.length !== 1 ? 's' : ''}`}>
+            <div className="scroll-y" style={{ maxHeight: 360 }}>
+              {noStatus.length ? (
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {noStatus.map((c, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--border)' }}>
+                      <span><b style={{ fontWeight: 600 }}>{c.customer}</b><small className="sub" style={{ marginLeft: 9 }}>{c.owner}</small></span>
+                      <span className="tnum" style={{ color: 'var(--text-2)' }}>{isoToEU(c.endDate)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <div className="empty">Every contract beyond 6 months already has a renewal status</div>}
+            </div>
+          </Card>
+          <Card title="More CSM views" headRight={<span className="ribbon">↻ reworking next</span>}>
+            <div className="empty" style={{ padding: '40px 16px' }}>Churn, NRR and renewal-value tables come next — once this table is signed off.</div>
+          </Card>
+        </div>
+      </React.Fragment>
+    );
+  }
+
+  window.CSMTab = CSMTab;
+})();
+
+</script>
+  <script type="text/babel" data-from="app.jsx">
+/* ============================================================
+   App shell — header, tabs, filters, theme, Teamleader sync
+   ============================================================ */
+(function () {
+  const { useState, useEffect, useCallback } = React;
+
+  /* ---- inline icons ---- */
+  const I = {
+    refresh: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>,
+    download: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" /></svg>,
+    sun: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>,
+    moon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>,
+    goal: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-5.2-7-11a7 7 0 0 1 14 0c0 5.8-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>,
+    check: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>,
+    close: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>,
+  };
+
+  const TABS = [
+    ['overview', 'Overview'], ['pipeline', 'Pipeline'], ['financials', 'Financials'],
+    ['historicals', 'Historicals'], ['csm', 'CSM'],
+  ];
+  const QUARTER_PERIODS = ['YTD', 'Q1', 'Q2', 'Q3', 'Q4'];
+  const QUARTERS_ALL = ['Q1', 'Q2', 'Q3', 'Q4'];
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const STORE = 'safesight_dash_v1';
+  const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; } };
+
+  function Seg({ options, value, onChange, plain }) {
+    return (
+      <div className={`seg ${plain ? 'plain' : ''}`}>
+        {options.map(o => {
+          const val = Array.isArray(o) ? o[0] : o;
+          const lbl = Array.isArray(o) ? o[1] : o;
+          return <button key={val} aria-pressed={value === val} onClick={() => onChange(val)}>{lbl}</button>;
+        })}
+      </div>
+    );
+  }
+
+  /* ---- Export Finance modal ---- */
+  function ExportModal({ onClose }) {
+    const today = new Date();
+    const [mode, setMode] = useState('Quarter');
+    const [yr, setYr] = useState(2026);
+    const [per, setPer] = useState('Q' + (Math.floor(today.getMonth() / 3) + 1));
+    function changeMode(m) {
+      setMode(m);
+      if (m === 'Quarter') setPer('Q' + (Math.floor(today.getMonth() / 3) + 1));
+      else if (m === 'Month') setPer(MONTHS[today.getMonth()]);
+    }
+    const periodOptions = mode === 'Quarter' ? ['Q1', 'Q2', 'Q3', 'Q4'] : (mode === 'Month' ? MONTHS : null);
+    const label = mode === 'Full year' ? `${yr}` : `${per} ${yr}`;
+    function download() {
+      let quarters, monthIdx = null, filename;
+      if (mode === 'Full year') { quarters = QUARTERS_ALL; filename = `safesight-export-${yr}`; }
+      else if (mode === 'Quarter') { quarters = [per]; filename = `safesight-export-${yr}-${per.toLowerCase()}`; }
+      else { const mi = MONTHS.indexOf(per); monthIdx = mi; quarters = ['Q' + (Math.floor(mi / 3) + 1)]; filename = `safesight-export-${yr}-${per.toLowerCase()}`; }
+      window.exportFinance({ quarters, monthIdx, year: yr, label, filename });
+      onClose();
+    }
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={e => e.stopPropagation()} className="card" style={{ maxWidth: 560, width: '100%', boxShadow: 'var(--shadow-pop)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 6 }}>
+            <h3 className="card-title" style={{ fontSize: 19 }}>Export Finance</h3>
+            <button className="btn icon" onClick={onClose} title="Close">{I.close}</button>
+          </div>
+          <p className="h-sub" style={{ margin: '0 0 18px', maxWidth: 440 }}>New bookings &amp; churn detail in the finance format. Pick the period to include — all sheets are scoped to it.</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Seg options={['Month', 'Quarter', 'Full year']} value={mode} onChange={changeMode} />
+            <select className="select" value={yr} onChange={e => setYr(+e.target.value)}>
+              {window.DATA.years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            {periodOptions && (
+              <select className="select" value={per} onChange={e => setPer(e.target.value)}>
+                {periodOptions.map(o => <option key={o} value={o}>{o} {yr}</option>)}
+              </select>
+            )}
+          </div>
+          <div style={{ marginTop: 16, padding: '13px 16px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', fontSize: 13, color: 'var(--text-2)' }}>
+            Export will include new bookings and churn details for <b style={{ color: 'var(--text)' }}>{label}</b>.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+            <button className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn" onClick={download} style={{ background: 'var(--green)', borderColor: 'var(--green)', color: '#073d27' }}>{I.download} Download .xlsx</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---- Goals modal: the per-quarter targets ---- */
+  function GoalsModal({ cur, onClose }) {
+    const g = window.DATA.goalsByQuarter;
+    const rows = QUARTERS_ALL.map(q => ({ q, ...g[q] }));
+    const tot = {
+      newLogo: window.goalSum(QUARTERS_ALL, 'newLogo'),
+      upsell: window.goalSum(QUARTERS_ALL, 'upsell'),
+      combined: window.goalSum(QUARTERS_ALL, 'combined'),
+    };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={e => e.stopPropagation()} className="card" style={{ maxWidth: 640, width: '100%', padding: 0, boxShadow: 'var(--shadow-pop)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 14px' }}>
+            <div>
+              <div className="eyebrow">2026 targets</div>
+              <h3 className="card-title" style={{ marginTop: 4 }}>Goals · New logo + Upsell</h3>
+            </div>
+            <button className="btn icon" onClick={onClose} title="Close">{I.close}</button>
+          </div>
+          <div style={{ padding: '0 24px 22px' }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Quarter</th>
+                  <th className="num">New Logo</th>
+                  <th className="num">Upsell</th>
+                  <th className="num">NL + Up</th>
+                  <th className="num">US</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.q}>
+                    <td><b>{r.q}</b></td>
+                    <td className="num tnum">{window.fmtInt(r.newLogo, cur)}</td>
+                    <td className="num tnum">{window.fmtInt(r.upsell, cur)}</td>
+                    <td className="num tnum">{window.fmtInt(r.combined, cur)}</td>
+                    <td className="num muted">TBD</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td className="num tnum">{window.fmtInt(tot.newLogo, cur)}</td>
+                  <td className="num tnum">{window.fmtInt(tot.upsell, cur)}</td>
+                  <td className="num tnum">{window.fmtInt(tot.combined, cur)}</td>
+                  <td className="num muted">TBD</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function App() {
+    const saved = load();
+    const [tab, setTab] = useState(saved.tab || 'overview');
+    const [year, setYear] = useState(saved.year || 2026);
+    const [cur, setCur] = useState(saved.cur || 'EUR');
+    const [gran, setGran] = useState(saved.gran || 'Quarter');
+    const [period, setPeriod] = useState(saved.period || 'Q2');
+    const [month, setMonth] = useState(saved.month || 'Jun');
+    const [rep, setRep] = useState(saved.rep || 'All reps');
+    const [renewalStatus, setRenewalStatus] = useState(saved.renewalStatus || 'All');
+    const [theme, setTheme] = useState(saved.theme || 'light');
+    const [goalsOn, setGoalsOn] = useState(saved.goalsOn != null ? saved.goalsOn : true);
+    const [goalsModal, setGoalsModal] = useState(false);
+    const [exportOpen, setExportOpen] = useState(false);
+    const [sync, setSync] = useState('busy'); // busy | ok | demo
+    const [syncLabel, setSyncLabel] = useState('Connecting…');
+    const [live, setLive] = useState(false);
+    const [financeReady, setFinanceReady] = useState(true);
+    const [dataVersion, setDataVersion] = useState(0);
+
+    useEffect(() => {
+      localStorage.setItem(STORE, JSON.stringify({ tab, year, cur, gran, period, month, rep, renewalStatus, theme, goalsOn }));
+    }, [tab, year, cur, gran, period, month, rep, renewalStatus, theme, goalsOn]);
+
+    useEffect(() => {
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+    }, [theme]);
+
+    const doSync = useCallback(async (quiet) => {
+      setSync('busy');
+      if (!quiet) { setSyncLabel('Syncing Teamleader…'); setFinanceReady(false); }
+      const t0 = Date.now();
+      const src = await window.loadData();
+      const wait = quiet ? 200 : Math.max(0, 1000 - (Date.now() - t0));
+      setTimeout(() => {
+        const isLive = src === 'live';
+        setLive(isLive);
+        setSync(isLive ? 'ok' : 'demo');
+        setSyncLabel(isLive ? 'Live · Teamleader' : 'Demo data');
+        setFinanceReady(true);
+        setDataVersion(v => v + 1);
+      }, wait);
+    }, []);
+    const runSync = useCallback(() => doSync(false), [doSync]);
+    useEffect(() => { doSync(true); }, [doSync]);
+
+    // ---- resolve the active scope ----
+    let quarters, monthIdx = null, isYTD = false, periodLabel;
+    if (gran === 'Month') {
+      if (month === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${year}`; }
+      else { const mi = MONTHS.indexOf(month); monthIdx = mi; quarters = ['Q' + (Math.floor(mi / 3) + 1)]; periodLabel = `${month} ${year}`; }
+    } else {
+      if (period === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${year}`; }
+      else { quarters = [period]; periodLabel = `${period} ${year}`; }
+    }
+    // goals: for YTD compare against quarters elapsed so far; otherwise the selected scope
+    const goalQuarters = isYTD ? window.ytdQuarters() : quarters;
+
+    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year, goalsOn, financeReady };
+
+    const showPeriod = tab === 'overview' || tab === 'pipeline' || tab === 'csm';
+    const showRep = tab === 'overview' || tab === 'pipeline';
+    const showGoals = tab !== 'csm';
+
+    const TabComp = {
+      overview: window.OverviewTab, pipeline: window.PipelineTab, financials: window.FinancialsTab,
+      historicals: window.HistoricalsTab, csm: window.CSMTab,
+    }[tab];
+
+    return (
+      <div className="page">
+        <div className="shell">
+          {/* ---- header (single row) ---- */}
+          <div className="topbar">
+            <div className="brand">
+              <div className="brandrow">
+                <img src="logo.png" className="brand-logo" alt="Safesight" />
+              </div>
+            </div>
+            <div className="tabs" role="tablist">
+              {TABS.map(([id, label]) => (
+                <button key={id} className="tab" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
+              ))}
+            </div>
+            <div className="topbar-actions">
+              <span className={`status-dot ${sync === 'busy' ? 'busy' : (live ? 'ok' : 'demo')}`}
+                    title={sync === 'busy' ? 'Syncing…' : (live ? 'Live · Teamleader' : 'Demo data — not connected to Teamleader')} />
+              <button className="btn" onClick={runSync}>
+                <span className={sync === 'busy' ? 'spin' : ''} style={{ display: 'inline-flex' }}>{I.refresh}</span>
+                Sync
+              </button>
+              <button className="btn" onClick={() => setExportOpen(true)}>{I.download} Export Finance</button>
+              <button className="btn icon" title="Toggle theme" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+                {theme === 'dark' ? I.moon : I.sun}
+              </button>
+              <button className="btn icon" title="Refresh" onClick={runSync}>
+                <span className={sync === 'busy' ? 'spin' : ''} style={{ display: 'inline-flex' }}>{I.refresh}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ---- filters ---- */}
+          <div className="filterrow">
+            <select className="select" value={year} onChange={e => setYear(+e.target.value)}>
+              {window.DATA.years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <Seg options={[['EUR', '€ EUR'], ['USD', '$ USD']]} value={cur} onChange={setCur} />
+
+            {showPeriod && (
+              <React.Fragment>
+                <Seg options={['Quarter', 'Month']} value={gran} onChange={setGran} />
+                {gran === 'Quarter'
+                  ? <Seg options={QUARTER_PERIODS} value={period} onChange={setPeriod} />
+                  : <Seg options={['YTD', ...MONTHS]} value={month} onChange={setMonth} />}
+              </React.Fragment>
+            )}
+
+            {showRep && (
+              <select className="select" value={rep} onChange={e => setRep(e.target.value)}>
+                {window.DATA.reps.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            )}
+
+            {tab === 'csm' && (
+              <Seg options={['All', 'Open', 'Won', 'Churn']} value={renewalStatus} onChange={setRenewalStatus} />
+            )}
+
+            {showGoals && (
+              <button className="btn" onClick={() => setGoalsModal(true)} title="View 2026 goals"
+                      style={{ background: 'var(--green-soft)', borderColor: 'var(--green)', color: 'var(--green-ink)' }}>
+                {I.goal} Goals
+              </button>
+            )}
+
+            <span className="spacer" style={{ marginLeft: 'auto' }} />
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b></span>
+          </div>
+
+          {/* ---- tab content ---- */}
+          <div style={{ marginTop: 4 }} key={tab + '-' + dataVersion}>
+            {TabComp ? <TabComp ctx={ctx} /> : <div className="empty">Coming soon</div>}
+          </div>
+        </div>
+
+        {goalsModal && <GoalsModal cur={cur} onClose={() => setGoalsModal(false)} />}
+        {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+})();
+
+</script>
+</body>
+</html>
