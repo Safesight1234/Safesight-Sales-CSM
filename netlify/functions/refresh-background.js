@@ -45,8 +45,8 @@ exports.handler = async function (event) {
   // persistent cache across syncs (version bump forces one full detail re-read
   // when we add new cached fields, e.g. contract dates / risk / status renewal)
   let cache = await store.get('cache', { type: 'json' }).catch(() => null);
-  if (!cache) cache = { version: 3, details: {}, companyName: {}, userName: {} };
-  if (cache.version !== 3) { cache.details = {}; cache.version = 3; }
+  if (!cache) cache = { version: 4, details: {}, companyName: {}, userName: {} };
+  if (cache.version !== 4) { cache.details = {}; cache.version = 4; }
 
   // in-flight job (resume mid-sync)
   let job = await store.get('job', { type: 'json' }).catch(() => null);
