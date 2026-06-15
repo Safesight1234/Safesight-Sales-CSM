@@ -1177,7 +1177,7 @@ html.locked, html.locked body { overflow: hidden; }
               <span className="name">{d.name}{d.ownerLine && <small>{d.ownerLine}</small>}</span>
               {showType && <span className={`type ${isUp ? 'up' : 'nl'}`}>{d.type}</span>}
               <span className="val tnum">{window.fmtK(d.value, cur)}</span>
-              {showBar && <i style={{ width: '100%' }} />}
+              {showBar && <i style={{ width: (d.barPct != null ? d.barPct : 100) + '%' }} />}
             </div>
           );
         })}
@@ -1369,7 +1369,7 @@ html.locked, html.locked body { overflow: hidden; }
     // sorted highest → lowest win probability.
     const openDeals = [...open]
       .sort((a, b) => b.prob - a.prob)
-      .map(d => ({ name: d.name, ownerLine: `${d.owner} · ${Math.round(d.prob * 100)}%`, type: d.type, value: ownV(d) }));
+      .map(d => ({ name: d.name, ownerLine: `${d.owner} · ${Math.round(d.prob * 100)}%`, type: d.type, value: ownV(d), barPct: Math.round(d.prob * 100) }));
 
     // ---- breakdown table ----
     const arrOf = d => (d.arr != null ? +d.arr : ownV(d));
@@ -1543,7 +1543,7 @@ html.locked, html.locked body { overflow: hidden; }
   const ownV = window.ownValue, dealMonth = window.dealMonth;
 
   // map an open deal into the Won-deals row shape (thin underline bar)
-  const toRow = d => ({ name: d.name, ownerLine: `${d.owner} · ${d.close || '—'} · ${Math.round(d.prob * 100)}%`, type: d.type, value: ownV(d) });
+  const toRow = d => ({ name: d.name, ownerLine: `${d.owner} · ${d.close || '—'} · ${Math.round(d.prob * 100)}%`, type: d.type, value: ownV(d), barPct: Math.round(d.prob * 100) });
 
   function PipelineTab({ ctx }) {
     const { cur, quarters, monthIdx, periodLabel, rep } = ctx;
@@ -2139,20 +2139,51 @@ html.locked, html.locked body { overflow: hidden; }
       document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
 
+    // Poll dashboard-data (cache-busted) until a COMPLETE payload is ready.
+    const pollData = async (onProgress) => {
+      for (let i = 0; i < 60; i++) {               // up to ~5 min at 5s
+        try {
+          const res = await fetch('/.netlify/functions/dashboard-data?x=' + Date.now(), { cache: 'no-store' });
+          const j = await res.json();
+          if (j && j.quarters && j.quarters.Q1 && j.historicals) return j;   // complete
+          const p = (j && j.detail && j.detail.progress) || (j && j.progress) || 'working…';
+          onProgress(p);
+        } catch (e) {}
+        await new Promise(r => setTimeout(r, 5000));
+      }
+      return null;
+    };
+
     const doSync = useCallback(async (quiet) => {
       setSync('busy');
-      if (!quiet) { setSyncLabel('Syncing Teamleader…'); setFinanceReady(false); }
-      const t0 = Date.now();
-      const src = await window.loadData();
-      const wait = quiet ? 200 : Math.max(0, 1000 - (Date.now() - t0));
-      setTimeout(() => {
+
+      // Initial page load → just show whatever's already cached (fast).
+      if (quiet) {
+        const src = await window.loadData();
         const isLive = src === 'live';
-        setLive(isLive);
-        setSync(isLive ? 'ok' : 'demo');
+        setLive(isLive); setSync(isLive ? 'ok' : 'demo');
         setSyncLabel(isLive ? 'Live · Teamleader' : 'Demo data');
-        setFinanceReady(true);
-        setDataVersion(v => v + 1);
-      }, wait);
+        setFinanceReady(true); setDataVersion(v => v + 1);
+        return;
+      }
+
+      // Manual Sync → trigger a real Teamleader rebuild, then wait for it.
+      setSyncLabel('Syncing Teamleader…'); setFinanceReady(false);
+      try { await fetch('/.netlify/functions/refresh-background?t=' + Date.now(), { cache: 'no-store' }); } catch (e) {}
+      await new Promise(r => setTimeout(r, 3000));
+      const fresh = await pollData(p => setSyncLabel('Syncing… ' + p));
+      if (fresh) {
+        Object.assign(window.DATA, fresh);
+        try { localStorage.setItem('safesight_live_payload_v1', JSON.stringify(fresh)); } catch (e) {}
+        setLive(true); setSync('ok'); setSyncLabel('Live · Teamleader');
+      } else {
+        // still building in the background — show last good, invite retry
+        const src = await window.loadData();
+        const isLive = src === 'live';
+        setLive(isLive); setSync(isLive ? 'ok' : 'demo');
+        setSyncLabel(isLive ? 'Live · still finishing — Sync again shortly' : 'Demo data');
+      }
+      setFinanceReady(true); setDataVersion(v => v + 1);
     }, []);
     const runSync = useCallback(() => doSync(false), [doSync]);
     useEffect(() => { doSync(true); }, [doSync]);
