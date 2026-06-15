@@ -218,43 +218,33 @@
     return (
       <div className="page">
         <div className="shell">
-          {/* ---- header ---- */}
+          {/* ---- header (single row) ---- */}
           <div className="topbar">
             <div className="brand">
               <div className="brandrow">
                 <img src="logo.png" className="brand-logo" alt="Safesight" />
-                <span className="brand-div" />
-                <span className="brand-name">Safesight dashboarding</span>
               </div>
             </div>
-            <div className="tabs" role="tablist" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+            <div className="tabs" role="tablist">
               {TABS.map(([id, label]) => (
                 <button key={id} className="tab" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>
               ))}
             </div>
-          </div>
-
-          {/* ---- tools ---- */}
-          <div className="toolrow">
-            <button className="btn" onClick={runSync}>
-              <span className={sync === 'busy' ? 'spin' : ''} style={{ display: 'inline-flex' }}>{I.refresh}</span>
-              Sync Teamleader
-            </button>
-            <span className={`sync-chip ${sync === 'busy' ? 'busy' : (live ? 'ok' : 'demo')}`}
-                  title={live ? 'Pulling live data from Teamleader' : 'Showing built-in demo data — Teamleader connection not wired up yet'}>
-              {sync === 'busy'
-                ? <span className="dotpulse" />
-                : (live ? <span style={{ display: 'inline-flex', width: 13 }}>{I.check}</span> : <span className="dot" style={{ background: 'var(--text-3)' }} />)}
-              {syncLabel}
-            </span>
-            <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <button className="btn" onClick={() => setExportOpen(true)}>{I.download} Export Finance</button>
-            <button className="btn icon" title="Toggle theme" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
-              {theme === 'dark' ? I.moon : I.sun}
-            </button>
-            <button className="btn icon" title="Refresh" onClick={runSync}>
-              <span className={sync === 'busy' ? 'spin' : ''} style={{ display: 'inline-flex' }}>{I.refresh}</span>
-            </button>
+            <div className="topbar-actions">
+              <span className={`status-dot ${sync === 'busy' ? 'busy' : (live ? 'ok' : 'demo')}`}
+                    title={sync === 'busy' ? 'Syncing…' : (live ? 'Live · Teamleader' : 'Demo data — not connected to Teamleader')} />
+              <button className="btn" onClick={runSync}>
+                <span className={sync === 'busy' ? 'spin' : ''} style={{ display: 'inline-flex' }}>{I.refresh}</span>
+                Sync
+              </button>
+              <button className="btn" onClick={() => setExportOpen(true)}>{I.download} Export Finance</button>
+              <button className="btn icon" title="Toggle theme" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+                {theme === 'dark' ? I.moon : I.sun}
+              </button>
+              <button className="btn icon" title="Refresh" onClick={runSync}>
+                <span className={sync === 'busy' ? 'spin' : ''} style={{ display: 'inline-flex' }}>{I.refresh}</span>
+              </button>
+            </div>
           </div>
 
           {/* ---- filters ---- */}

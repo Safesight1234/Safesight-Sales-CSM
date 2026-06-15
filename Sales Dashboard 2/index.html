@@ -28,7 +28,62 @@
 
   <div id="root" hidden></div>
 
-  <script src="login.js"></script>
+  <script>
+  /* Login gate — inlined so there is no separate file to cache or misplace.
+     Client-side only: deters casual access; not strong security. */
+  (function () {
+    var PASSWORD = 'lEidTlhN7Lg#Xs6%';
+    var KEY = 'safesight_auth_v1';
+    var login = document.getElementById('login');
+    var root = document.getElementById('root');
+
+    function reveal() {
+      if (login) login.hidden = true;
+      if (root) root.hidden = false;
+      document.documentElement.classList.remove('locked');
+    }
+
+    var unlocked = false;
+    try { unlocked = sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+    if (unlocked) { reveal(); return; }
+
+    document.documentElement.classList.add('locked');
+    if (login) login.hidden = false;
+    if (root) root.hidden = true;
+
+    function tryUnlock() {
+      var pw = document.getElementById('login-pw');
+      var err = document.getElementById('login-error');
+      var entered = pw ? String(pw.value).trim() : '';
+      if (entered === PASSWORD) {
+        try { sessionStorage.setItem(KEY, '1'); } catch (e2) {}
+        reveal();
+        return true;
+      }
+      if (err) err.hidden = false;
+      if (pw) { pw.value = ''; pw.focus(); }
+      var card = document.querySelector('.login-card');
+      if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+      return false;
+    }
+
+    var form = document.getElementById('login-form');
+    var pw = document.getElementById('login-pw');
+    var err = document.getElementById('login-error');
+    var toggle = document.getElementById('login-toggle');
+    var btn = document.querySelector('.login-btn');
+
+    if (form) form.addEventListener('submit', function (e) { e.preventDefault(); e.stopPropagation(); tryUnlock(); return false; });
+    if (btn) btn.addEventListener('click', function (e) { e.preventDefault(); tryUnlock(); });
+    if (pw) pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); } });
+    if (pw && err) pw.addEventListener('input', function () { err.hidden = true; });
+    if (toggle && pw) toggle.addEventListener('click', function () {
+      pw.type = pw.type === 'password' ? 'text' : 'password';
+      toggle.classList.toggle('on', pw.type === 'text');
+    });
+    if (pw) setTimeout(function () { try { pw.focus(); } catch (e) {} }, 80);
+  })();
+  </script>
 
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
