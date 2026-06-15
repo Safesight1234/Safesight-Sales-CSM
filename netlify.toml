@@ -1,0 +1,34 @@
+# Netlify configuration for the Safesight "Sales and numbers" dashboard.
+# The dashboard (index.html + assets) is served as a static site.
+# The Teamleader connection lives in netlify/functions and is called by
+# the dashboard at /.netlify/functions/dashboard-data
+
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Always revalidate app code so a normal refresh picks up new deploys
+# (no more stale cached .jsx/.js/.css after an upload).
+[[headers]]
+  for = "/*.jsx"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
