@@ -16,9 +16,11 @@
     const nl = sumOwn(won, 'New logo');
     const up = sumOwn(won, 'Upsell');
     const sales = nl + up;
-    const goalSales = window.goalSum(ytd, 'combined');
-    const goalNL = window.goalSum(ytd, 'newLogo');
-    const goalUP = window.goalSum(ytd, 'upsell');
+    // goals here are the FULL-YEAR (annual) targets — all four quarters
+    const ALL_Q = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const goalSales = window.goalSum(ALL_Q, 'combined');
+    const goalNL = window.goalSum(ALL_Q, 'newLogo');
+    const goalUP = window.goalSum(ALL_Q, 'upsell');
 
     // ---- ARR + Total Safesight: pulled live from the finance Google Sheet ----
     const [fin, setFin] = useState(null);
@@ -41,7 +43,7 @@
     return (
       <React.Fragment>
         <p className="intro">
-          Company year-to-date ({ytd.join(' + ')}). <b>Sales</b> figures are the sum of won New logo + Upsell deals;
+          Sales achieved year-to-date ({ytd.join(' + ')}), measured against the <b>full-year</b> goals.
           <b> ARR &amp; Total Safesight</b> are pulled live from the finance sheet.
         </p>
 
@@ -52,20 +54,20 @@
             {goalsOn && <div className="bar"><i style={{ width: Math.min(100, window.pct(sales, goalSales)) + '%' }} /></div>}
             <div className="kpi-foot" style={{ marginTop: goalsOn ? 0 : 14 }}>
               <span className="pct">{goalsOn ? `${window.pct(sales, goalSales)}%` : ''}</span>
-              <span className="goal">{won.length} deals won{goalsOn ? <span> · of {window.fmtK(goalSales, cur)}</span> : null}</span>
+              <span className="goal">{won.length} deals won{goalsOn ? <span> · of {window.fmtK(goalSales, cur)} annual</span> : null}</span>
             </div>
           </Card>
 
           <Card soft className="kpi pad-lg">
             <div className="eyebrow"><span className="dot green" />NEW LOGO · YTD</div>
             <div className="big tnum">{window.fmtFull(nl, cur)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(nl, goalNL)}% of ${window.fmtK(goalNL, cur)} goal` : 'New business closed this year'}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(nl, goalNL)}% of ${window.fmtK(goalNL, cur)} annual goal` : 'New business closed this year'}</div>
           </Card>
 
           <Card soft className="kpi pad-lg">
             <div className="eyebrow"><span className="dot blue" />UPSELL · YTD</div>
             <div className="big tnum">{window.fmtFull(up, cur)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(up, goalUP)}% of ${window.fmtK(goalUP, cur)} goal` : 'Expansion revenue this year'}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(up, goalUP)}% of ${window.fmtK(goalUP, cur)} annual goal` : 'Expansion revenue this year'}</div>
           </Card>
         </div>
 
