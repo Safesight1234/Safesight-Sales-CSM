@@ -15,7 +15,7 @@
       <p class="login-sub">Enter the password to continue</p>
       <form id="login-form" class="login-form" autocomplete="off" onsubmit="return false">
         <div class="login-field">
-          <input id="login-pw" type="password" placeholder="Password" autocomplete="current-password" />
+          <input id="login-pw" type="password" placeholder="Password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" />
           <button type="button" id="login-toggle" class="login-eye" aria-label="Show password" tabindex="-1">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
@@ -55,8 +55,11 @@
     function tryUnlock() {
       var pw = document.getElementById('login-pw');
       var err = document.getElementById('login-error');
-      var entered = pw ? String(pw.value).trim() : '';
-      if (entered === PASSWORD) {
+      // strip surrounding whitespace AND any zero-width / non-breaking chars a
+      // mobile keyboard or password manager may inject around the value.
+      var entered = pw ? String(pw.value).replace(/[\s\u200B-\u200D\uFEFF\u00A0]/g, '') : '';
+      var expected = PASSWORD.replace(/[\s\u200B-\u200D\uFEFF\u00A0]/g, '');
+      if (entered === expected) {
         try { sessionStorage.setItem(KEY, '1'); } catch (e2) {}
         reveal();
         return true;

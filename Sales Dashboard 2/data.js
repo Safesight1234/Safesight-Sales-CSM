@@ -33,9 +33,19 @@
     { name: 'Roostairfield Festival',customer: '',         type: 'New logo', owner: 'Yannick Stegehuis', refused: '2026-04-30', value: 3600 },
   ];
 
+  // Churn is derived from renewal (Customer-growth) deals, dated to the month
+  // the contract should have (re)started:
+  //   kind 'lost'     → renewal not won; the full renewal ARR churns
+  //   kind 'partial'  → renewal won but smaller; the "VL - Churn" amount churns
+  //   kind 'forecast' → renewal still open; at-risk value (not actual yet)
+  const Q1_CHURN = [
+    { customer: 'Liquicity',      industry: 'Events',       reason: 'Did not renew — full contract lost', kind: 'lost',     when: 'Jan', mon: 0, value: 1355 },
+  ];
   const Q2_CHURN = [
-    { customer: 'NVT Betonrenovatie', industry: 'Construction', reason: 'No dedicated project manager at client side.', when: 'May', value: 9688 },
-    { customer: 'Sagro',              industry: 'Construction', reason: '',                                              when: 'May', value: 11712 },
+    { customer: 'NVT Betonrenovatie', industry: 'Construction & Industry', reason: 'No dedicated project manager at client side.', kind: 'lost',     when: 'May', mon: 4, value: 9688 },
+    { customer: 'Sagro Decom',        industry: 'Construction & Industry', reason: 'Did not renew',                                kind: 'lost',     when: 'May', mon: 4, value: 11712 },
+    { customer: 'A.Z. N.V.',          industry: 'Stadium & Venues',        reason: 'Renewed at reduced scope',                     kind: 'partial',  when: 'May', mon: 4, value: 1740 },
+    { customer: 'Les Ardentes',       industry: 'Events',                  reason: 'Open renewal flagged at risk',                 kind: 'forecast', when: 'Jun', mon: 5, value: 1895 },
   ];
 
   // Q1 2026 — large quarter (New logo 159,300 + Upsell 8,500 = 167,800)
@@ -49,7 +59,7 @@
   ];
 
   const QUARTERS = {
-    Q1: { won: Q1_WON, open: [], lost: [], churn: [] },
+    Q1: { won: Q1_WON, open: [], lost: [], churn: Q1_CHURN },
     Q2: { won: Q2_WON, open: Q2_OPEN, lost: Q2_LOST, churn: Q2_CHURN },
     Q3: { won: [], open: [], lost: [], churn: [] },
     Q4: { won: [], open: [], lost: [], churn: [] },
@@ -192,18 +202,33 @@
      return JSON in the same shape as window.DATA. Nothing else changes.
      ------------------------------------------------------------ */
   window.loadData = async function () {
+    const LS_KEY = 'safesight_live_payload_v1';
+    const isComplete = p => p && p.quarters && p.quarters.Q1 && p.historicals && p.finance;
+
+    // 1) try the live endpoint
+    let live = null;
     try {
       const res = await fetch('/.netlify/functions/dashboard-data', { cache: 'no-store' });
-      if (!res.ok) throw new Error('not connected');
-      const live = await res.json();
-      if (live && live.quarters && live.historicals) {
-        Object.assign(window.DATA, live);
-        return 'live';
-      }
-      throw new Error('bad shape');
-    } catch (e) {
-      return 'mock';
+      if (res.ok) live = await res.json();
+    } catch (e) { /* offline / not deployed */ }
+
+    // 2) a complete live payload wins — use it and remember it
+    if (isComplete(live)) {
+      Object.assign(window.DATA, live);
+      try { localStorage.setItem(LS_KEY, JSON.stringify(live)); } catch (e) {}
+      return 'live';
     }
+
+    // 3) server returned nothing usable (refreshing / partial / error).
+    //    Fall back to the LAST GOOD live payload if we have one, so we never
+    //    regress to demo numbers once real data has been seen.
+    try {
+      const cached = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      if (isComplete(cached)) { Object.assign(window.DATA, cached); return 'live'; }
+    } catch (e) {}
+
+    // 4) truly nothing live ever seen → demo data already in window.DATA
+    return 'mock';
   };
 
 })();

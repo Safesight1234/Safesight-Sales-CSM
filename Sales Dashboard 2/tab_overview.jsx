@@ -2,13 +2,34 @@
    Overview tab
    ============================================================ */
 (function () {
-  const { useMemo } = React;
+  const { useMemo, useState } = React;
   const { Card, KpiCard, DealList, HBarList, SortableTable, BarChart, MiniBar } = window;
   const ownV = window.ownValue, sumOwn = window.sumOwn, dealMonth = window.dealMonth;
+
+  function RepModal({ rep, deals, cur, periodLabel, onClose }) {
+    const total = deals.reduce((a, d) => a + ownV(d), 0);
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={e => e.stopPropagation()} className="card" style={{ maxWidth: 560, width: '100%', boxShadow: 'var(--shadow-pop)' }}>
+          <div className="card-head">
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+              <h3 className="card-title">{rep}</h3>
+              <span className="count">{deals.length} won · {periodLabel}</span>
+            </div>
+            <span className="total tnum">{window.fmtK(total, cur)}</span>
+          </div>
+          <div className="scroll-y" style={{ maxHeight: 420 }}>
+            <DealList deals={[...deals].sort((a, b) => ownV(b) - ownV(a)).map(d => ({ name: d.name, ownerLine: d.customer || '', type: d.type, value: ownV(d) }))} cur={cur} emptyText="No won deals in this period" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function OverviewTab({ ctx }) {
     const { cur, quarters, goalQuarters, monthIdx, periodLabel, rep } = ctx;
     const D = window.DATA;
+    const [repView, setRepView] = useState(null);
     const repOK = d => rep === 'All reps' || d.owner === rep;
     const inMonth = d => monthIdx == null || dealMonth(d) === monthIdx;
 
@@ -30,7 +51,8 @@
     const upCount     = won.filter(d => d.type === 'Upsell').length;
     const pipeline    = sumOwn(open);
     const newLogoPipe = sumOwn(open, 'New logo');
-    const churnTotal  = churn.reduce((a, c) => a + (c.value || 0), 0);
+    const churnTotal    = churn.filter(c => c.kind !== 'forecast').reduce((a, c) => a + (c.value || 0), 0);
+    const forecastChurn = churn.filter(c => c.kind === 'forecast').reduce((a, c) => a + (c.value || 0), 0);
 
     const goalCombined = window.goalSum(goalQuarters, 'combined');
     const goalNewLogo  = window.goalSum(goalQuarters, 'newLogo');
@@ -57,7 +79,11 @@
         .map((r, i) => ({ ...r, rank: i + 1 }));
     }, [wonAllReps]);
 
-    const openRows = open.map(d => ({ name: d.name, sub: `${d.owner} · ${Math.round(d.prob * 100)}%`, value: ownV(d) }));
+    // open deals rendered in the SAME row style as Won deals (thin underline),
+    // sorted highest → lowest win probability.
+    const openDeals = [...open]
+      .sort((a, b) => b.prob - a.prob)
+      .map(d => ({ name: d.name, ownerLine: `${d.owner} · ${Math.round(d.prob * 100)}%`, type: d.type, value: ownV(d) }));
 
     // ---- breakdown table ----
     const arrOf = d => (d.arr != null ? +d.arr : ownV(d));
@@ -89,12 +115,14 @@
       { key: 'value', label: 'Value', num: true, sortable: true, render: r => window.fmtFull(r.value, cur) },
     ];
 
+    const churnKind = r => ({ lost: ['Churned', 'risk'], partial: ['Partial', 'watch'], forecast: ['Forecast', 'up'] }[r.kind] || ['Churned', 'risk']);
     const churnCols = [
       { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
       { key: 'industry', label: 'Industry', sortable: true, render: r => <span className="sub">{r.industry || '—'}</span> },
+      { key: 'kind', label: 'Type', sortable: true, render: r => { const m = churnKind(r); return <span className={`tag ${m[1]}`}>{m[0]}</span>; } },
       { key: 'reason', label: 'Reason', render: r => <span className="sub">{r.reason || '—'}</span> },
-      { key: 'when', label: 'When', sortable: true, render: r => <span className="sub">{r.when}</span> },
-      { key: 'value', label: 'Annual revenue', num: true, sortable: true, render: r => window.fmtFull(r.value, cur) },
+      { key: 'when', label: 'Contract start', sortable: true, render: r => <span className="sub">{r.when}</span> },
+      { key: 'value', label: 'Churn value', num: true, sortable: true, render: r => <span style={r.kind === 'forecast' ? { color: 'var(--text-2)' } : null}>{window.fmtFull(r.value, cur)}</span> },
     ];
 
     return (
@@ -133,7 +161,7 @@
           <KpiCard
             eyebrow="CHURN" dotColor="red"
             value={window.fmtK(churnTotal, cur)} valueRed
-            sub={<span>{churn.length} customer{churn.length !== 1 ? 's' : ''} · {periodLabel} lost ARR</span>}
+            sub={<span>{periodLabel} actual{forecastChurn > 0 ? <span> · <b style={{ color: 'var(--text-2)' }}>{window.fmtK(forecastChurn, cur)}</b> forecast</span> : null}</span>}
           />
         </div>
 
@@ -145,11 +173,13 @@
               <span className="li"><span className="sw" style={{ background: 'var(--blue)' }} />Upsell</span>
               {barGoal ? <span className="li dash"><span className="sw" />Goal</span> : null}
             </div>}>
-            <BarChart bars={salesBars} goal={barGoal} cur={cur} />
+            <div style={{ height: 300, width: '100%', display: 'flex', alignItems: 'center' }}>
+              <BarChart bars={salesBars} goal={barGoal} cur={cur} />
+            </div>
           </Card>
 
           <Card title="Won deals" count={`${won.length} deals`} total={window.fmtK(salesTotal, cur)}>
-            <div className="scroll-y" style={{ maxHeight: 300 }}>
+            <div className="scroll-y" style={{ height: 300 }}>
               <DealList deals={won} cur={cur} emptyText="No won deals in this period" />
             </div>
           </Card>
@@ -159,7 +189,7 @@
         <div className="grid g-2">
           <Card title="Open deals" count={`${open.length} deals`} total={window.fmtK(pipeline, cur)}>
             <div className="scroll-y" style={{ maxHeight: 300 }}>
-              <HBarList rows={openRows} cur={cur} emptyText="No open deals in this period" />
+              <DealList deals={openDeals} cur={cur} emptyText="No open deals in this period" />
             </div>
           </Card>
 
@@ -185,8 +215,9 @@
 
         {/* ---- Leaderboard + Lost ---- */}
         <div className="grid g-2">
-          <Card title="Rep leaderboard">
-            <HBarList rows={leaderboard} cur={cur} color="blue" emptyText="No data for this period" />
+          <Card title="Rep leaderboard" headRight={<span className="sub" style={{ fontSize: 12 }}>click a rep → their deals</span>}>
+            <HBarList rows={leaderboard} cur={cur} color="blue" emptyText="No data for this period"
+                      onRowClick={r => setRepView(r.name)} />
           </Card>
           <Card title="Lost deals" count={`${lost.length} deals`} total={window.fmtK(lostTotal, cur)}>
             <div className="scroll-y" style={{ maxHeight: 320 }}>
@@ -198,11 +229,17 @@
 
         {/* ---- Churn ---- */}
         <div className="grid g-1">
-          <Card title="Churn" count={`${churn.length} in ${periodLabel}`} total={`${window.fmtK(churnTotal, cur)} churned`}>
+          <Card title="Churn" count={`${churn.length} in ${periodLabel}`} total={`${window.fmtK(churnTotal, cur)} actual`}>
             <SortableTable columns={churnCols} rows={churn} />
             {!churn.length && <div className="empty">No churn in this period</div>}
           </Card>
         </div>
+
+        {repView && (
+          <RepModal rep={repView} cur={cur} periodLabel={periodLabel}
+                    deals={wonAllReps.filter(d => d.owner === repView)}
+                    onClose={() => setRepView(null)} />
+        )}
       </React.Fragment>
     );
   }

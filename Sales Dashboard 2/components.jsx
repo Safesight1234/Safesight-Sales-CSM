@@ -74,13 +74,16 @@
   }
 
   /* Horizontal-bar list (open deals / leaderboard) */
-  function HBarList({ rows, cur, color = 'green', max, emptyText = 'No deals' }) {
+  function HBarList({ rows, cur, color = 'green', max, emptyText = 'No deals', onRowClick }) {
     if (!rows.length) return <div className="empty">{emptyText}</div>;
     const mx = max || Math.max(...rows.map(r => r.value), 1);
     return (
       <div>
         {rows.map((r, i) => (
-          <div className="hbar-row" key={r.name + i}>
+          <div className={`hbar-row ${onRowClick ? 'clickable' : ''}`} key={r.name + i}
+               onClick={onRowClick ? () => onRowClick(r) : undefined}
+               role={onRowClick ? 'button' : undefined} tabIndex={onRowClick ? 0 : undefined}
+               onKeyDown={onRowClick ? (e => { if (e.key === 'Enter') onRowClick(r); }) : undefined}>
             <div className="htop">
               <span className="nm">
                 {r.rank != null && <span style={{ color: 'var(--text-3)', fontWeight: 600, marginRight: 10 }}>{r.rank}</span>}

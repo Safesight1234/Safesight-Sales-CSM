@@ -293,6 +293,9 @@ body {
 
 /* horizontal value bar (open deals / leaderboard) */
 .hbar-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.hbar-row.clickable { cursor: pointer; transition: background .12s; border-radius: 8px; }
+.hbar-row.clickable:hover { background: var(--hover); }
+.hbar-row.clickable:hover .htop .nm { color: var(--blue-ink); }
 .hbar-row:last-child { border-bottom: 0; }
 .hbar-row .htop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .hbar-row .htop .nm { font-size: 14px; font-weight: 550; }
