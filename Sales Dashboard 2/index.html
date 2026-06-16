@@ -1337,8 +1337,7 @@ html.locked, html.locked body { overflow: hidden; }
     const upCount     = won.filter(d => d.type === 'Upsell').length;
     const pipeline    = sumOwn(open);
     const newLogoPipe = sumOwn(open, 'New logo');
-    const churnTotal    = churn.filter(c => c.kind !== 'forecast').reduce((a, c) => a + (c.value || 0), 0);
-    const forecastChurn = churn.filter(c => c.kind === 'forecast').reduce((a, c) => a + (c.value || 0), 0);
+    const churnTotal = churn.filter(c => c.kind !== 'forecast').reduce((a, c) => a + (c.value || 0), 0);
 
     const goalCombined = window.goalSum(goalQuarters, 'combined');
     const goalNewLogo  = window.goalSum(goalQuarters, 'newLogo');
@@ -1407,8 +1406,8 @@ html.locked, html.locked body { overflow: hidden; }
       { key: 'industry', label: 'Industry', sortable: true, render: r => <span className="sub">{r.industry || '—'}</span> },
       { key: 'kind', label: 'Type', sortable: true, render: r => { const m = churnKind(r); return <span className={`tag ${m[1]}`}>{m[0]}</span>; } },
       { key: 'reason', label: 'Reason', render: r => <span className="sub">{r.reason || '—'}</span> },
-      { key: 'when', label: 'Contract start', sortable: true, render: r => <span className="sub">{r.when}</span> },
-      { key: 'value', label: 'Churn value', num: true, sortable: true, render: r => <span style={r.kind === 'forecast' ? { color: 'var(--text-2)' } : null}>{window.fmtFull(r.value, cur)}</span> },
+      { key: 'when', label: 'Month churned', sortable: true, render: r => <span className="sub">{r.when}</span> },
+      { key: 'value', label: 'Churn value', num: true, sortable: true, render: r => window.fmtFull(r.value, cur) },
     ];
 
     return (
@@ -1447,7 +1446,7 @@ html.locked, html.locked body { overflow: hidden; }
           <KpiCard
             eyebrow="CHURN" dotColor="red"
             value={window.fmtK(churnTotal, cur)} valueRed
-            sub={<span>{periodLabel} actual{forecastChurn > 0 ? <span> · <b style={{ color: 'var(--text-2)' }}>{window.fmtK(forecastChurn, cur)}</b> forecast</span> : null}</span>}
+            sub={<span>{periodLabel} actual churn</span>}
           />
         </div>
 
@@ -2142,7 +2141,7 @@ html.locked, html.locked body { overflow: hidden; }
     // Poll dashboard-data (cache-busted) until the FRESHLY-REBUILT payload is
     // ready — identified by the current buildVersion stamp. (Waiting for any
     // complete payload would return the stale cached one instantly.)
-    const STAMP = 'churn-vlchurn-v6-forecast2027';
+    const STAMP = 'churn-vlchurn-v10-startmonth';
     const pollData = async (onProgress) => {
       for (let i = 0; i < 72; i++) {               // up to ~6 min at 5s
         try {
@@ -2200,8 +2199,9 @@ html.locked, html.locked body { overflow: hidden; }
       if (period === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${year}`; }
       else { quarters = [period]; periodLabel = `${period} ${year}`; }
     }
-    // goals: for YTD compare against quarters elapsed so far; otherwise the selected scope
-    const goalQuarters = isYTD ? window.ytdQuarters() : quarters;
+    // goals: YTD compares against the FULL-YEAR (annual) target; a single
+    // quarter/month compares against that quarter's target.
+    const goalQuarters = isYTD ? ['Q1', 'Q2', 'Q3', 'Q4'] : quarters;
 
     const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year, goalsOn, financeReady };
 
