@@ -210,21 +210,23 @@ function build(deals, cache) {
       }
       // churn, dated to the month the contract should have (re)started:
       //   lost -> full renewal ARR | won w/ VL-Churn -> partial | open/new -> forecast
+      // churn shows in the month the contract STARTS (start date of the
+      // contract, won or lost). Fall back to end date, then the deal's dates.
       const start = new Date(det.startDate || det.endDate || d.closedAt || d.estClose || d.created);
       const sYr = start.getFullYear(), sQ = 'Q' + (Math.floor(start.getMonth() / 3) + 1);
       // churn comes ONLY from the VL-Churn field. Status sets the kind:
       //   won  → partial (deal closed but shrank)   [actual]
       //   lost → lost    (renewal lost, carried churn)[actual]
       //   open/new → forecast (renewal may shrink)   [forecast]
+      // churn dated to contract end. won-with-VL-Churn = partial, lost = churned
+      // (both ACTUAL, counted in the total); open/new with VL-Churn = forecast
+      // (shown in the table but NOT counted in the actual total).
       if (churn > 0) {
         const ck = d.status === 'lost' ? 'lost' : (d.status === 'won' ? 'partial' : 'forecast');
-        const cv = churn;
-        // only count + show churn dated to the current year, so the Financials
-        // churn total equals the sum of churn shown on the Overview tab.
         if (sYr === CUR) {
-          if (ck !== 'forecast') churnTotal += cv;
+          if (ck !== 'forecast') churnTotal += churn;
           quarters[sQ].churn.push({ customer: row.customer || row.name, industry: row.industry,
-            reason: det.statusRenewal || '', kind: ck, when: MONTHS[start.getMonth()], value: cv });
+            reason: det.statusRenewal || '', kind: ck, when: MONTHS[start.getMonth()], value: churn });
         }
       }
     }
@@ -237,7 +239,7 @@ function build(deals, cache) {
   const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
   const reps = ['All reps', ...Object.values(cache.userName)];
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'churn-vlchurn-v6-forecast2027',
+    buildVersion: 'churn-vlchurn-v10-startmonth',
     years, reps, goals: GOALS, quarters, leaderboard: lb,
     historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
