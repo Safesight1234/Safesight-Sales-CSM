@@ -668,7 +668,7 @@ html.locked, html.locked body { overflow: hidden; }
   window.DATA = {
     asOf: '2026-06-09',
     currentMonth: 'June',
-    years: [2026, 2025, 2024],
+    years: [2027, 2026, 2025, 2024],
     reps: ['All reps', 'Yannick Stegehuis', 'Edo Haan', 'Casper Derks', 'Eva de Vre'],
     goals: { sales: 75000, newLogo: 55000, upsell: 20000 },
     // Per-quarter targets (from "Goals New logo + Upsell 2026")
@@ -2142,7 +2142,7 @@ html.locked, html.locked body { overflow: hidden; }
     // Poll dashboard-data (cache-busted) until the FRESHLY-REBUILT payload is
     // ready — identified by the current buildVersion stamp. (Waiting for any
     // complete payload would return the stale cached one instantly.)
-    const STAMP = 'churn-vlchurn-v3-2026only';
+    const STAMP = 'churn-vlchurn-v6-forecast2027';
     const pollData = async (onProgress) => {
       for (let i = 0; i < 72; i++) {               // up to ~6 min at 5s
         try {
