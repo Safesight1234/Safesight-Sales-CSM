@@ -2139,13 +2139,16 @@ html.locked, html.locked body { overflow: hidden; }
       document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
 
-    // Poll dashboard-data (cache-busted) until a COMPLETE payload is ready.
+    // Poll dashboard-data (cache-busted) until the FRESHLY-REBUILT payload is
+    // ready — identified by the current buildVersion stamp. (Waiting for any
+    // complete payload would return the stale cached one instantly.)
+    const STAMP = 'churn-vlchurn-v3-2026only';
     const pollData = async (onProgress) => {
-      for (let i = 0; i < 60; i++) {               // up to ~5 min at 5s
+      for (let i = 0; i < 72; i++) {               // up to ~6 min at 5s
         try {
           const res = await fetch('/.netlify/functions/dashboard-data?x=' + Date.now(), { cache: 'no-store' });
           const j = await res.json();
-          if (j && j.quarters && j.quarters.Q1 && j.historicals) return j;   // complete
+          if (j && j.buildVersion === STAMP && j.quarters && j.quarters.Q1) return j;   // fresh rebuild
           const p = (j && j.detail && j.detail.progress) || (j && j.progress) || 'working…';
           onProgress(p);
         } catch (e) {}
@@ -2177,11 +2180,11 @@ html.locked, html.locked body { overflow: hidden; }
         try { localStorage.setItem('safesight_live_payload_v1', JSON.stringify(fresh)); } catch (e) {}
         setLive(true); setSync('ok'); setSyncLabel('Live · Teamleader');
       } else {
-        // still building in the background — show last good, invite retry
+        // rebuild still running after the wait — keep showing last data, invite retry
         const src = await window.loadData();
         const isLive = src === 'live';
         setLive(isLive); setSync(isLive ? 'ok' : 'demo');
-        setSyncLabel(isLive ? 'Live · still finishing — Sync again shortly' : 'Demo data');
+        setSyncLabel('Still rebuilding — click Sync again in a minute');
       }
       setFinanceReady(true); setDataVersion(v => v + 1);
     }, []);
