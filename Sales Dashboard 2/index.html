@@ -755,32 +755,23 @@ html.locked, html.locked body { overflow: hidden; }
      return JSON in the same shape as window.DATA. Nothing else changes.
      ------------------------------------------------------------ */
   window.loadData = async function () {
-    const LS_KEY = 'safesight_live_payload_v1';
     const isComplete = p => p && p.quarters && p.quarters.Q1 && p.historicals && p.finance;
 
-    // 1) try the live endpoint
+    // Fetch the live endpoint. A complete payload is used as-is. NO browser
+    // caching — the server is the single source of truth, so the dashboard can
+    // never show a stale snapshot.
     let live = null;
     try {
       const res = await fetch('/.netlify/functions/dashboard-data', { cache: 'no-store' });
       if (res.ok) live = await res.json();
     } catch (e) { /* offline / not deployed */ }
 
-    // 2) a complete live payload wins — use it and remember it
     if (isComplete(live)) {
       Object.assign(window.DATA, live);
-      try { localStorage.setItem(LS_KEY, JSON.stringify(live)); } catch (e) {}
       return 'live';
     }
-
-    // 3) server returned nothing usable (refreshing / partial / error).
-    //    Fall back to the LAST GOOD live payload if we have one, so we never
-    //    regress to demo numbers once real data has been seen.
-    try {
-      const cached = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
-      if (isComplete(cached)) { Object.assign(window.DATA, cached); return 'live'; }
-    } catch (e) {}
-
-    // 4) truly nothing live ever seen → demo data already in window.DATA
+    // server mid-refresh / not connected → leave whatever is already shown
+    // (demo on first load) untouched; do NOT swap in any cached copy.
     return 'mock';
   };
 
@@ -2176,7 +2167,6 @@ html.locked, html.locked body { overflow: hidden; }
       const fresh = await pollData(p => setSyncLabel('Syncing… ' + p));
       if (fresh) {
         Object.assign(window.DATA, fresh);
-        try { localStorage.setItem('safesight_live_payload_v1', JSON.stringify(fresh)); } catch (e) {}
         setLive(true); setSync('ok'); setSyncLabel('Live · Teamleader');
       } else {
         // rebuild still running after the wait — keep showing last data, invite retry
