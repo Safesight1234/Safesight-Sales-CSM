@@ -83,12 +83,16 @@ exports.handler = async function (event) {
           }
         });
         if (rows.length < 100) {
-          // which deals need (re)reading of detail? -> 2026+ deals that are
-          // missing OR changed since cached. Older years stay frozen (we keep
-          // their cached detail and never re-fetch it) → much faster syncs.
+          // which deals need (re)reading of detail?
+          //   • Customer-growth (renewal/upsell) deals → ALWAYS read: they drive
+          //     churn / renewals / CSM contracts, and their relevant date is the
+          //     CONTRACT date (in detail), not the deal's created/closed date —
+          //     so a 2026 contract can live on a deal created in 2025.
+          //   • New-logo deals → only 2026+ (freeze the big historical pile).
+          // Plus: only if missing or changed since cached.
           job.detailIds = job.deals
             .filter(d => d.pipeline === PIPE.upsell || d.status === 'won' || d.status === 'open')
-            .filter(d => dealYear(d) >= FRESH_FROM)
+            .filter(d => d.pipeline === PIPE.upsell || dealYear(d) >= FRESH_FROM)
             .filter(d => { const c = cache.details[d.id]; return !c || c.updated !== d.updated; })
             .map(d => d.id);
           // companies whose names we don't yet have
@@ -215,20 +219,25 @@ function build(deals, cache) {
       if (churn > 0) {
         const ck = d.status === 'lost' ? 'lost' : (d.status === 'won' ? 'partial' : 'forecast');
         const cv = churn;
-        if (ck !== 'forecast') churnTotal += cv;
-        if (sYr === CUR) quarters[sQ].churn.push({ customer: row.customer || row.name, industry: row.industry,
-          reason: det.statusRenewal || '', kind: ck, when: MONTHS[start.getMonth()], value: cv });
+        // only count + show churn dated to the current year, so the Financials
+        // churn total equals the sum of churn shown on the Overview tab.
+        if (sYr === CUR) {
+          if (ck !== 'forecast') churnTotal += cv;
+          quarters[sQ].churn.push({ customer: row.customer || row.name, industry: row.industry,
+            reason: det.statusRenewal || '', kind: ck, when: MONTHS[start.getMonth()], value: cv });
+        }
       }
     }
   });
 
-  const years = [...new Set([CUR, ...Object.keys(histNL).map(Number), ...Object.keys(histUP).map(Number)])].sort((a, b) => b - a);
+  // include NEXT year so CSM (and pipeline) can forecast forward, e.g. 2027 renewals
+  const years = [...new Set([CUR + 1, CUR, ...Object.keys(histNL).map(Number), ...Object.keys(histUP).map(Number)])].sort((a, b) => b - a);
   [histNL, histUP].forEach(o => years.forEach(y => { o[y] = o[y] || [0, 0, 0, 0]; }));
   const combined = {}; years.forEach(y => combined[y] = histNL[y].map((v, i) => v + histUP[y][i]));
   const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
   const reps = ['All reps', ...Object.values(cache.userName)];
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'churn-vlchurn-v3-2026only',
+    buildVersion: 'churn-vlchurn-v6-forecast2027',
     years, reps, goals: GOALS, quarters, leaderboard: lb,
     historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
