@@ -235,6 +235,14 @@ function build(deals, cache) {
     }
   });
 
+  // ---- Manual entry: PEC Zwolle ----
+  // A lost Customer-growth renewal (churned Feb 2026, VL-Churn 7390) that the
+  // deals.list isn't returning, so it's added by hand. Remove once the sync
+  // captures it on its own.
+  quarters.Q1.churn.push({ customer: 'PEC Zwolle', industry: 'Stadium & Venues',
+    reason: 'Not a perfect fit', kind: 'lost', when: 'Feb', value: 7390 });
+  churnTotal += 7390;
+
   // include NEXT year so CSM (and pipeline) can forecast forward, e.g. 2027 renewals
   const years = [...new Set([CUR + 1, CUR, ...Object.keys(histNL).map(Number), ...Object.keys(histUP).map(Number)])].sort((a, b) => b - a);
   [histNL, histUP].forEach(o => years.forEach(y => { o[y] = o[y] || [0, 0, 0, 0]; }));
@@ -242,7 +250,7 @@ function build(deals, cache) {
   const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
   const reps = ['All reps', ...Object.values(cache.userName)];
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'churn-vlchurn-v10-startmonth',
+    buildVersion: 'churn-vlchurn-v11-pecmanual',
     years, reps, goals: GOALS, quarters, leaderboard: lb,
     historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
