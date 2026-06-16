@@ -25,6 +25,9 @@ const CF = {
   risk: '8e5a1667-03ed-07b0-875b-2c8672589144', statusRenewal: 'ea3227d7-7cd0-06df-a652-1a84a7b89038',
 };
 const GOALS = { sales: 75000, newLogo: 55000, upsell: 20000 };
+const FRESH_FROM = 2026;          // only re-read detail for deals in this year or later;
+                                  // older years stay frozen in the cache (faster syncs)
+const dealYear = d => new Date(d.closedAt || d.estClose || d.created).getFullYear();
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const BUDGET = 7000, DETAIL_BATCH = 6;
 const num = v => (v == null || v === '') ? 0 : (Number(v) || 0);
@@ -42,11 +45,11 @@ exports.handler = async function (event) {
   if (lock && t0 - lock.t < 20000) return { statusCode: 200, body: 'busy' };
   await store.setJSON('lock', { t: t0 });
 
-  // persistent cache across syncs (version bump forces one full detail re-read
-  // when we add new cached fields, e.g. contract dates / risk / status renewal)
+  // persistent cache across syncs. We DO NOT wipe details on a version change
+  // anymore — older-year detail is frozen and reused so syncs only refresh 2026+.
   let cache = await store.get('cache', { type: 'json' }).catch(() => null);
-  if (!cache) cache = { version: 4, details: {}, companyName: {}, userName: {} };
-  if (cache.version !== 4) { cache.details = {}; cache.version = 4; }
+  if (!cache) cache = { version: 6, details: {}, companyName: {}, userName: {} };
+  cache.version = 6;
 
   // in-flight job (resume mid-sync)
   let job = await store.get('job', { type: 'json' }).catch(() => null);
@@ -80,9 +83,12 @@ exports.handler = async function (event) {
           }
         });
         if (rows.length < 100) {
-          // which deals need (re)reading of detail? -> missing OR changed since cached
+          // which deals need (re)reading of detail? -> 2026+ deals that are
+          // missing OR changed since cached. Older years stay frozen (we keep
+          // their cached detail and never re-fetch it) → much faster syncs.
           job.detailIds = job.deals
             .filter(d => d.pipeline === PIPE.upsell || d.status === 'won' || d.status === 'open')
+            .filter(d => dealYear(d) >= FRESH_FROM)
             .filter(d => { const c = cache.details[d.id]; return !c || c.updated !== d.updated; })
             .map(d => d.id);
           // companies whose names we don't yet have
@@ -222,7 +228,7 @@ function build(deals, cache) {
   const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
   const reps = ['All reps', ...Object.values(cache.userName)];
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'churn-vlchurn-v2',
+    buildVersion: 'churn-vlchurn-v3-2026only',
     years, reps, goals: GOALS, quarters, leaderboard: lb,
     historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
