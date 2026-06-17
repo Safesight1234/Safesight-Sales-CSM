@@ -147,6 +147,34 @@
     );
   }
 
+  /* Tab-level error boundary — catches any tab crash and shows a friendly
+     message + "Go to Overview" button instead of a blank/broken page. */
+  class TabErrorBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { err: null, errTab: null }; }
+    static getDerivedStateFromError(e) { return { err: e }; }
+    componentDidUpdate(prev) {
+      // Reset when the user switches to a different tab
+      if (prev.tab !== this.props.tab && this.state.err) this.setState({ err: null });
+    }
+    render() {
+      if (this.state.err) {
+        return (
+          <div className="card" style={{ padding: 32, marginTop: 24, textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+            <h3 className="card-title" style={{ marginBottom: 8 }}>This tab ran into a problem</h3>
+            <p className="sub" style={{ marginBottom: 20, maxWidth: 420, margin: '0 auto 20px' }}>
+              {String(this.state.err.message || 'Unexpected error')}
+            </p>
+            <button className="btn" onClick={() => { this.setState({ err: null }); this.props.onReset(); }}>
+              Go to Overview
+            </button>
+          </div>
+        );
+      }
+      return this.props.children;
+    }
+  }
+
   function App() {
     const saved = load();
     const [tab, setTab] = useState(saved.tab || 'overview');
@@ -175,20 +203,53 @@
       document.documentElement.classList.toggle('dark', theme === 'dark');
     }, [theme]);
 
+    // Poll dashboard-data (cache-busted) until the FRESHLY-REBUILT payload is
+    // ready — identified by the current buildVersion stamp. (Waiting for any
+    // complete payload would return the stale cached one instantly.)
+    const STAMP = 'churn-vlchurn-v10-startmonth';
+    const pollData = async (onProgress) => {
+      for (let i = 0; i < 72; i++) {               // up to ~6 min at 5s
+        try {
+          const res = await fetch('/.netlify/functions/dashboard-data?x=' + Date.now(), { cache: 'no-store' });
+          const j = await res.json();
+          if (j && j.buildVersion === STAMP && j.quarters && j.quarters.Q1) return j;   // fresh rebuild
+          const p = (j && j.detail && j.detail.progress) || (j && j.progress) || 'working…';
+          onProgress(p);
+        } catch (e) {}
+        await new Promise(r => setTimeout(r, 5000));
+      }
+      return null;
+    };
+
     const doSync = useCallback(async (quiet) => {
       setSync('busy');
-      if (!quiet) { setSyncLabel('Syncing Teamleader…'); setFinanceReady(false); }
-      const t0 = Date.now();
-      const src = await window.loadData();
-      const wait = quiet ? 200 : Math.max(0, 1000 - (Date.now() - t0));
-      setTimeout(() => {
+
+      // Initial page load → just show whatever's already cached (fast).
+      if (quiet) {
+        const src = await window.loadData();
         const isLive = src === 'live';
-        setLive(isLive);
-        setSync(isLive ? 'ok' : 'demo');
+        setLive(isLive); setSync(isLive ? 'ok' : 'demo');
         setSyncLabel(isLive ? 'Live · Teamleader' : 'Demo data');
-        setFinanceReady(true);
-        setDataVersion(v => v + 1);
-      }, wait);
+        setFinanceReady(true); setDataVersion(v => v + 1);
+        return;
+      }
+
+      // Manual Sync → trigger a real Teamleader rebuild, then wait for it.
+      setSyncLabel('Syncing Teamleader…'); setFinanceReady(false);
+      try { await fetch('/.netlify/functions/refresh-background?t=' + Date.now(), { cache: 'no-store' }); } catch (e) {}
+      await new Promise(r => setTimeout(r, 3000));
+      const fresh = await pollData(p => setSyncLabel('Syncing… ' + p));
+      if (fresh) {
+        Object.assign(window.DATA, fresh);
+        setLive(true); setSync('ok'); setSyncLabel('Live · Teamleader');
+      } else {
+        // rebuild still running after the wait — keep showing last data, invite retry
+        const src = await window.loadData();
+        const isLive = src === 'live';
+        setLive(isLive); setSync(isLive ? 'ok' : 'demo');
+        setSyncLabel('Still rebuilding — click Sync again in a minute');
+      }
+      setFinanceReady(true); setDataVersion(v => v + 1);
     }, []);
     const runSync = useCallback(() => doSync(false), [doSync]);
     useEffect(() => { doSync(true); }, [doSync]);
@@ -202,8 +263,9 @@
       if (period === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${year}`; }
       else { quarters = [period]; periodLabel = `${period} ${year}`; }
     }
-    // goals: for YTD compare against quarters elapsed so far; otherwise the selected scope
-    const goalQuarters = isYTD ? window.ytdQuarters() : quarters;
+    // goals: YTD compares against the FULL-YEAR (annual) target; a single
+    // quarter/month compares against that quarter's target.
+    const goalQuarters = isYTD ? ['Q1', 'Q2', 'Q3', 'Q4'] : quarters;
 
     const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year, goalsOn, financeReady };
 
@@ -285,9 +347,12 @@
             <span className="data-asof">Data as of <b>{window.DATA.asOf}</b></span>
           </div>
 
-          {/* ---- tab content ---- */}
+          {/* ---- tab content — wrapped in error boundary so a crashing tab
+               never takes down the whole app ---- */}
           <div style={{ marginTop: 4 }} key={tab + '-' + dataVersion}>
-            {TabComp ? <TabComp ctx={ctx} /> : <div className="empty">Coming soon</div>}
+            <TabErrorBoundary tab={tab} onReset={() => setTab('overview')}>
+              {TabComp ? <TabComp ctx={ctx} /> : <div className="empty">Coming soon</div>}
+            </TabErrorBoundary>
           </div>
         </div>
 
