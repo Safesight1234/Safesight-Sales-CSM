@@ -147,34 +147,6 @@
     );
   }
 
-  /* Tab-level error boundary — catches any tab crash and shows a friendly
-     message + "Go to Overview" button instead of a blank/broken page. */
-  class TabErrorBoundary extends React.Component {
-    constructor(props) { super(props); this.state = { err: null, errTab: null }; }
-    static getDerivedStateFromError(e) { return { err: e }; }
-    componentDidUpdate(prev) {
-      // Reset when the user switches to a different tab
-      if (prev.tab !== this.props.tab && this.state.err) this.setState({ err: null });
-    }
-    render() {
-      if (this.state.err) {
-        return (
-          <div className="card" style={{ padding: 32, marginTop: 24, textAlign: 'center' }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
-            <h3 className="card-title" style={{ marginBottom: 8 }}>This tab ran into a problem</h3>
-            <p className="sub" style={{ marginBottom: 20, maxWidth: 420, margin: '0 auto 20px' }}>
-              {String(this.state.err.message || 'Unexpected error')}
-            </p>
-            <button className="btn" onClick={() => { this.setState({ err: null }); this.props.onReset(); }}>
-              Go to Overview
-            </button>
-          </div>
-        );
-      }
-      return this.props.children;
-    }
-  }
-
   function App() {
     const saved = load();
     const [tab, setTab] = useState(saved.tab || 'overview');
@@ -347,12 +319,9 @@
             <span className="data-asof">Data as of <b>{window.DATA.asOf}</b></span>
           </div>
 
-          {/* ---- tab content — wrapped in error boundary so a crashing tab
-               never takes down the whole app ---- */}
+          {/* ---- tab content ---- */}
           <div style={{ marginTop: 4 }} key={tab + '-' + dataVersion}>
-            <TabErrorBoundary tab={tab} onReset={() => setTab('overview')}>
-              {TabComp ? <TabComp ctx={ctx} /> : <div className="empty">Coming soon</div>}
-            </TabErrorBoundary>
+            {TabComp ? <TabComp ctx={ctx} /> : <div className="empty">Coming soon</div>}
           </div>
         </div>
 
