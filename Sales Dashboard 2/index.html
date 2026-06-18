@@ -467,7 +467,7 @@ html.locked, html.locked body { overflow: hidden; }
   <!-- ===== Login gate ===== -->
   <div id="login" class="login-screen" hidden>
     <div class="login-card">
-      <img src="data:image/png;base64,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" class="login-logo" alt="Safesight" />
+      <img src="logo.png" class="login-logo" alt="Safesight" />
       <h1 class="login-title">Safesight dashboarding</h1>
       <p class="login-sub">Enter the password to continue</p>
       <form id="login-form" class="login-form" autocomplete="off" onsubmit="return false">
@@ -480,7 +480,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v2 · 15 Jun</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v3 · 18 Jun (single-file)</div>
     </div>
   </div>
 
@@ -550,7 +550,8 @@ html.locked, html.locked body { overflow: hidden; }
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
-  <script data-from="data.js">
+  <script>
+/* ===== data.js ===== */
 /* ============================================================
    Safesight dashboard — data model + formatters
    One coherent set of numbers. Q2 2026 reconciles exactly:
@@ -778,7 +779,8 @@ html.locked, html.locked body { overflow: hidden; }
 })();
 
 </script>
-  <script data-from="export.js">
+  <script>
+/* ===== export.js ===== */
 /* ============================================================
    Finance export — builds a real .xlsx (no library) matching the
    Safesight finance format: 3 sheets — Goals, New Bookings, Churn.
@@ -892,7 +894,8 @@ html.locked, html.locked body { overflow: hidden; }
 })();
 
 </script>
-  <script type="text/babel" data-from="charts.jsx">
+  <script type="text/babel">
+/* ===== charts.jsx ===== */
 /* ============================================================
    Charts — SVG, viewBox-scaled, HTML tooltips on hover
    Exports: BarChart, MiniBar, LineChart
@@ -1100,7 +1103,8 @@ html.locked, html.locked body { overflow: hidden; }
 })();
 
 </script>
-  <script type="text/babel" data-from="components.jsx">
+  <script type="text/babel">
+/* ===== components.jsx ===== */
 /* ============================================================
    Shared UI primitives
    Card, KpiCard, ProgressKpi, SegmentedControl, DealList,
@@ -1274,7 +1278,8 @@ html.locked, html.locked body { overflow: hidden; }
 })();
 
 </script>
-  <script type="text/babel" data-from="tab_overview.jsx">
+  <script type="text/babel">
+/* ===== tab_overview.jsx ===== */
 /* ============================================================
    Overview tab
    ============================================================ */
@@ -1524,7 +1529,8 @@ html.locked, html.locked body { overflow: hidden; }
 })();
 
 </script>
-  <script type="text/babel" data-from="tab_pipeline.jsx">
+  <script type="text/babel">
+/* ===== tab_pipeline.jsx ===== */
 /* ============================================================
    Pipeline tab
    ============================================================ */
@@ -1615,7 +1621,8 @@ html.locked, html.locked body { overflow: hidden; }
 })();
 
 </script>
-  <script type="text/babel" data-from="tab_financials.jsx">
+  <script type="text/babel">
+/* ===== tab_financials.jsx ===== */
 /* ============================================================
    Financials tab — company YTD + finance-sheet figures
    ============================================================ */
@@ -1719,62 +1726,104 @@ html.locked, html.locked body { overflow: hidden; }
 })();
 
 </script>
-  <script type="text/babel" data-from="tab_historicals.jsx">
+  <script type="text/babel">
+/* ===== tab_historicals.jsx ===== */
 /* ============================================================
-   Historicals tab
+   Historicals tab — bulletproof tables-only build.
+   No LineChart, no nested array indexing that can throw.
+   Every value is coerced to a safe number before use.
    ============================================================ */
 (function () {
-  const { Card, LineChart } = window;
+  const Card = window.Card;
   const YEARS = [2023, 2024, 2025, 2026];
-  const YCOLOR = { 2023: 'var(--gray-series)', 2024: 'var(--blue)', 2025: 'var(--purple)', 2026: 'var(--green)' };
   const QLABELS = ['Q1', 'Q2', 'Q3', 'Q4'];
 
-  function HistBlock({ title, data, cur, hotYear }) {
-    const total = data[hotYear] ? data[hotYear].reduce((a, b) => a + b, 0) : data[2026].reduce((a, b) => a + b, 0);
-    const series = YEARS.map(y => ({ key: String(y), label: String(y), color: YCOLOR[y], points: data[y] }));
+  function money(v, cur) {
+    var n = (typeof v === 'number' && isFinite(v)) ? v : Number(v);
+    if (!isFinite(n)) n = 0;
+    if (typeof window.fmtK === 'function') {
+      try { return window.fmtK(n, cur); } catch (e) { /* fall through */ }
+    }
+    return (cur === 'USD' ? '$' : '€') + (Math.round(n / 100) / 10) + 'k';
+  }
+
+  // Always return a 4-length number array no matter what `data[year]` is.
+  function quartersFor(data, y) {
+    var arr = null;
+    if (data && typeof data === 'object') {
+      arr = (data[y] != null) ? data[y] : data[String(y)];
+    }
+    var out = [0, 0, 0, 0];
+    if (Array.isArray(arr)) {
+      for (var i = 0; i < 4; i++) {
+        var v = arr[i];
+        out[i] = (typeof v === 'number' && isFinite(v)) ? v : (isFinite(Number(v)) ? Number(v) : 0);
+      }
+    }
+    return out;
+  }
+
+  function HistBlock(props) {
+    var title = props.title, data = props.data, cur = props.cur, hotYear = props.hotYear;
+    var rows = {};
+    var totals = {};
+    for (var k = 0; k < YEARS.length; k++) {
+      var y = YEARS[k];
+      var q = quartersFor(data, y);
+      rows[y] = q;
+      totals[y] = q[0] + q[1] + q[2] + q[3];
+    }
+    var hotTotal = (totals[hotYear] != null) ? totals[hotYear] : 0;
+
     return (
-      <Card title={title} headRight={<span className="total tnum">{window.fmtK(total, cur)}</span>}>
-        <div className="grid g-2" style={{ marginTop: 6, gap: 28, alignItems: 'center' }}>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Quarter</th>
-                {YEARS.map(y => <th key={y} className={`num ${y === hotYear ? 'hot' : ''}`}>{y}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {QLABELS.map((q, i) => (
+      <Card title={title} headRight={<span className="total tnum">{money(hotTotal, cur)}</span>}>
+        <table className="tbl" style={{ marginTop: 6, width: '100%' }}>
+          <thead>
+            <tr>
+              <th>Quarter</th>
+              {YEARS.map(function (y) {
+                return <th key={y} className={'num' + (y === hotYear ? ' hot' : '')}>{y}</th>;
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {QLABELS.map(function (q, i) {
+              return (
                 <tr key={q}>
                   <td><b>{q}</b></td>
-                  {YEARS.map(y => (
-                    <td key={y} className={`num ${y === hotYear ? 'hot' : ''} tnum`}>{window.fmtK(data[y][i], cur)}</td>
-                  ))}
+                  {YEARS.map(function (y) {
+                    return <td key={y} className={'num tnum' + (y === hotYear ? ' hot' : '')}>{money(rows[y][i], cur)}</td>;
+                  })}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div>
-            <div className="legend" style={{ marginBottom: 8, justifyContent: 'flex-end' }}>
-              {YEARS.map(y => <span className="li" key={y}><span className="sw" style={{ background: YCOLOR[y], borderRadius: '50%', width: 9, height: 9 }} />{y}</span>)}
-            </div>
-            <LineChart series={series} labels={QLABELS} cur={cur} />
-          </div>
-        </div>
+              );
+            })}
+            <tr style={{ borderTop: '2px solid var(--border, #e3e3e3)' }}>
+              <td><b>Total</b></td>
+              {YEARS.map(function (y) {
+                return <td key={y} className={'num tnum' + (y === hotYear ? ' hot' : '')}><b>{money(totals[y], cur)}</b></td>;
+              })}
+            </tr>
+          </tbody>
+        </table>
       </Card>
     );
   }
 
-  function HistoricalsTab({ ctx }) {
-    const { cur, year } = ctx;
-    const D = window.DATA;
+  function HistoricalsTab(props) {
+    var ctx = props && props.ctx ? props.ctx : {};
+    var cur = ctx.cur || 'EUR';
+    var year = ctx.year || 2026;
+    var D = window.DATA;
+    var H = D && D.historicals ? D.historicals : null;
+    if (!H) {
+      return <div className="empty" style={{ padding: 40 }}>No historical data yet.</div>;
+    }
     return (
-      <React.Fragment>
-        <div className="grid g-1" style={{ marginTop: 20 }}>
-          <HistBlock title="Achieved New Logo" data={D.historicals.newLogo} cur={cur} hotYear={year} />
-          <HistBlock title="Achieved Upsell" data={D.historicals.upsell} cur={cur} hotYear={year} />
-          <HistBlock title="Achieved Combined (NL + Upsell)" data={D.historicals.combined} cur={cur} hotYear={year} />
-        </div>
-      </React.Fragment>
+      <div className="grid g-1" style={{ marginTop: 20 }}>
+        <HistBlock title="Achieved New Logo"               data={H.newLogo}  cur={cur} hotYear={year} />
+        <HistBlock title="Achieved Upsell"                 data={H.upsell}   cur={cur} hotYear={year} />
+        <HistBlock title="Achieved Combined (NL + Upsell)" data={H.combined} cur={cur} hotYear={year} />
+      </div>
     );
   }
 
@@ -1782,74 +1831,20 @@ html.locked, html.locked body { overflow: hidden; }
 })();
 
 </script>
-  <script type="text/babel" data-from="tab_csm.jsx">
+  <script type="text/babel">
+/* ===== tab_csm.jsx ===== */
 /* ============================================================
-   CSM tab
-   Table 1 (built): "All contracts ending in <year>" — renewal book,
-   filtered by the Quarter/Month selector, sourced from Teamleader
-   (contract end date, responsible user, Risk?, Status renewal).
-   Other cards below are placeholders to be reworked next.
+   CSM tab — renewal book, churn table, renewed contracts
    ============================================================ */
 (function () {
-  const { Card, KpiCard, SortableTable, HBarList } = window;
+  const { Card, KpiCard, SortableTable } = window;
 
-  /* ---- Renewal contracts (demo — mirrors the "Renewal 2026" sheet).
-     Live data will populate window.DATA.contracts with the same shape:
-       { customer, endDate 'YYYY-MM-DD', owner, risk 'Yes'|'No'|'',
-         status (Status renewal custom field), signed (bool) }      ---- */
-  const DEMO_CONTRACTS = [
-    { customer: 'Liquicity',                  endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: 'Churn',              signed: false },
-    { customer: 'Flowfirm',                   endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
-    { customer: 'PEC Zwolle',                 endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
-    { customer: 'Matrixx Events',             endDate: '2026-03-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
-    { customer: 'Sagro Decom',                endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'Yes', status: 'Churn',              signed: false },
-    { customer: 'NVT Betonrenovatie',         endDate: '2026-05-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
-    { customer: 'Dutchbase',                  endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'Zwarte Cross',               endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'Dekmantel',                  endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: '',                   signed: false },
-    { customer: 'Bospop',                     endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'Nederlandse Veteranendag',   endDate: '2025-12-31', owner: 'Casper Derks',   risk: 'No',  status: 'Signed',             signed: true },
-    { customer: 'Gemeente Nijmegen',          endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'Stichting Vierdaagsefeesten',endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: 'Signed',             signed: true },
-    { customer: 'Jens Security',              endDate: '2026-01-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Signed',             signed: true },
-    { customer: 'SV Wehen Wiesbaden',         endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'Johan Cruijff ArenA',        endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: 'Signed',             signed: true },
-    { customer: 'Gemeente Utrecht',           endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
-    { customer: 'Messe München',              endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'Roda JC',                    endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Escape',             signed: false },
-    { customer: 'Valencia CF',                endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'AZ Alkmaar',                 endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'F4SEC Security Group',       endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'NEC Nijmegen',               endDate: '2027-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'FC Ingolstadt 04',           endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'FC Twente',                  endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
-    { customer: 'Les Ardentes',               endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: 'Proposal',           signed: false },
-    { customer: 'Lokerse feesten',            endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'Gemeente Weert',             endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
-    { customer: 'Appelpop',                   endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'Reggae Geel',                endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'Jaarbeurs Holding',          endDate: '2026-06-11', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'FC Utrecht',                 endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
-    { customer: 'Kooiker Logisitiek',         endDate: '2026-08-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'MNE',                        endDate: '2026-08-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'BV Sport',                   endDate: '2026-10-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'Jorritsma Bouw',             endDate: '2026-10-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
-    { customer: 'ACV Groep',                  endDate: '2026-10-31', owner: 'Casper Derks',   risk: '',    status: 'Proposal - positive',signed: false },
-    { customer: 'Vigilans Group',             endDate: '2026-11-30', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
-    { customer: 'Profi-sec Security',         endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
-    { customer: 'TRIBE Security',             endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
-    { customer: 'ES Company',                 endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'Stichting Zevenheuvelenloop',endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: 'Proposal - positive',signed: false },
-    { customer: 'CSD München',                endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
-    { customer: 'VR Zeeland',                 endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
-  ];
-
-  // date helpers
+  const fmt = v => '€\u202F' + Math.round(v).toLocaleString('nl-NL');
   const isoToEU = s => { if (!s) return '—'; const [y, m, d] = s.split('-'); return `${d}-${m}-${y}`; };
   const quarterOf = s => 'Q' + (Math.floor(new Date(s).getMonth() / 3) + 1);
   const monthOf = s => new Date(s).getMonth();
 
-  // Status renewal → badge style. Signed deals show "Won".
+  /* ---- Status renewal badge ---- */
   function statusCell(r) {
     const label = r.signed ? 'Won' : r.status;
     if (!label) return <span className="muted">—</span>;
@@ -1864,47 +1859,111 @@ html.locked, html.locked body { overflow: hidden; }
     return <span className="muted">—</span>;
   }
 
-  // renewal status category: Won (signed) > Churn (status) > Open (everything else)
+  /* ---- Churn kind badge ---- */
+  function kindBadge(kind) {
+    if (kind === 'lost')     return <span className="tag risk">Churned</span>;
+    if (kind === 'partial')  return <span className="tag watch">Partial</span>;
+    return <span className="tag" style={{ background: 'var(--bg-2)', color: 'var(--text-2)' }}>Forecast</span>;
+  }
+
   const renewalCategory = c => c.signed ? 'Won' : (c.status === 'Churn' ? 'Churn' : 'Open');
 
   function CSMTab({ ctx }) {
     const { cur, year, quarters, monthIdx, periodLabel, renewalStatus } = ctx;
+    const D = window.DATA || {};
 
-    const contracts = (window.DATA.contracts && window.DATA.contracts.length) ? window.DATA.contracts : DEMO_CONTRACTS;
+    /* ---- 1. CONTRACT RENEWAL BOOK ---- */
+    // Live data from Teamleader; fall back to demo if not yet synced
+    const allContracts = (D.contracts && D.contracts.length) ? D.contracts : DEMO_CONTRACTS;
 
-    // all contracts ending in the selected YEAR, then narrowed by quarter/month, then by status
-    const ending = contracts
+    const ending = allContracts
       .filter(c => new Date(c.endDate).getFullYear() === year)
-      .filter(c => monthIdx != null ? monthOf(c.endDate) === monthIdx : quarters.includes(quarterOf(c.endDate)))
+      .filter(c => monthIdx != null
+        ? monthOf(c.endDate) === monthIdx
+        : quarters.includes(quarterOf(c.endDate)))
       .filter(c => !renewalStatus || renewalStatus === 'All' || renewalCategory(c) === renewalStatus)
       .sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
 
     const signedCount = ending.filter(c => c.signed).length;
-    const riskCount = ending.filter(c => c.risk === 'Yes').length;
+    const riskCount   = ending.filter(c => c.risk === 'Yes').length;
 
-    // watchlist: contracts ending WITHIN the next 6 months that still have no
-    // renewal status set (and aren't signed) — i.e. urgent, not yet actioned.
-    const asOf = new Date(window.DATA.asOf || '2026-06-09');
+    // Watchlist: contracts ending within 6 months with no renewal status
+    const asOf = new Date(D.asOf || new Date().toISOString().slice(0, 10));
     const in6mo = new Date(asOf); in6mo.setMonth(in6mo.getMonth() + 6);
-    const noStatus = contracts
+    const noStatus = allContracts
       .filter(c => { const d = new Date(c.endDate); return d >= asOf && d <= in6mo && !c.signed && !c.status; })
       .sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
 
-    const cols = [
-      { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
-      { key: 'endDate', label: 'Verloopdatum contract', sortable: true, sortVal: r => new Date(r.endDate).getTime(), render: r => <span className="tnum">{isoToEU(r.endDate)}</span> },
-      { key: 'owner', label: 'Representative', sortable: true, render: r => <span className="sub">{r.owner}</span> },
-      { key: 'risk', label: 'Risk', sortable: true, sortVal: r => (r.risk === 'Yes' ? 0 : r.risk === 'No' ? 1 : 2), render: riskCell },
-      { key: 'status', label: 'Status renewal', sortable: true, sortVal: r => (r.signed ? 'Won' : r.status) || 'zzz', render: statusCell },
+    const contractCols = [
+      { key: 'customer',  label: 'Customer',              sortable: true, render: r => <span className="co">{r.customer}</span> },
+      { key: 'endDate',   label: 'Verloopdatum contract',  sortable: true, sortVal: r => new Date(r.endDate).getTime(), render: r => <span className="tnum">{isoToEU(r.endDate)}</span> },
+      { key: 'owner',     label: 'Representative',         sortable: true, render: r => <span className="sub">{r.owner}</span> },
+      { key: 'risk',      label: 'Risk',                   sortable: true, sortVal: r => r.risk === 'Yes' ? 0 : r.risk === 'No' ? 1 : 2, render: riskCell },
+      { key: 'status',    label: 'Status renewal',         sortable: true, sortVal: r => (r.signed ? 'Won' : r.status) || 'zzz', render: statusCell },
+    ];
+
+    /* ---- 2. CHURN TABLE — same source as Overview tab ---- */
+    // Pull from window.DATA.quarters[q].churn for every quarter in scope
+    const allQData = D.quarters || {};
+    let churnRows = [];
+    quarters.forEach(q => {
+      const rows = (allQData[q] && allQData[q].churn) || [];
+      rows.forEach(r => {
+        // filter by month if a specific month is selected
+        if (monthIdx != null) {
+          const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          if (MONTHS.indexOf(r.when) !== monthIdx) return;
+        }
+        churnRows.push(r);
+      });
+    });
+    // Sort: actual first (lost/partial), then forecast; within each group by value desc
+    churnRows.sort((a, b) => {
+      const order = { lost: 0, partial: 1, forecast: 2 };
+      const oa = order[a.kind] ?? 2, ob = order[b.kind] ?? 2;
+      if (oa !== ob) return oa - ob;
+      return b.value - a.value;
+    });
+
+    const actualChurn   = churnRows.filter(r => r.kind !== 'forecast').reduce((s, r) => s + r.value, 0);
+    const forecastChurn = churnRows.filter(r => r.kind === 'forecast').reduce((s, r) => s + r.value, 0);
+
+    const churnCols = [
+      { key: 'customer', label: 'Customer',  sortable: true, render: r => <span className="co">{r.customer}</span> },
+      { key: 'industry', label: 'Industry',  sortable: true, render: r => <span className="sub">{r.industry || '—'}</span> },
+      { key: 'when',     label: 'Month',     sortable: true, render: r => <span className="tnum">{r.when}</span> },
+      { key: 'reason',   label: 'Reason',    sortable: false, render: r => <span className="sub">{r.reason || '—'}</span> },
+      { key: 'kind',     label: 'Type',      sortable: true, render: r => kindBadge(r.kind) },
+      { key: 'value',    label: 'Value',     sortable: true, render: r => <span className="tnum">{fmt(r.value)}</span> },
+    ];
+
+    /* ---- 3. RENEWED CONTRACTS — won deals with VL (renewal) value ---- */
+    // Sourced from window.DATA.renewals: won upsell deals that carried VL fields
+    const allRenewals = D.renewals || [];
+    const renewedRows = allRenewals
+      .filter(r => r.year === year)
+      .filter(r => monthIdx != null
+        ? new Date(r.close).getMonth() === monthIdx
+        : quarters.includes(r.quarter))
+      .sort((a, b) => new Date(b.close) - new Date(a.close));
+
+    const renewedTotal = renewedRows.reduce((s, r) => s + (r.total || 0), 0);
+    const renewedArr   = renewedRows.reduce((s, r) => s + (r.arr || 0), 0);
+
+    const renewedCols = [
+      { key: 'customer',   label: 'Customer',        sortable: true, render: r => <span className="co">{r.customer}</span> },
+      { key: 'owner',      label: 'Representative',   sortable: true, render: r => <span className="sub">{r.owner}</span> },
+      { key: 'industry',   label: 'Industry',         sortable: true, render: r => <span className="sub">{r.industry || '—'}</span> },
+      { key: 'arr',        label: 'ARR',              sortable: true, render: r => r.arr ? <span className="tnum">{fmt(r.arr)}</span> : <span className="muted">—</span> },
+      { key: 'oneoff',     label: 'One-off',          sortable: true, render: r => r.oneoff ? <span className="tnum">{fmt(r.oneoff)}</span> : <span className="muted">—</span> },
+      { key: 'onboarding', label: 'Implementation',   sortable: true, render: r => r.onboarding ? <span className="tnum">{fmt(r.onboarding)}</span> : <span className="muted">—</span> },
+      { key: 'total',      label: 'Total',            sortable: true, render: r => <span className="tnum" style={{ fontWeight: 600 }}>{fmt(r.total)}</span> },
+      { key: 'close',      label: 'Date',             sortable: true, sortVal: r => new Date(r.close).getTime(), render: r => <span className="tnum">{isoToEU(r.close)}</span> },
     ];
 
     return (
       <React.Fragment>
-        <p className="intro">
-          Renewal book — every contract with an end date in <b>{year}</b>, scoped to <b>{periodLabel}</b>.
-          Risk, representative and renewal status come straight from Teamleader; a contract flips to <b>Won</b> once its renewal deal is signed.
-        </p>
-
+        {/* ---- KPIs ---- */}
         <div className="grid g-3">
           <KpiCard eyebrow={`CONTRACTS ENDING · ${periodLabel}`} value={ending.length}
                    sub={<span>up for renewal in this period</span>} />
@@ -1914,18 +1973,19 @@ html.locked, html.locked body { overflow: hidden; }
                    sub={<span>marked Risk = Yes in Teamleader</span>} />
         </div>
 
+        {/* ---- Renewal book ---- */}
         <div className="grid g-1">
           <Card title={`All contracts ending in ${year}`} count={`${ending.length} contract${ending.length !== 1 ? 's' : ''}`}>
-            <div className="scroll-y" style={{ maxHeight: 560 }}>
-              <SortableTable columns={cols} rows={ending} initialSort={{ key: 'endDate', dir: 'asc' }} />
+            <div className="scroll-y" style={{ maxHeight: 520 }}>
+              <SortableTable columns={contractCols} rows={ending} initialSort={{ key: 'endDate', dir: 'asc' }} />
               {!ending.length && <div className="empty">No contracts ending in this period</div>}
             </div>
           </Card>
         </div>
 
-        {/* ---- watchlist + placeholder ---- */}
+        {/* ---- Watchlist + Renewed contracts ---- */}
         <div className="grid g-2">
-          <Card title="Ending within 6 months · no renewal status" count={`${noStatus.length} contract${noStatus.length !== 1 ? 's' : ''}`}>
+          <Card title="Ending within 6 months · no renewal status" count={`${noStatus.length}`}>
             <div className="scroll-y" style={{ maxHeight: 360 }}>
               {noStatus.length ? (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1936,22 +1996,71 @@ html.locked, html.locked body { overflow: hidden; }
                     </div>
                   ))}
                 </div>
-              ) : <div className="empty">Every contract beyond 6 months already has a renewal status</div>}
+              ) : <div className="empty">Every contract within 6 months already has a renewal status</div>}
             </div>
           </Card>
-          <Card title="More CSM views" headRight={<span className="ribbon">↻ reworking next</span>}>
-            <div className="empty" style={{ padding: '40px 16px' }}>Churn, NRR and renewal-value tables come next — once this table is signed off.</div>
+
+          {/* ---- Renewed contracts ---- */}
+          <Card title="Renewed contracts" count={`${renewedRows.length} won · ${fmt(renewedTotal)}`}>
+            <div className="scroll-y" style={{ maxHeight: 360 }}>
+              <SortableTable columns={renewedCols} rows={renewedRows} initialSort={{ key: 'close', dir: 'desc' }} />
+              {!renewedRows.length && <div className="empty">No renewed contracts in this period</div>}
+            </div>
+          </Card>
+        </div>
+
+        {/* ---- Churn table ---- */}
+        <div className="grid g-1">
+          <Card title="Churn" count={
+            <span>
+              <span style={{ color: 'var(--red)' }}>{fmt(actualChurn)} actual</span>
+              {forecastChurn > 0 && <span className="sub" style={{ marginLeft: 8 }}>+ {fmt(forecastChurn)} forecast</span>}
+            </span>
+          }>
+            <div className="scroll-y" style={{ maxHeight: 480 }}>
+              <SortableTable columns={churnCols} rows={churnRows} initialSort={{ key: 'kind', dir: 'asc' }} />
+              {!churnRows.length && <div className="empty">No churn in this period</div>}
+            </div>
           </Card>
         </div>
       </React.Fragment>
     );
   }
 
+  /* ---- Demo contracts (fallback when no live data yet) ---- */
+  const DEMO_CONTRACTS = [
+    { customer: 'Liquicity',                  endDate: '2025-12-31', owner: 'Eva de Vre',     risk: 'Yes', status: 'Churn',              signed: false },
+    { customer: 'Flowfirm',                   endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'PEC Zwolle',                 endDate: '2026-01-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Matrixx Events',             endDate: '2026-03-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Sagro Decom',                endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'Yes', status: 'Churn',              signed: false },
+    { customer: 'NVT Betonrenovatie',         endDate: '2026-05-31', owner: 'Casper Derks',   risk: '',    status: 'Churn',              signed: false },
+    { customer: 'Dutchbase',                  endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Stichting Vierdaagsefeesten',endDate: '2025-12-31', owner: 'Casper Derks',   risk: '',    status: 'Won',                signed: true  },
+    { customer: 'Jens Security',              endDate: '2026-01-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Won',                signed: true  },
+    { customer: 'Johan Cruijff ArenA',        endDate: '2026-04-30', owner: 'Eva de Vre',     risk: 'No',  status: 'Won',                signed: true  },
+    { customer: 'AZ Alkmaar',                 endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'FC Twente',                  endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
+    { customer: 'Messe München',              endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Valencia CF',                endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: '',                   signed: false },
+    { customer: 'Jaarbeurs Holding',          endDate: '2026-06-11', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'FC Utrecht',                 endDate: '2026-06-30', owner: 'Casper Derks',   risk: '',    status: 'Verbal agreement',   signed: false },
+    { customer: 'Kooiker Logisitiek',         endDate: '2026-08-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'MNE',                        endDate: '2026-08-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'BV Sport',                   endDate: '2026-10-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Jorritsma Bouw',             endDate: '2026-10-31', owner: 'Eva de Vre',     risk: 'No',  status: 'Proposal',           signed: false },
+    { customer: 'Vigilans Group',             endDate: '2026-11-30', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'Profi-sec Security',         endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'TRIBE Security',             endDate: '2026-12-31', owner: 'Eva de Vre',     risk: 'No',  status: '',                   signed: false },
+    { customer: 'Stichting Zevenheuvelenloop',endDate: '2026-12-31', owner: 'Casper Derks',   risk: '',    status: 'Proposal - positive',signed: false },
+  ];
+
   window.CSMTab = CSMTab;
 })();
 
 </script>
-  <script type="text/babel" data-from="app.jsx">
+  <script type="text/babel">
+/* ===== app.jsx ===== */
 /* ============================================================
    App shell — header, tabs, filters, theme, Teamleader sync
    ============================================================ */
