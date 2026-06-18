@@ -1,85 +1,97 @@
-/* ============================================================
-   Historicals tab — original chart version (restored).
+ Historicals tab — bulletproof tables-only build.
+   No LineChart, no nested array indexing that can throw.
+   Every value is coerced to a safe number before use.
    ============================================================ */
 (function () {
-  const { Card, LineChart } = window;
+  const Card = window.Card;
   const YEARS = [2023, 2024, 2025, 2026];
-  const YCOLOR = {
-    2023: 'var(--gray-series)',
-    2024: 'var(--blue)',
-    2025: 'var(--purple)',
-    2026: 'var(--green)',
-  };
   const QLABELS = ['Q1', 'Q2', 'Q3', 'Q4'];
 
-  function safe(data, y) {
-    var pts = data && (data[y] != null ? data[y] : data[String(y)]);
-    if (!Array.isArray(pts)) return [0, 0, 0, 0];
-    return [0, 1, 2, 3].map(function (i) {
-      var v = pts[i];
-      return (typeof v === 'number' && isFinite(v)) ? v : 0;
-    });
+  function money(v, cur) {
+    var n = (typeof v === 'number' && isFinite(v)) ? v : Number(v);
+    if (!isFinite(n)) n = 0;
+    if (typeof window.fmtK === 'function') {
+      try { return window.fmtK(n, cur); } catch (e) { /* fall through */ }
+    }
+    return (cur === 'USD' ? '$' : '€') + (Math.round(n / 100) / 10) + 'k';
   }
 
-  function HistBlock({ title, data, cur, hotYear }) {
-    var total = safe(data, hotYear).reduce(function (a, b) { return a + b; }, 0);
-    var series = YEARS.map(function (y) {
-      return { key: String(y), label: String(y), color: YCOLOR[y], points: safe(data, y) };
-    });
+  // Always return a 4-length number array no matter what `data[year]` is.
+  function quartersFor(data, y) {
+    var arr = null;
+    if (data && typeof data === 'object') {
+      arr = (data[y] != null) ? data[y] : data[String(y)];
+    }
+    var out = [0, 0, 0, 0];
+    if (Array.isArray(arr)) {
+      for (var i = 0; i < 4; i++) {
+        var v = arr[i];
+        out[i] = (typeof v === 'number' && isFinite(v)) ? v : (isFinite(Number(v)) ? Number(v) : 0);
+      }
+    }
+    return out;
+  }
+
+  function HistBlock(props) {
+    var title = props.title, data = props.data, cur = props.cur, hotYear = props.hotYear;
+    var rows = {};
+    var totals = {};
+    for (var k = 0; k < YEARS.length; k++) {
+      var y = YEARS[k];
+      var q = quartersFor(data, y);
+      rows[y] = q;
+      totals[y] = q[0] + q[1] + q[2] + q[3];
+    }
+    var hotTotal = (totals[hotYear] != null) ? totals[hotYear] : 0;
+
     return (
-      <Card title={title} headRight={<span className="total tnum">{window.fmtK(total, cur)}</span>}>
-        <div className="grid g-2" style={{ marginTop: 6, gap: 28, alignItems: 'center' }}>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Quarter</th>
-                {YEARS.map(function (y) {
-                  return <th key={y} className={'num' + (y === hotYear ? ' hot' : '')}>{y}</th>;
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {QLABELS.map(function (q, i) {
-                return (
-                  <tr key={q}>
-                    <td><b>{q}</b></td>
-                    {YEARS.map(function (y) {
-                      return <td key={y} className={'num tnum' + (y === hotYear ? ' hot' : '')}>{window.fmtK(safe(data, y)[i], cur)}</td>;
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div>
-            <div className="legend" style={{ marginBottom: 8, justifyContent: 'flex-end' }}>
+      <Card title={title} headRight={<span className="total tnum">{money(hotTotal, cur)}</span>}>
+        <table className="tbl" style={{ marginTop: 6, width: '100%' }}>
+          <thead>
+            <tr>
+              <th>Quarter</th>
               {YEARS.map(function (y) {
-                return (
-                  <span className="li" key={y}>
-                    <span className="sw" style={{ background: YCOLOR[y], borderRadius: '50%', width: 9, height: 9 }} />
-                    {y}
-                  </span>
-                );
+                return <th key={y} className={'num' + (y === hotYear ? ' hot' : '')}>{y}</th>;
               })}
-            </div>
-            {LineChart ? <LineChart series={series} labels={QLABELS} cur={cur} /> : null}
-          </div>
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {QLABELS.map(function (q, i) {
+              return (
+                <tr key={q}>
+                  <td><b>{q}</b></td>
+                  {YEARS.map(function (y) {
+                    return <td key={y} className={'num tnum' + (y === hotYear ? ' hot' : '')}>{money(rows[y][i], cur)}</td>;
+                  })}
+                </tr>
+              );
+            })}
+            <tr style={{ borderTop: '2px solid var(--border, #e3e3e3)' }}>
+              <td><b>Total</b></td>
+              {YEARS.map(function (y) {
+                return <td key={y} className={'num tnum' + (y === hotYear ? ' hot' : '')}><b>{money(totals[y], cur)}</b></td>;
+              })}
+            </tr>
+          </tbody>
+        </table>
       </Card>
     );
   }
 
-  function HistoricalsTab({ ctx }) {
-    var cur = ctx.cur, year = ctx.year;
+  function HistoricalsTab(props) {
+    var ctx = props && props.ctx ? props.ctx : {};
+    var cur = ctx.cur || 'EUR';
+    var year = ctx.year || 2026;
     var D = window.DATA;
-    if (!D || !D.historicals) {
+    var H = D && D.historicals ? D.historicals : null;
+    if (!H) {
       return <div className="empty" style={{ padding: 40 }}>No historical data yet.</div>;
     }
     return (
       <div className="grid g-1" style={{ marginTop: 20 }}>
-        <HistBlock title="Achieved New Logo"               data={D.historicals.newLogo}  cur={cur} hotYear={year} />
-        <HistBlock title="Achieved Upsell"                 data={D.historicals.upsell}   cur={cur} hotYear={year} />
-        <HistBlock title="Achieved Combined (NL + Upsell)" data={D.historicals.combined} cur={cur} hotYear={year} />
+        <HistBlock title="Achieved New Logo"               data={H.newLogo}  cur={cur} hotYear={year} />
+        <HistBlock title="Achieved Upsell"                 data={H.upsell}   cur={cur} hotYear={year} />
+        <HistBlock title="Achieved Combined (NL + Upsell)" data={H.combined} cur={cur} hotYear={year} />
       </div>
     );
   }
