@@ -480,7 +480,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v13 · 19 Jun (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v14 · 19 Jun (single-file)</div>
     </div>
   </div>
 
@@ -2154,6 +2154,214 @@ html.locked, html.locked body { overflow: hidden; }
 
 </script>
   <script type="text/babel">
+/* ===== summary.jsx ===== */
+/* ============================================================
+   Year comparison summary — generated from the data (no API).
+   Compares the selected year with the previous year and writes
+   an analyst-style note: totals, the NL/Upsell split, quarter
+   winners & soft spots, churn impact, and takeaways for next year.
+   Exposes window.buildYearSummary(year, cur) and window.SummaryModal.
+   ============================================================ */
+(function () {
+  const QL = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+  function arr(o, y) {
+    var a = o && (o[y] != null ? o[y] : o[String(y)]);
+    return Array.isArray(a) ? a.map(function (n) { return +n || 0; }) : [0, 0, 0, 0];
+  }
+  function sumN(a, n) { var s = 0; for (var i = 0; i < n; i++) s += (a[i] || 0); return s; }
+  function pctChange(cur, prev) {
+    if (prev > 0) return Math.round((cur - prev) / prev * 100);
+    return cur > 0 ? 100 : 0;
+  }
+  function churnYear(D, y) {
+    var q = (D.quartersByYear || {})[y] || (D.quartersByYear || {})[String(y)];
+    var perQ = QL.map(function (k) {
+      var rows = (q && q[k] && q[k].churn) ? q[k].churn : [];
+      return rows.filter(function (c) { return c.kind !== 'forecast'; })
+                 .reduce(function (a, c) { return a + (+c.value || 0); }, 0);
+    });
+    return { perQ: perQ, total: perQ.reduce(function (a, b) { return a + b; }, 0) };
+  }
+
+  window.buildYearSummary = function (year, cur) {
+    var D = window.DATA || {};
+    var H = D.historicals || {};
+    var prev = year - 1;
+    var fmt = function (v) { return window.fmtK ? window.fmtK(v, cur) : v; };
+
+    var now = new Date(), CURY = now.getFullYear(), CURQ = Math.floor(now.getMonth() / 3);
+    var elapsed = year < CURY ? 4 : (year === CURY ? CURQ + 1 : 4);
+    var partial = (year === CURY && elapsed < 4);
+
+    var comb = arr(H.combined, year), combP = arr(H.combined, prev);
+    var nl = arr(H.newLogo, year),  nlP = arr(H.newLogo, prev);
+    var up = arr(H.upsell, year),   upP = arr(H.upsell, prev);
+
+    var T = sumN(comb, elapsed), TP = sumN(combP, elapsed);
+    var NLt = sumN(nl, elapsed),  NLp = sumN(nlP, elapsed);
+    var UPt = sumN(up, elapsed),  UPp = sumN(upP, elapsed);
+    var hasPrev = TP > 0;
+
+    var ch = churnYear(D, year), chP = churnYear(D, prev);
+
+    // quarter analysis (over elapsed quarters)
+    var qList = QL.slice(0, elapsed);
+    var best = -1, bestV = -Infinity, weak = -1, weakV = Infinity;
+    var topGain = -1, topGainV = -Infinity, topDrop = -1, topDropV = Infinity;
+    for (var i = 0; i < elapsed; i++) {
+      if (comb[i] > bestV) { bestV = comb[i]; best = i; }
+      if (comb[i] < weakV) { weakV = comb[i]; weak = i; }
+      var d = comb[i] - combP[i];
+      if (d > topGainV) { topGainV = d; topGain = i; }
+      if (d < topDropV) { topDropV = d; topDrop = i; }
+    }
+
+    var salesPct = pctChange(T, TP);
+    var nlPct = pctChange(NLt, NLp), upPct = pctChange(UPt, UPp);
+    var churnPctOfSales = T > 0 ? Math.round(ch.total / T * 100) : 0;
+
+    // ---- narrative bullets ----
+    var bullets = [];
+    if (hasPrev) {
+      var dir = salesPct >= 0 ? 'up' : 'down';
+      bullets.push({
+        tone: salesPct >= 0 ? 'good' : 'bad',
+        text: 'Total sales ' + dir + ' ' + Math.abs(salesPct) + '% vs ' + prev +
+              ' — ' + fmt(T) + ' against ' + fmt(TP) + ' (' + (T - TP >= 0 ? '+' : '') + fmt(T - TP) + ').'
+      });
+      // what drove it
+      var driver = Math.abs(NLt - NLp) >= Math.abs(UPt - UPp) ? 'New logo' : 'Upsell';
+      bullets.push({
+        tone: 'neutral',
+        text: 'New logo ' + fmt(NLt) + ' (' + (nlPct >= 0 ? '+' : '') + nlPct + '%), Upsell ' + fmt(UPt) +
+              ' (' + (upPct >= 0 ? '+' : '') + upPct + '%). ' + driver + ' moved the needle most.'
+      });
+    } else {
+      bullets.push({ tone: 'neutral', text: 'No ' + prev + ' data on record, so this is a standalone view of ' + year + '.' });
+      bullets.push({ tone: 'neutral', text: 'Total sales ' + fmt(T) + ' — New logo ' + fmt(NLt) + ', Upsell ' + fmt(UPt) + '.' });
+    }
+
+    // quarters
+    if (best >= 0) {
+      var qtxt = 'Strongest quarter was ' + QL[best] + ' (' + fmt(comb[best]) + ')';
+      if (weak >= 0 && weak !== best) qtxt += '; ' + QL[weak] + ' was the soft spot (' + fmt(comb[weak]) + ').';
+      else qtxt += '.';
+      bullets.push({ tone: 'neutral', text: qtxt });
+    }
+    if (hasPrev && topGain >= 0 && topGainV > 0) {
+      bullets.push({ tone: 'good', text: QL[topGain] + ' improved most vs ' + prev + ' (+' + fmt(topGainV) + ').' });
+    }
+    if (hasPrev && topDrop >= 0 && topDropV < 0) {
+      bullets.push({ tone: 'bad', text: QL[topDrop] + ' slipped the most vs ' + prev + ' (' + fmt(topDropV) + ').' });
+    }
+
+    // churn
+    if (ch.total > 0) {
+      var cTone = churnPctOfSales >= 15 ? 'bad' : (churnPctOfSales >= 8 ? 'warn' : 'neutral');
+      var cText = 'Churn was ' + fmt(ch.total) + ' (' + churnPctOfSales + '% of sales)';
+      if (chP.total > 0) {
+        var cp = pctChange(ch.total, chP.total);
+        cText += ', ' + (cp >= 0 ? 'up ' + cp + '%' : 'down ' + Math.abs(cp) + '%') + ' vs ' + prev + ' (' + fmt(chP.total) + ').';
+      } else cText += '.';
+      // worst churn quarter
+      var wq = -1, wv = -1; ch.perQ.forEach(function (v, i) { if (v > wv) { wv = v; wq = i; } });
+      if (wq >= 0 && wv > 0) cText += ' Heaviest in ' + QL[wq] + ' (' + fmt(wv) + ').';
+      bullets.push({ tone: cTone, text: cText });
+    }
+
+    // ---- takeaways for next year ----
+    var takeaways = [];
+    if (hasPrev) {
+      if (upPct > nlPct + 10) takeaways.push('Expansion (upsell) is outpacing new business — keep investing in the customer base.');
+      else if (nlPct > upPct + 10) takeaways.push('New logo is the growth engine — protect top-of-funnel and onboarding capacity.');
+      if (topDrop >= 0 && topDropV < 0) takeaways.push('Plan earlier for ' + QL[topDrop] + ' — it underperformed ' + prev + '; build pipeline ahead of it.');
+    }
+    if (churnPctOfSales >= 10) takeaways.push('Churn is material (' + churnPctOfSales + '% of sales) — prioritise renewals and at-risk accounts.');
+    if (best >= 0) takeaways.push('Repeat what worked in ' + QL[best] + ' — it was the standout quarter.');
+    if (!takeaways.length) takeaways.push('Steady year — hold the course and watch renewal timing into next year.');
+
+    return {
+      year: year, prev: prev, partial: partial, hasPrev: hasPrev,
+      T: T, TP: TP, salesPct: salesPct,
+      NLt: NLt, UPt: UPt, churnTotal: ch.total,
+      bullets: bullets, takeaways: takeaways, cur: cur, fmt: fmt
+    };
+  };
+
+  function SummaryModal(props) {
+    var year = props.year, cur = props.cur, onClose = props.onClose;
+    var s = window.buildYearSummary(year, cur);
+    var toneColor = { good: 'var(--green-ink)', bad: 'var(--red-ink)', warn: 'var(--amber)', neutral: 'var(--text-3)' };
+    var up = s.salesPct >= 0;
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div onClick={function (e) { e.stopPropagation(); }} className="card" style={{ maxWidth: 620, width: '100%', padding: 0, boxShadow: 'var(--shadow-pop)', maxHeight: '88vh', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '20px 24px 14px' }}>
+            <div>
+              <div className="eyebrow">Year comparison{s.partial ? ' · year-to-date' : ''}</div>
+              <h3 className="card-title" style={{ marginTop: 4 }}>{s.year} vs {s.prev}</h3>
+            </div>
+            <button className="btn icon" onClick={onClose} title="Close">{window.__I_close || '✕'}</button>
+          </div>
+
+          <div style={{ padding: '0 24px 8px' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+              <span className="tnum" style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-.02em' }}>{s.fmt(s.T)}</span>
+              {s.hasPrev && (
+                <span style={{
+                  fontSize: 13, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                  color: up ? 'var(--green-ink)' : 'var(--red-ink)',
+                  background: up ? 'var(--green-soft)' : 'var(--red-soft)'
+                }}>{up ? '▲' : '▼'} {Math.abs(s.salesPct)}% vs {s.prev}</span>
+              )}
+            </div>
+            <div className="sub" style={{ marginTop: 6, color: 'var(--text-3)', fontSize: 12.5 }}>
+              New logo {s.fmt(s.NLt)} · Upsell {s.fmt(s.UPt)}{s.churnTotal > 0 ? ' · Churn ' + s.fmt(s.churnTotal) : ''}
+            </div>
+          </div>
+
+          <div style={{ padding: '14px 24px 8px' }}>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>Key differences</div>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {s.bullets.map(function (b, i) {
+                return (
+                  <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13.5, lineHeight: 1.5 }}>
+                    <span style={{ flex: '0 0 auto', width: 7, height: 7, borderRadius: 2, marginTop: 6, background: toneColor[b.tone] || 'var(--text-3)' }} />
+                    <span style={{ color: 'var(--text)' }}>{b.text}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          <div style={{ padding: '12px 24px 24px' }}>
+            <div style={{ background: 'var(--green-soft)', border: '1px solid var(--green)', borderRadius: 'var(--r, 12px)', padding: '14px 16px' }}>
+              <div className="eyebrow" style={{ color: 'var(--green-ink)', marginBottom: 8 }}>Take into next year</div>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {s.takeaways.map(function (t, i) {
+                  return (
+                    <li key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13.5, lineHeight: 1.5, color: 'var(--green-ink)' }}>
+                      <span style={{ fontWeight: 800 }}>→</span><span>{t}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <div className="sub" style={{ marginTop: 12, color: 'var(--text-3)', fontSize: 11.5 }}>
+              Generated from dashboard figures{s.partial ? ' · current year compares year-to-date against the same quarters last year' : ''}.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  window.SummaryModal = SummaryModal;
+})();
+
+</script>
+  <script type="text/babel">
 /* ===== app.jsx ===== */
 /* ============================================================
    App shell — header, tabs, filters, theme, Teamleader sync
@@ -2317,6 +2525,7 @@ html.locked, html.locked body { overflow: hidden; }
     const [theme, setTheme] = useState(saved.theme || 'light');
     const [goalsOn, setGoalsOn] = useState(saved.goalsOn != null ? saved.goalsOn : true);
     const [goalsModal, setGoalsModal] = useState(false);
+    const [summaryOpen, setSummaryOpen] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
     const [sync, setSync] = useState('busy'); // busy | ok | demo
     const [syncLabel, setSyncLabel] = useState('Connecting…');
@@ -2414,6 +2623,7 @@ html.locked, html.locked body { overflow: hidden; }
     const showPeriod = tab === 'overview' || tab === 'pipeline' || tab === 'csm';
     const showRep = tab === 'overview' || tab === 'pipeline';
     const showGoals = tab !== 'csm';
+    const showSummary = tab === 'overview' || tab === 'historicals';
 
     const TabComp = {
       overview: window.OverviewTab, pipeline: window.PipelineTab, financials: window.FinancialsTab,
@@ -2480,6 +2690,14 @@ html.locked, html.locked body { overflow: hidden; }
               <Seg options={['All', 'Open', 'Won', 'Churn']} value={renewalStatus} onChange={setRenewalStatus} />
             )}
 
+            {showSummary && (
+              <button className="btn" onClick={() => setSummaryOpen(true)} title={`Compare ${year} with ${year - 1}`}
+                      style={{ background: 'var(--blue-soft)', borderColor: 'var(--blue)', color: 'var(--blue-ink)' }}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 2 }}><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+                Summary
+              </button>
+            )}
+
             {showGoals && (
               <button className="btn" onClick={() => setGoalsModal(true)} title="View 2026 goals"
                       style={{ background: 'var(--green-soft)', borderColor: 'var(--green)', color: 'var(--green-ink)' }}>
@@ -2498,6 +2716,7 @@ html.locked, html.locked body { overflow: hidden; }
         </div>
 
         {goalsModal && <GoalsModal cur={cur} onClose={() => setGoalsModal(false)} />}
+        {summaryOpen && window.SummaryModal && <window.SummaryModal year={year} cur={cur} onClose={() => setSummaryOpen(false)} />}
         {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
       </div>
     );
