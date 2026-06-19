@@ -170,9 +170,15 @@ exports.handler = async function (event) {
 
 function build(deals, cache) {
   const empty = () => ({ won: [], open: [], lost: [], churn: [] });
-  const quarters = { Q1: empty(), Q2: empty(), Q3: empty(), Q4: empty() };
+  const CUR = new Date().getFullYear();
+  // Per-year quarter buckets so the dashboard year filter works on
+  // Overview / Pipeline for PAST years too (not only the current year).
+  const FILTER_YEARS = [2024, 2025, CUR];
+  const quartersByYear = {};
+  FILTER_YEARS.forEach(y => { quartersByYear[y] = { Q1: empty(), Q2: empty(), Q3: empty(), Q4: empty() }; });
+  const quarters = quartersByYear[CUR];   // back-compat alias = current year
   const histNL = {}, histUP = {}, leaderboard = { Q1: {}, Q2: {}, Q3: {}, Q4: {} }, renewals = [], contracts = [];
-  const CUR = new Date().getFullYear(); let arrTotal = 0, churnTotal = 0;
+  let arrTotal = 0, churnTotal = 0;
 
   deals.forEach(d => {
     const det = cache.details[d.id] || {};
@@ -188,14 +194,17 @@ function build(deals, cache) {
       customer: (d.cust && cache.companyName[d.cust]) || '', refused: (d.closedAt || '').slice(0, 10),
       thisMonth: date.getMonth() === new Date().getMonth() && yr === CUR };
 
-    // WON new-business / expansion — only deals with real value in their own fields
+    // WON new-business / expansion — only deals with real value in their own fields.
+    // Push into the matching YEAR bucket so the year filter can show past years.
+    const yb = quartersByYear[yr];   // undefined for years outside the filter set
     if (d.status === 'won' && total > 0) {
       const b = isNL ? histNL : histUP; b[yr] = b[yr] || [0, 0, 0, 0]; b[yr][idx] += total; arrTotal += arr;
-      if (yr === CUR) { quarters[q].won.push(row); leaderboard[q][owner] = (leaderboard[q][owner] || 0) + total; }
-    } else if (yr === CUR && d.status === 'open') {
-      quarters[q].open.push(Object.assign({}, row, { value: total || num(d.estVal) }));   // open deals may have no fields yet
-    } else if (yr === CUR && d.status === 'lost') {
-      quarters[q].lost.push(Object.assign({}, row, { value: total || num(d.estVal) }));
+      if (yb) yb[q].won.push(row);
+      if (yr === CUR) leaderboard[q][owner] = (leaderboard[q][owner] || 0) + total;
+    } else if (d.status === 'open') {
+      if (yb) yb[q].open.push(Object.assign({}, row, { value: total || num(d.estVal) }));   // open deals may have no fields yet
+    } else if (d.status === 'lost') {
+      if (yb) yb[q].lost.push(Object.assign({}, row, { value: total || num(d.estVal) }));
     }
 
     // RENEWALS + CONTRACTS + churn (Customer-growth deals) -> CSM
@@ -226,9 +235,10 @@ function build(deals, cache) {
       // (shown in the table but NOT counted in the actual total).
       if (churn > 0) {
         const ck = d.status === 'lost' ? 'lost' : (d.status === 'won' ? 'partial' : 'forecast');
-        if (sYr === CUR) {
-          if (ck !== 'forecast') churnTotal += churn;
-          quarters[sQ].churn.push({ customer: row.customer || row.name, industry: row.industry,
+        const ybc = quartersByYear[sYr];
+        if (ybc) {
+          if (sYr === CUR && ck !== 'forecast') churnTotal += churn;
+          ybc[sQ].churn.push({ customer: row.customer || row.name, industry: row.industry,
             reason: det.statusRenewal || '', kind: ck, when: MONTHS[start.getMonth()], value: churn });
         }
       }
@@ -250,8 +260,8 @@ function build(deals, cache) {
   const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
   const reps = ['All reps', ...Object.values(cache.userName)];
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'churn-vlchurn-v11-pecmanual',
-    years, reps, goals: GOALS, quarters, leaderboard: lb,
+    buildVersion: 'seed2023-2025-v13',
+    years, reps, goals: GOALS, quarters, quartersByYear, leaderboard: lb,
     historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
 }
