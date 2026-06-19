@@ -480,7 +480,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v7 · 19 Jun (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v13 · 19 Jun (single-file)</div>
     </div>
   </div>
 
@@ -1351,6 +1351,7 @@ html.locked, html.locked body { overflow: hidden; }
     const { cur, quarters, goalQuarters, monthIdx, periodLabel, rep } = ctx;
     const D = window.DATA;
     const Q = ctx.qdata || D.quarters;   // year-scoped quarter data
+    const isPast = (ctx.year || 0) < new Date().getFullYear();   // past years have no open/lost deals
     const [repView, setRepView] = useState(null);
     const repOK = d => rep === 'All reps' || d.owner === rep;
     const inMonth = d => monthIdx == null || dealMonth(d) === monthIdx;
@@ -1390,6 +1391,17 @@ html.locked, html.locked body { overflow: hidden; }
     const barGoal = singleQ ? (D.goalsByQuarter[singleQ] || {}).combined : null;
     const nlGoal  = singleQ ? (D.goalsByQuarter[singleQ] || {}).newLogo : null;
     const upGoal  = singleQ ? (D.goalsByQuarter[singleQ] || {}).upsell : null;
+
+    // Month granularity → show 12 monthly bars (whole year) instead of quarters.
+    const MON3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const wonYearAll = ['Q1','Q2','Q3','Q4'].flatMap(q => Q[q].won).filter(repOK);
+    const monthBars = MON3.map((m, i) => {
+      const w = wonYearAll.filter(d => dealMonth(d) === i);
+      return { label: m, newLogo: sumOwn(w, 'New logo'), upsell: sumOwn(w, 'Upsell') };
+    });
+    const isMonthGran = ctx.gran === 'Month';
+    const chartBars = isMonthGran ? monthBars : salesBars;
+    const chartTitle = `Sales by ${isMonthGran ? 'month' : 'quarter'} · ${ctx.year}`;
 
     // leaderboard — built from won deals (all reps), respects month/period scope
     const leaderboard = useMemo(() => {
@@ -1488,14 +1500,14 @@ html.locked, html.locked body { overflow: hidden; }
 
         {/* ---- Sales by quarter + Won deals ---- */}
         <div className="grid g-2">
-          <Card title={`Sales by quarter · ${ctx.year}`} headRight={
+          <Card title={chartTitle} headRight={
             <div className="legend">
               <span className="li"><span className="sw" style={{ background: 'var(--green)' }} />New logo</span>
               <span className="li"><span className="sw" style={{ background: 'var(--blue)' }} />Upsell</span>
-              {barGoal ? <span className="li dash"><span className="sw" />Goal</span> : null}
+              {(!isMonthGran && barGoal) ? <span className="li dash"><span className="sw" />Goal</span> : null}
             </div>}>
             <div style={{ height: 300, width: '100%', display: 'flex', alignItems: 'center' }}>
-              <BarChart bars={salesBars} goal={barGoal} cur={cur} />
+              <BarChart bars={chartBars} goal={isMonthGran ? null : barGoal} cur={cur} />
             </div>
           </Card>
 
@@ -1507,12 +1519,14 @@ html.locked, html.locked body { overflow: hidden; }
         </div>
 
         {/* ---- Open deals + breakdown ---- */}
-        <div className="grid g-2">
-          <Card title="Open deals" count={`${open.length} deals`} total={window.fmtK(pipeline, cur)}>
-            <div className="scroll-y" style={{ maxHeight: 300 }}>
-              <DealList deals={openDeals} cur={cur} emptyText="No open deals in this period" />
-            </div>
-          </Card>
+        <div className={`grid ${isPast ? 'g-1' : 'g-2'}`}>
+          {!isPast && (
+            <Card title="Open deals" count={`${open.length} deals`} total={window.fmtK(pipeline, cur)}>
+              <div className="scroll-y" style={{ maxHeight: 300 }}>
+                <DealList deals={openDeals} cur={cur} emptyText="No open deals in this period" />
+              </div>
+            </Card>
+          )}
 
           <Card title="Won deals breakdown" count={`${won.length} deals`} total={window.fmtK(salesTotal, cur)}>
             <div className="scroll-y" style={{ maxHeight: 300 }}>
@@ -1535,17 +1549,19 @@ html.locked, html.locked body { overflow: hidden; }
         </div>
 
         {/* ---- Leaderboard + Lost ---- */}
-        <div className="grid g-2">
+        <div className={`grid ${isPast ? 'g-1' : 'g-2'}`}>
           <Card title="Rep leaderboard" headRight={<span className="sub" style={{ fontSize: 12 }}>click a rep → their deals</span>}>
             <HBarList rows={leaderboard} cur={cur} color="blue" emptyText="No data for this period"
                       onRowClick={r => setRepView(r.name)} />
           </Card>
-          <Card title="Lost deals" count={`${lost.length} deals`} total={window.fmtK(lostTotal, cur)}>
-            <div className="scroll-y" style={{ maxHeight: 320 }}>
-              <SortableTable columns={lostCols} rows={lost} initialSort={{ key: 'value', dir: 'desc' }} />
-              {!lost.length && <div className="empty">No lost deals in this period</div>}
-            </div>
-          </Card>
+          {!isPast && (
+            <Card title="Lost deals" count={`${lost.length} deals`} total={window.fmtK(lostTotal, cur)}>
+              <div className="scroll-y" style={{ maxHeight: 320 }}>
+                <SortableTable columns={lostCols} rows={lost} initialSort={{ key: 'value', dir: 'desc' }} />
+                {!lost.length && <div className="empty">No lost deals in this period</div>}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* ---- Churn ---- */}
@@ -1709,7 +1725,7 @@ html.locked, html.locked body { overflow: hidden; }
     return (
       <React.Fragment>
         <p className="intro">
-          Sales achieved year-to-date ({ytd.join(' + ')}), measured against the <b>full-year</b> goals.
+          <b>2026 figures.</b> Sales achieved year-to-date ({ytd.join(' + ')}), measured against the <b>full-year</b> goals.
           <b> ARR &amp; Total Safesight</b> are pulled live from the finance sheet.
         </p>
 
@@ -1770,9 +1786,11 @@ html.locked, html.locked body { overflow: hidden; }
   <script type="text/babel">
 /* ===== tab_historicals.jsx ===== */
 /* ============================================================
-   Historicals tab — bulletproof tables-only build.
-   No LineChart, no nested array indexing that can throw.
-   Every value is coerced to a safe number before use.
+   Historicals tab — compact, modern cards (2026 look).
+   Three metric cards in a responsive grid. Each shows the
+   selected-year total, a YoY change chip, and a tight
+   quarter×year table with the active year highlighted.
+   Bulletproof: every value coerced to a safe number.
    ============================================================ */
 (function () {
   const Card = window.Card;
@@ -1782,48 +1800,72 @@ html.locked, html.locked body { overflow: hidden; }
   function money(v, cur) {
     var n = (typeof v === 'number' && isFinite(v)) ? v : Number(v);
     if (!isFinite(n)) n = 0;
-    if (typeof window.fmtK === 'function') {
-      try { return window.fmtK(n, cur); } catch (e) { /* fall through */ }
-    }
+    if (typeof window.fmtK === 'function') { try { return window.fmtK(n, cur); } catch (e) {} }
     return (cur === 'USD' ? '$' : '€') + (Math.round(n / 100) / 10) + 'k';
   }
-
-  // Always return a 4-length number array no matter what `data[year]` is.
   function quartersFor(data, y) {
-    var arr = null;
-    if (data && typeof data === 'object') {
-      arr = (data[y] != null) ? data[y] : data[String(y)];
-    }
+    var arr = (data && typeof data === 'object') ? (data[y] != null ? data[y] : data[String(y)]) : null;
     var out = [0, 0, 0, 0];
-    if (Array.isArray(arr)) {
-      for (var i = 0; i < 4; i++) {
-        var v = arr[i];
-        out[i] = (typeof v === 'number' && isFinite(v)) ? v : (isFinite(Number(v)) ? Number(v) : 0);
-      }
+    if (Array.isArray(arr)) for (var i = 0; i < 4; i++) {
+      var v = arr[i]; out[i] = (typeof v === 'number' && isFinite(v)) ? v : (isFinite(Number(v)) ? Number(v) : 0);
     }
     return out;
   }
 
   function HistBlock(props) {
     var title = props.title, data = props.data, cur = props.cur, hotYear = props.hotYear;
-    var rows = {};
-    var totals = {};
-    for (var k = 0; k < YEARS.length; k++) {
-      var y = YEARS[k];
-      var q = quartersFor(data, y);
-      rows[y] = q;
-      totals[y] = q[0] + q[1] + q[2] + q[3];
-    }
-    var hotTotal = (totals[hotYear] != null) ? totals[hotYear] : 0;
+    var accent = props.accent, soft = props.soft;
+    var rows = {}, totals = {};
+    YEARS.forEach(function (y) { var q = quartersFor(data, y); rows[y] = q; totals[y] = q[0] + q[1] + q[2] + q[3]; });
+
+    var hot = (totals[hotYear] != null) ? totals[hotYear] : 0;
+    var prevY = hotYear - 1;
+    // Like-for-like YoY: for the CURRENT (unfinished) year, compare year-to-date
+    // against the SAME quarters last year. Completed years use the full year.
+    var now = new Date();
+    var CURY = now.getFullYear(), CURQ = Math.floor(now.getMonth() / 3);
+    var elapsed = hotYear < CURY ? 4 : (hotYear === CURY ? CURQ + 1 : 0);
+    var sumN = function (y, n) { var s = 0, r = rows[y] || []; for (var i = 0; i < n; i++) s += (r[i] || 0); return s; };
+    var hotLF = sumN(hotYear, elapsed), prevLF = sumN(prevY, elapsed);
+    var hasYoY = elapsed > 0 && YEARS.indexOf(prevY) >= 0 && prevLF > 0;
+    var delta = hasYoY ? (hotLF - prevLF) / prevLF : 0;
+    var up = delta >= 0;
+    var pct = Math.round(Math.abs(delta) * 100);
+    var partial = hotYear === CURY && elapsed < 4;
+
+    var head = (
+      <span className="total tnum" style={{ color: accent }}>{money(hot, cur)}</span>
+    );
+
+    var titleEl = (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ width: 8, height: 8, borderRadius: 2, background: accent, display: 'inline-block' }} />
+        {title}
+      </span>
+    );
+
+    var cell = (val, y, strong) => (
+      <td key={y} style={{
+        textAlign: 'right', padding: '7px 10px', fontVariantNumeric: 'tabular-nums',
+        fontSize: 12.5, fontWeight: strong ? 750 : 550,
+        color: y === hotYear ? accent : (strong ? 'var(--text)' : 'var(--text-2)'),
+        background: y === hotYear ? soft : 'transparent',
+      }}>{money(val, cur)}</td>
+    );
 
     return (
-      <Card title={title} headRight={<span className="total tnum">{money(hotTotal, cur)}</span>}>
-        <table className="tbl" style={{ marginTop: 6, width: '100%' }}>
+      <Card title={titleEl} headRight={head}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
           <thead>
             <tr>
-              <th>Quarter</th>
+              <th style={{ textAlign: 'left', fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--label)', fontWeight: 650, padding: '0 10px 8px 0' }}></th>
               {YEARS.map(function (y) {
-                return <th key={y} className={'num' + (y === hotYear ? ' hot' : '')}>{y}</th>;
+                return <th key={y} style={{
+                  textAlign: 'right', fontSize: 11, fontWeight: 700, padding: '0 10px 8px',
+                  color: y === hotYear ? accent : 'var(--label)',
+                  background: y === hotYear ? soft : 'transparent',
+                  borderTopLeftRadius: 7, borderTopRightRadius: 7,
+                }}>{y}</th>;
               })}
             </tr>
           </thead>
@@ -1831,20 +1873,33 @@ html.locked, html.locked body { overflow: hidden; }
             {QLABELS.map(function (q, i) {
               return (
                 <tr key={q}>
-                  <td><b>{q}</b></td>
+                  <td style={{ padding: '7px 10px 7px 0', fontSize: 12, fontWeight: 600, color: 'var(--text-3)', borderTop: '1px solid var(--border)' }}>{q}</td>
                   {YEARS.map(function (y) {
-                    return <td key={y} className={'num tnum' + (y === hotYear ? ' hot' : '')}>{money(rows[y][i], cur)}</td>;
+                    return <td key={y} style={{
+                      textAlign: 'right', padding: '7px 10px', fontVariantNumeric: 'tabular-nums',
+                      fontSize: 12.5, fontWeight: 550, borderTop: '1px solid var(--border)',
+                      color: y === hotYear ? accent : 'var(--text-2)',
+                      background: y === hotYear ? soft : 'transparent',
+                    }}>{money(rows[y][i], cur)}</td>;
                   })}
                 </tr>
               );
             })}
-            <tr style={{ borderTop: '2px solid var(--border, #e3e3e3)' }}>
-              <td><b>Total</b></td>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style={{ padding: '9px 10px 0 0', fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--label)' }}>Total</td>
               {YEARS.map(function (y) {
-                return <td key={y} className={'num tnum' + (y === hotYear ? ' hot' : '')}><b>{money(totals[y], cur)}</b></td>;
+                return <td key={y} style={{
+                  textAlign: 'right', padding: '9px 10px 7px', fontVariantNumeric: 'tabular-nums',
+                  fontSize: 13, fontWeight: 800, borderTop: '2px solid var(--border-2)',
+                  color: y === hotYear ? accent : 'var(--text)',
+                  background: y === hotYear ? soft : 'transparent',
+                  borderBottomLeftRadius: 7, borderBottomRightRadius: 7,
+                }}>{money(totals[y], cur)}</td>;
               })}
             </tr>
-          </tbody>
+          </tfoot>
         </table>
       </Card>
     );
@@ -1856,14 +1911,12 @@ html.locked, html.locked body { overflow: hidden; }
     var year = ctx.year || 2026;
     var D = window.DATA;
     var H = D && D.historicals ? D.historicals : null;
-    if (!H) {
-      return <div className="empty" style={{ padding: 40 }}>No historical data yet.</div>;
-    }
+    if (!H) return <div className="empty" style={{ padding: 40 }}>No historical data yet.</div>;
     return (
-      <div className="grid g-1" style={{ marginTop: 20 }}>
-        <HistBlock title="Achieved New Logo"               data={H.newLogo}  cur={cur} hotYear={year} />
-        <HistBlock title="Achieved Upsell"                 data={H.upsell}   cur={cur} hotYear={year} />
-        <HistBlock title="Achieved Combined (NL + Upsell)" data={H.combined} cur={cur} hotYear={year} />
+      <div className="grid g-3" style={{ marginTop: 20 }}>
+        <HistBlock title="New logo" data={H.newLogo}  cur={cur} hotYear={year} accent="var(--green-ink)" soft="var(--green-soft)" />
+        <HistBlock title="Upsell"   data={H.upsell}   cur={cur} hotYear={year} accent="var(--blue-ink)"  soft="var(--blue-soft)" />
+        <HistBlock title="Combined" data={H.combined} cur={cur} hotYear={year} accent="var(--text)"      soft="var(--surface-2)" />
       </div>
     );
   }
@@ -2334,24 +2387,29 @@ html.locked, html.locked body { overflow: hidden; }
     useEffect(() => { doSync(true); }, [doSync]);
 
     // ---- resolve the active scope ----
+    // Financials & Pipeline are current-year views (no year filter); they always
+    // use the current year regardless of the dropdown's last value.
+    const CUR_YEAR = new Date().getFullYear();
+    const effYear = (tab === 'financials' || tab === 'pipeline') ? CUR_YEAR : year;
     let quarters, monthIdx = null, isYTD = false, periodLabel;
     if (gran === 'Month') {
-      if (month === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${year}`; }
-      else { const mi = MONTHS.indexOf(month); monthIdx = mi; quarters = ['Q' + (Math.floor(mi / 3) + 1)]; periodLabel = `${month} ${year}`; }
+      if (month === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${effYear}`; }
+      else { const mi = MONTHS.indexOf(month); monthIdx = mi; quarters = ['Q' + (Math.floor(mi / 3) + 1)]; periodLabel = `${month} ${effYear}`; }
     } else {
-      if (period === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${year}`; }
-      else { quarters = [period]; periodLabel = `${period} ${year}`; }
+      if (period === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${effYear}`; }
+      else { quarters = [period]; periodLabel = `${period} ${effYear}`; }
     }
     // goals: YTD compares against the FULL-YEAR (annual) target; a single
     // quarter/month compares against that quarter's target.
     const goalQuarters = isYTD ? ['Q1', 'Q2', 'Q3', 'Q4'] : quarters;
 
-    // data source for the SELECTED year — falls back to the legacy single
-    // (current-year) bucket if the backend hasn't sent per-year data yet.
+    // data source for the effective year (current for Financials/Pipeline).
     const D0 = window.DATA;
-    const qdata = (D0.quartersByYear && D0.quartersByYear[year]) || D0.quarters;
+    const qdata = (D0.quartersByYear && D0.quartersByYear[effYear]) || D0.quarters;
 
-    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year, goalsOn, financeReady, qdata };
+    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year: effYear, goalsOn, financeReady, qdata };
+
+    const showYear = tab !== 'financials' && tab !== 'pipeline';
 
     const showPeriod = tab === 'overview' || tab === 'pipeline' || tab === 'csm';
     const showRep = tab === 'overview' || tab === 'pipeline';
@@ -2396,9 +2454,11 @@ html.locked, html.locked body { overflow: hidden; }
 
           {/* ---- filters ---- */}
           <div className="filterrow">
-            <select className="select" value={year} onChange={e => setYear(+e.target.value)}>
-              {window.DATA.years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            {showYear && (
+              <select className="select" value={year} onChange={e => setYear(+e.target.value)}>
+                {window.DATA.years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            )}
             <Seg options={[['EUR', '€ EUR'], ['USD', '$ USD']]} value={cur} onChange={setCur} />
 
             {showPeriod && (
@@ -2432,7 +2492,7 @@ html.locked, html.locked body { overflow: hidden; }
           </div>
 
           {/* ---- tab content ---- */}
-          <div style={{ marginTop: 4 }} key={tab + '-' + dataVersion}>
+          <div style={{ marginTop: 4 }} key={tab + '-' + year + '-' + dataVersion}>
             {TabComp ? <TabComp ctx={ctx} /> : <div className="empty">Coming soon</div>}
           </div>
         </div>
