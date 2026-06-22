@@ -480,7 +480,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v14 · 19 Jun (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v16 · 22 Jun (single-file)</div>
     </div>
   </div>
 
@@ -1375,6 +1375,8 @@ html.locked, html.locked body { overflow: hidden; }
     const pipeline    = sumOwn(open);
     const newLogoPipe = sumOwn(open, 'New logo');
     const churnTotal = churn.filter(c => c.kind !== 'forecast').reduce((a, c) => a + (c.value || 0), 0);
+    const churnForecast = churn.filter(c => c.kind === 'forecast').reduce((a, c) => a + (c.value || 0), 0);
+    const churnAll = churnTotal + churnForecast;
 
     const goalCombined = window.goalSum(goalQuarters, 'combined');
     const goalNewLogo  = window.goalSum(goalQuarters, 'newLogo');
@@ -1426,16 +1428,16 @@ html.locked, html.locked body { overflow: hidden; }
       { key: 'name', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer || r.name}</span> },
       { key: 'industry', label: 'Industry', sortable: true, render: r => <span className="sub">{r.industry || '—'}</span> },
       { key: 'type', label: 'Type', sortable: true, render: r => <span className={`tag ${r.type === 'Upsell' ? 'up' : 'nl'}`}>{r.type}</span> },
-      { key: 'arr', label: 'ARR', num: true, sortable: true, sortVal: arrOf, render: r => window.fmtFull(arrOf(r), cur) },
-      { key: 'oneoff', label: 'One-off', num: true, sortable: true, sortVal: oneoffOf, render: r => window.fmtFull(oneoffOf(r), cur) },
-      { key: 'onb', label: 'Onboarding', num: true, sortable: true, sortVal: onbOf, render: r => window.fmtFull(onbOf(r), cur) },
-      { key: 'total', label: 'Total', num: true, sortable: true, sortVal: ownV, render: r => <b>{window.fmtFull(ownV(r), cur)}</b> },
+      { key: 'arr', label: 'ARR', num: true, sortable: true, sortVal: arrOf, render: r => window.fmtK(arrOf(r), cur) },
+      { key: 'oneoff', label: 'One-off', num: true, sortable: true, sortVal: oneoffOf, render: r => window.fmtK(oneoffOf(r), cur) },
+      { key: 'onb', label: 'Onboarding', num: true, sortable: true, sortVal: onbOf, render: r => window.fmtK(onbOf(r), cur) },
+      { key: 'total', label: 'Total', num: true, sortable: true, sortVal: ownV, render: r => <b>{window.fmtK(ownV(r), cur)}</b> },
     ];
     const breakdownFoot = {
-      name: 'Total', arr: window.fmtFull(won.reduce((a, d) => a + arrOf(d), 0), cur),
-      oneoff: window.fmtFull(won.reduce((a, d) => a + oneoffOf(d), 0), cur),
-      onb: window.fmtFull(won.reduce((a, d) => a + onbOf(d), 0), cur),
-      total: window.fmtFull(salesTotal, cur),
+      name: 'Total', arr: window.fmtK(won.reduce((a, d) => a + arrOf(d), 0), cur),
+      oneoff: window.fmtK(won.reduce((a, d) => a + oneoffOf(d), 0), cur),
+      onb: window.fmtK(won.reduce((a, d) => a + onbOf(d), 0), cur),
+      total: window.fmtK(salesTotal, cur),
     };
 
     const lostTotal = lost.reduce((a, d) => a + (d.value || 0), 0);
@@ -1457,6 +1459,11 @@ html.locked, html.locked body { overflow: hidden; }
       { key: 'when', label: 'Month churned', sortable: true, render: r => <span className="sub">{r.when}</span> },
       { key: 'value', label: 'Churn value', num: true, sortable: true, render: r => window.fmtFull(r.value, cur) },
     ];
+    const churnFoot = {
+      customer: 'Total', industry: '', kind: '',
+      reason: churnForecast > 0 ? `${window.fmtK(churnTotal, cur)} actual + ${window.fmtK(churnForecast, cur)} forecast` : 'actual',
+      when: '', value: window.fmtK(churnAll, cur),
+    };
 
     return (
       <React.Fragment>
@@ -1566,8 +1573,8 @@ html.locked, html.locked body { overflow: hidden; }
 
         {/* ---- Churn ---- */}
         <div className="grid g-1">
-          <Card title="Churn" count={`${churn.length} in ${periodLabel}`} total={`${window.fmtK(churnTotal, cur)} actual`}>
-            <SortableTable columns={churnCols} rows={churn} />
+          <Card title="Churn" count={`${churn.length} in ${periodLabel}`} total={`${window.fmtK(churnTotal, cur)} actual${churnForecast > 0 ? ` · ${window.fmtK(churnForecast, cur)} forecast` : ''}`}>
+            <SortableTable columns={churnCols} rows={churn} footer={churn.length ? churnFoot : null} />
             {!churn.length && <div className="empty">No churn in this period</div>}
           </Card>
         </div>
