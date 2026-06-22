@@ -94,8 +94,7 @@ exports.handler = async function (event) {
           //   • New-logo deals → only 2026+ (freeze the big historical pile).
           // Plus: only if missing or changed since cached.
           job.detailIds = job.deals
-            .filter(d => d.pipeline === PIPE.upsell || d.status === 'won' || d.status === 'open')
-            .filter(d => d.pipeline === PIPE.upsell || dealYear(d) >= FRESH_FROM)
+            .filter(d => d.pipeline === PIPE.upsell || dealYear(d) >= FRESH_FROM)   // upsell always; NL only 2026+ (any status, so churn on 'new' deals is caught)
             .filter(d => { const c = cache.details[d.id]; return !c || c.updated !== d.updated; })
             .map(d => d.id);
           // companies whose names we don't yet have
@@ -119,8 +118,9 @@ exports.handler = async function (event) {
               arr: isNL ? num(cf[CF.nlArr]) : num(cf[CF.usArr]),
               oneoff: isNL ? num(cf[CF.nlOneoff]) : num(cf[CF.usOneoff]),
               onboarding: isNL ? num(cf[CF.nlOnboarding]) : num(cf[CF.usOnboarding]),
-              rArr: isNL ? 0 : num(cf[CF.vlRecurring]), rOneoff: isNL ? 0 : num(cf[CF.vlOneoff]), rImpl: isNL ? 0 : num(cf[CF.vlImpl]), churn: isNL ? 0 : num(cf[CF.vlChurn]),
-              endDate: isNL ? '' : (cf[CF.contractEnd] || ''), startDate: isNL ? '' : (cf[CF.contractStart] || ''),
+              rArr: isNL ? 0 : num(cf[CF.vlRecurring]), rOneoff: isNL ? 0 : num(cf[CF.vlOneoff]), rImpl: isNL ? 0 : num(cf[CF.vlImpl]),
+              churn: num(cf[CF.vlChurn]),                          // churn can sit on ANY pipeline (incl. New logo)
+              endDate: (cf[CF.contractEnd] || ''), startDate: (cf[CF.contractStart] || ''),   // needed to date churn
               risk: isNL ? '' : riskVal(cf[CF.risk]), statusRenewal: isNL ? '' : (cf[CF.statusRenewal] || ''),
             };
           });
@@ -173,7 +173,7 @@ function build(deals, cache) {
   const CUR = new Date().getFullYear();
   // Per-year quarter buckets so the dashboard year filter works on
   // Overview / Pipeline for PAST years too (not only the current year).
-  const FILTER_YEARS = [2024, 2025, CUR];
+  const FILTER_YEARS = [2024, 2025, CUR, CUR + 1];   // CUR+1 so Pipeline/CSM can forecast next year
   const quartersByYear = {};
   FILTER_YEARS.forEach(y => { quartersByYear[y] = { Q1: empty(), Q2: empty(), Q3: empty(), Q4: empty() }; });
   const quarters = quartersByYear[CUR];   // back-compat alias = current year
@@ -220,7 +220,8 @@ function build(deals, cache) {
         contracts.push({ customer: row.customer || row.name, endDate: String(det.endDate).slice(0, 10),
           owner, risk: det.risk || '', status: det.statusRenewal || '', signed: d.status === 'won' });
       }
-      // churn, dated to the month the contract should have (re)started:
+    }
+    // churn, dated to the month the contract should have (re)started:
       //   lost -> full renewal ARR | won w/ VL-Churn -> partial | open/new -> forecast
       // churn shows in the month the contract STARTS (start date of the
       // contract, won or lost). Fall back to end date, then the deal's dates.
@@ -242,7 +243,6 @@ function build(deals, cache) {
             reason: det.statusRenewal || '', kind: ck, when: MONTHS[start.getMonth()], value: churn });
         }
       }
-    }
   });
 
   // ---- Manual entry: PEC Zwolle ----
@@ -260,7 +260,7 @@ function build(deals, cache) {
   const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
   const reps = ['All reps', ...Object.values(cache.userName)];
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'seed2023-2025-v13',
+    buildVersion: 'pipeline2027-v20',
     years, reps, goals: GOALS, quarters, quartersByYear, leaderboard: lb,
     historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
