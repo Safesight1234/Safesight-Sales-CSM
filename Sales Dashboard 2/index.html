@@ -480,7 +480,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v16 · 22 Jun (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v19 · 22 Jun (single-file)</div>
     </div>
   </div>
 
@@ -1501,7 +1501,7 @@ html.locked, html.locked body { overflow: hidden; }
           <KpiCard
             eyebrow="CHURN" dotColor="red"
             value={window.fmtK(churnTotal, cur)} valueRed
-            sub={<span>{periodLabel} actual churn</span>}
+            sub={<span>{periodLabel} actual{churnForecast > 0 ? <> · <b style={{ color: 'var(--text-3)' }}>+{window.fmtK(churnForecast, cur)}</b> forecast</> : ' churn'}</span>}
           />
         </div>
 
@@ -1573,7 +1573,7 @@ html.locked, html.locked body { overflow: hidden; }
 
         {/* ---- Churn ---- */}
         <div className="grid g-1">
-          <Card title="Churn" count={`${churn.length} in ${periodLabel}`} total={`${window.fmtK(churnTotal, cur)} actual${churnForecast > 0 ? ` · ${window.fmtK(churnForecast, cur)} forecast` : ''}`}>
+          <Card title="Churn" count={`${churn.length} in ${periodLabel}`} total={`${window.fmtK(churnTotal, cur)} actual${churnForecast > 0 ? ` · +${window.fmtK(churnForecast, cur)} forecast` : ''}`}>
             <SortableTable columns={churnCols} rows={churn} footer={churn.length ? churnFoot : null} />
             {!churn.length && <div className="empty">No churn in this period</div>}
           </Card>
@@ -2551,7 +2551,7 @@ html.locked, html.locked body { overflow: hidden; }
     // Poll dashboard-data (cache-busted) until the FRESHLY-REBUILT payload is
     // ready — identified by the current buildVersion stamp. (Waiting for any
     // complete payload would return the stale cached one instantly.)
-    const STAMP = 'seed2023-2025-v13';
+    const STAMP = 'churn-anypipe-v17';
     const pollData = async (onProgress) => {
       for (let i = 0; i < 72; i++) {               // up to ~6 min at 5s
         try {
