@@ -480,7 +480,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v19 · 22 Jun (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v20 · 22 Jun (single-file)</div>
     </div>
   </div>
 
@@ -2551,7 +2551,7 @@ html.locked, html.locked body { overflow: hidden; }
     // Poll dashboard-data (cache-busted) until the FRESHLY-REBUILT payload is
     // ready — identified by the current buildVersion stamp. (Waiting for any
     // complete payload would return the stale cached one instantly.)
-    const STAMP = 'churn-anypipe-v17';
+    const STAMP = 'pipeline2027-v20';
     const pollData = async (onProgress) => {
       for (let i = 0; i < 72; i++) {               // up to ~6 min at 5s
         try {
@@ -2603,10 +2603,12 @@ html.locked, html.locked body { overflow: hidden; }
     useEffect(() => { doSync(true); }, [doSync]);
 
     // ---- resolve the active scope ----
-    // Financials & Pipeline are current-year views (no year filter); they always
-    // use the current year regardless of the dropdown's last value.
+    // Financials is a current-year YTD view (no year filter). Pipeline forecasts
+    // the current OR next year. Everything else uses the selected year.
     const CUR_YEAR = new Date().getFullYear();
-    const effYear = (tab === 'financials' || tab === 'pipeline') ? CUR_YEAR : year;
+    const effYear = tab === 'financials' ? CUR_YEAR
+                  : tab === 'pipeline' ? (year >= CUR_YEAR ? year : CUR_YEAR)   // clamp past → current
+                  : year;
     let quarters, monthIdx = null, isYTD = false, periodLabel;
     if (gran === 'Month') {
       if (month === 'YTD') { quarters = QUARTERS_ALL; isYTD = true; periodLabel = `YTD ${effYear}`; }
@@ -2625,7 +2627,11 @@ html.locked, html.locked body { overflow: hidden; }
 
     const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year: effYear, goalsOn, financeReady, qdata };
 
-    const showYear = tab !== 'financials' && tab !== 'pipeline';
+    const showYear = tab !== 'financials';
+    // Pipeline only offers forecast years (current + next); other tabs list all.
+    const yearOptions = tab === 'pipeline'
+      ? window.DATA.years.filter(y => y >= CUR_YEAR).sort((a, b) => a - b)
+      : window.DATA.years;
 
     const showPeriod = tab === 'overview' || tab === 'pipeline' || tab === 'csm';
     const showRep = tab === 'overview' || tab === 'pipeline';
@@ -2672,8 +2678,8 @@ html.locked, html.locked body { overflow: hidden; }
           {/* ---- filters ---- */}
           <div className="filterrow">
             {showYear && (
-              <select className="select" value={year} onChange={e => setYear(+e.target.value)}>
-                {window.DATA.years.map(y => <option key={y} value={y}>{y}</option>)}
+              <select className="select" value={effYear} onChange={e => setYear(+e.target.value)}>
+                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             )}
             <Seg options={[['EUR', '€ EUR'], ['USD', '$ USD']]} value={cur} onChange={setCur} />
