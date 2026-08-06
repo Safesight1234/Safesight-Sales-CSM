@@ -480,7 +480,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v20 · 22 Jun (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v21 · 6 Aug (single-file)</div>
     </div>
   </div>
 
@@ -1659,9 +1659,7 @@ html.locked, html.locked body { overflow: hidden; }
           </Card>
 
           <Card title="All open deals" count={`${open.length} deals`} total={window.fmtK(total, cur)}>
-            <div className="scroll-y" style={{ maxHeight: 320 }}>
-              <DealList deals={open.map(toRow)} cur={cur} emptyText="No open deals in this period" />
-            </div>
+            <DealList deals={open.map(toRow)} cur={cur} emptyText="No open deals in this period" />
           </Card>
         </div>
 
@@ -2719,7 +2717,7 @@ html.locked, html.locked body { overflow: hidden; }
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v21</span></span>
           </div>
 
           {/* ---- tab content ---- */}
