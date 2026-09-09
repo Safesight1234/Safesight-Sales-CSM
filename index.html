@@ -250,6 +250,11 @@ body {
 .kpi .big.red { color: var(--red); }
 .kpi .sub { font-size: 12.5px; color: var(--text-2); margin-top: auto; }
 .kpi .sub .lead { color: var(--text); font-weight: 650; }
+.kpi.sm { min-height: 133px; padding: 15px 17px; }
+.kpi.sm .big { font-size: 29px; margin-top: 9px; }
+.kpi.sm .sub, .kpi.sm .kpi-foot { font-size: 12px; }
+.kpi.sm .kpi-foot .goal { white-space: nowrap; }
+html[data-density] .card.kpi.sm { padding: var(--tw-card-pad); }
 .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 .dot.green { background: var(--green); }
 .dot.blue  { background: var(--blue); }
@@ -432,6 +437,7 @@ html[data-surface="editorial"] .tbl thead th, html[data-surface="editorial"] .re
 .rev .sect { display: flex; align-items: center; gap: 0; }
 .rev .sect > i { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; margin-left: 10px; }
 .rev .sect .cell { padding-left: 7px; }
+.rev .tlbadge { display: inline-block; vertical-align: middle; margin-left: 2px; padding: 1px 5px; border-radius: 4px; font-size: 9px; font-weight: 800; letter-spacing: .06em; background: var(--green-soft); color: var(--green); cursor: help; }
 .rev td.lic-col, .rev th.lic-col, .rev tfoot td.lic-col { border-right: 1px solid var(--border-2); }
 .rev .lic { position: relative; display: flex; align-items: center; }
 .rev .lic .cell { flex: 1 1 auto; }
@@ -1961,11 +1967,10 @@ html.locked, html.locked body { overflow: hidden; }
     const rows = (window.revenueRowsFor && window.revenueRowsFor(year)) || [];
     const sum = k => rows.reduce((a, r) => a + (+r[k] || 0), 0);
     const arrAnnual = sum('arrAnnual'), arrEvent = sum('arrEvent');
-    const awaiting = sum('awaiting'), churn = sum('churn'), upsell = sum('upsell');
-    const oneoff = sum('oneoff'), onboarding = sum('onboarding'), sponsorship = sum('sponsorship');
+    const awaiting = sum('awaiting'), churn = sum('churn');
     const arrTotal = arrAnnual + arrEvent;
-    const safeTotal = arrTotal + awaiting + churn + upsell + oneoff + onboarding;   // sheet column S
-    const afterSponsor = safeTotal + sponsorship;                                    // sheet column U
+    const revT = (window.revenueTotalsFor && window.revenueTotalsFor(year)) || null;
+    const safeTotal = revT ? revT.grand : arrTotal + awaiting;   // exactly the Revenue tab total
     const fmtI = v => window.fmtInt(v, cur);
 
     return (
@@ -1981,28 +1986,28 @@ html.locked, html.locked body { overflow: hidden; }
           <b>{year} figures.</b> {showYTD
             ? <span>Sales achieved year-to-date ({ytd.join(' + ')}), measured against the <b>full-year</b> goals. </span>
             : <span>Sales YTD is only shown for the running year. </span>}
-          <b>ARR, renewals and churn</b> come from the Revenue tab — including any manual edits made there.
+          <b>ARR, awaiting renewal and churn</b> come from the Revenue tab — including any manual edits made there. <b>Total Safesight</b> is that tab's full year total; the cards above only break out its recurring parts.
         </p>
 
         {showYTD && (
           <div className="grid g-3">
-            <Card className="kpi pad-lg">
+            <Card className="kpi sm">
               <div className="eyebrow">TOTAL SALES · YTD</div>
               <div className="big tnum">{window.fmtFull(sales, cur)}</div>
               {goalsOn && <div className="bar"><i style={{ width: Math.min(100, window.pct(sales, goalSales)) + '%' }} /></div>}
               <div className="kpi-foot" style={{ marginTop: goalsOn ? 0 : 14 }}>
                 <span className="pct">{goalsOn ? `${window.pct(sales, goalSales)}%` : ''}</span>
-                <span className="goal">{won.length} deals won{goalsOn ? <span> · of {window.fmtK(goalSales, cur)} annual</span> : null}</span>
+                <span className="goal">{won.length} won{goalsOn ? <span> · of {window.fmtK(goalSales, cur)}</span> : null}</span>
               </div>
             </Card>
 
-            <Card soft className="kpi pad-lg">
+            <Card soft className="kpi sm">
               <div className="eyebrow"><span className="dot green" />NEW LOGO · YTD</div>
               <div className="big tnum">{window.fmtFull(nl, cur)}</div>
               <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(nl, goalNL)}% of ${window.fmtK(goalNL, cur)} annual goal` : 'New business closed this year'}</div>
             </Card>
 
-            <Card soft className="kpi pad-lg">
+            <Card soft className="kpi sm">
               <div className="eyebrow"><span className="dot blue" />UPSELL · YTD</div>
               <div className="big tnum">{window.fmtFull(up, cur)}</div>
               <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(up, goalUP)}% of ${window.fmtK(goalUP, cur)} annual goal` : 'Expansion revenue this year'}</div>
@@ -2011,42 +2016,30 @@ html.locked, html.locked body { overflow: hidden; }
         )}
 
         <div className="grid g-3">
-          <Card soft className="kpi pad-lg">
-            <div className="eyebrow">ARR — TOTAL · {year}</div>
-            <div className="big tnum">{fmtI(arrTotal)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{fmtI(arrAnnual)} annual licence · {fmtI(arrEvent)} event based</div>
-          </Card>
-
-          <Card soft className="kpi pad-lg" style={{ borderColor: 'var(--green)', boxShadow: '0 0 0 1px var(--green-soft)' }}>
-            <div className="eyebrow"><span className="dot green" />TOTAL SAFESIGHT (75%)</div>
+          <Card soft className="kpi sm">
+            <div className="eyebrow"><span className="dot green" />TOTAL SAFESIGHT (75%) · {year}</div>
             <div className="big tnum">{fmtI(safeTotal)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{fmtI(afterSponsor)} after sponsorship ({fmtI(sponsorship)})</div>
+            <div className="sub" style={{ marginTop: 14 }}>same total as the Revenue tab for {year}</div>
           </Card>
 
-          <Card soft className="kpi pad-lg">
-            <div className="eyebrow"><span className="dot red" />CHURN · {year}</div>
-            <div className="big tnum red">{fmtI(churn)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{rows.filter(r => +r.churn > 0).length} contracts flagged in the sheet</div>
-          </Card>
-        </div>
-
-        <div className="grid g-3">
-          <Card soft className="kpi pad-lg">
+          <Card soft className="kpi sm">
             <div className="eyebrow"><span className="dot blue" />AWAITING RENEWAL · {year}</div>
             <div className="big tnum">{fmtI(awaiting)}</div>
             <div className="sub" style={{ marginTop: 14 }}>{rows.filter(r => +r.awaiting > 0).length} contracts not yet re-signed</div>
           </Card>
 
-          <Card soft className="kpi pad-lg">
-            <div className="eyebrow">EXPECTED UPSELL (75%)</div>
-            <div className="big tnum">{fmtI(upsell)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>expansion budgeted on existing customers</div>
+          <Card soft className="kpi sm">
+            <div className="eyebrow"><span className="dot red" />CHURN · {year}</div>
+            <div className="big tnum red">{fmtI(churn)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{rows.filter(r => +r.churn > 0).length ? rows.filter(r => +r.churn > 0).length + ' contracts churned in the Revenue sheet' : 'No churn recorded in the Revenue sheet'}</div>
           </Card>
+        </div>
 
-          <Card soft className="kpi pad-lg">
-            <div className="eyebrow">ONE-OFF · ONBOARDING</div>
-            <div className="big tnum">{fmtI(oneoff + onboarding)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{fmtI(oneoff)} one-off · {fmtI(onboarding)} onboarding</div>
+        <div className="grid g-1">
+          <Card soft className="kpi pad-lg" style={{ borderColor: 'var(--green)', boxShadow: '0 0 0 1px var(--green-soft)' }}>
+            <div className="eyebrow"><span className="dot green" />ARR — TOTAL · {year}</div>
+            <div className="big tnum">{fmtI(arrTotal)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{fmtI(arrAnnual)} annual licence · {fmtI(arrEvent)} event based</div>
           </Card>
         </div>
       </React.Fragment>
@@ -2867,13 +2860,15 @@ html.locked, html.locked body { overflow: hidden; }
         if (hit.manual) return;                       // hand-edited rows win
         hit.end = end || hit.end;
         hit.start = hit.start || start;
+        hit.signed = hit.signed || d.refused || d.close || '';
+        hit.duration = hit.duration || +d.duration || 0;
         hit.sector = hit.sector || d.industry || '';
         if (arr || ev) Object.assign(hit, project(y, start, end, { annual: arr, event: ev }));
         hit.src = 'tl';
       } else {
         const first = yearOf(start) === y;      // one-off + onboarding only land in the contract's first year
         next.push({ id: 'tl' + y + '_' + norm(name), customer: name, sector: d.industry || '', country: '',
-          end: end, start: start, invoicing: '', license: 0, indexation: '',
+          end: end, start: start, signed: d.refused || d.close || '', duration: +d.duration || 0, invoicing: '', license: 0, indexation: '',
           ...project(y, start, end, { annual: arr, event: ev }),
           churn: 0, upsell: 0, oneoff: first ? +d.oneoff || 0 : 0, onboarding: first ? +d.onboarding || 0 : 0, sponsorship: 0, src: 'tl' });
       }
@@ -2881,6 +2876,20 @@ html.locked, html.locked body { overflow: hidden; }
     return next;
   };
   const rowsFor = y => mergeTeamleader(loadRows(y) || baseRows(y), y);
+
+  /* hover note on a Teamleader-sourced row: when it was signed, how long it
+     runs and which sheet years it lands in */
+  const tlNote = r => {
+    const bits = ['Won deal synced from Teamleader'];
+    if (r.signed) bits.push('signed ' + dateLabel(r.signed));
+    if (r.start || r.end) bits.push('contract ' + (dateLabel(r.start) || '?') + ' → ' + (dateLabel(r.end) || '?') + (r.duration ? ' (' + r.duration + ' months)' : ''));
+    const sY = yearOf(r.start), eY = yearOf(r.end);
+    if (!isNaN(sY) || !isNaN(eY)) {
+      const from = isNaN(sY) ? eY : sY, to = isNaN(eY) ? sY : eY;
+      bits.push('in the revenue sheets ' + (from === to ? from : from + '–' + to) + (to < Math.max(...YEARS) ? ', awaiting renewal after that' : ''));
+    }
+    return bits.join(' · ');
+  };
 
   /* one editable cell — click to type, Enter commits, Esc cancels */
   function Cell({ value, onCommit, kind }) {
@@ -3089,6 +3098,7 @@ html.locked, html.locked body { overflow: hidden; }
                       <tr key={r.id}>
                         <td className="sticky-l">
                           <Cell value={r.customer} onCommit={v => setCell(r.id, 'customer', v)} />
+                          {r.src === 'tl' && <span className="tlbadge" title={tlNote(r)}>TL</span>}
                           <i className="rowbar" style={{ width: Math.max(2, (tot / maxRow) * 100) + '%', background: SECTOR_COLOR[r.sector] || 'var(--gray-series)' }} />
                         </td>
                         <td>
@@ -3135,6 +3145,15 @@ html.locked, html.locked body { overflow: hidden; }
 
   window.RevenueTab = RevenueTab;
   window.revenueRowsFor = y => (YEARS.includes(+y) ? rowsFor(+y) : null);
+  /* the Revenue tab's own totals — single source of truth for other tabs */
+  window.revenueTotalsFor = y => {
+    if (!YEARS.includes(+y)) return null;
+    const rows = rowsFor(+y), s = k => rows.reduce((a, r) => a + (+r[k] || 0), 0);
+    const t = {}; NUMS.forEach(([k]) => { t[k] = s(k); });
+    t.sponsorship = s('sponsorship');
+    t.grand = NUMS.reduce((a, [k]) => a + t[k], 0);          // = "Total (75%) Safesight" in the Revenue tab
+    return t;
+  };
   window.REVENUE_YEARS = YEARS;
   const MON3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   /* churn rows for the Overview tab, straight from the revenue sheet */
