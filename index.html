@@ -325,6 +325,17 @@ body {
 
 
 
+.cw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 5px; padding-top: 2px; }
+.cw { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+.cw > i { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; background: var(--text-3); }
+.cw.hot { border-color: color-mix(in oklab, var(--red) 45%, var(--border)); background: var(--red-soft); }
+.cw.hot > i { background: var(--red); }
+.cw.warm > i { background: var(--amber); }
+.cw.cool > i { background: var(--green); }
+.cw .nm { flex: 1 1 auto; min-width: 0; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw .dl { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; color: var(--text-2); }
+.cw.hot .dl { color: var(--red-ink); }
+
 .note-cell { display: block; min-width: 190px; max-width: 320px; text-align: left; font: inherit; font-size: 13px; color: inherit; background: none; border: 1px solid transparent; border-radius: 7px; padding: 7px 9px; cursor: text; white-space: normal; }
 .note-cell:hover { border-color: var(--border-2); background: var(--surface); }
 .note-cell:focus, .note-cell.editing:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); background: var(--surface); }
@@ -404,6 +415,8 @@ html[data-surface="editorial"] .tbl thead th, html[data-surface="editorial"] .re
 .rev td.tot .cur, .rev tfoot td.num .cur { float: left; }
 .rev input.cell.num { display: block; }
 .rev .cell.zero { color: var(--text-3); font-weight: 500; }
+.rev td.churn-col .cell:not(.zero), .rev td.churn-col .cur, .rev tfoot td.churn-col { color: var(--red); }
+.rev thead th.churn-col { color: var(--red); }
 .rev .cell:hover { border-color: var(--border-2); background: var(--surface); }
 .rev .cell:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); background: var(--surface); }
 .rev input.cell { -moz-appearance: textfield; }
@@ -419,6 +432,15 @@ html[data-surface="editorial"] .tbl thead th, html[data-surface="editorial"] .re
 .rev .sect { display: flex; align-items: center; gap: 0; }
 .rev .sect > i { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; margin-left: 10px; }
 .rev .sect .cell { padding-left: 7px; }
+.rev td.lic-col, .rev th.lic-col, .rev tfoot td.lic-col { border-right: 1px solid var(--border-2); }
+.rev .lic { position: relative; display: flex; align-items: center; }
+.rev .lic .cell { flex: 1 1 auto; }
+.rev .lic-note { opacity: 0; border: 0; background: none; color: var(--text-3); cursor: pointer; font-size: 10px; line-height: 1; padding: 4px 6px; }
+.rev tbody tr:hover .lic-note { opacity: 1; }
+.rev .lic.has-note .lic-note { opacity: 1; color: var(--blue); }
+.rev .lic-note:hover { color: var(--text); }
+.rev .lic-tip { position: absolute; z-index: 40; left: 0; bottom: calc(100% + 6px); display: none; max-width: 280px; white-space: normal; padding: 7px 10px; border-radius: 8px; background: var(--text); color: var(--surface); font-size: 12px; font-weight: 500; line-height: 1.35; box-shadow: var(--shadow-pop); }
+.rev .lic:hover .lic-tip { display: block; }
 .rev .rowdel { opacity: 0; border: 0; background: none; color: var(--text-3); cursor: pointer; padding: 6px 10px; font-size: 16px; line-height: 1; }
 .rev tbody tr:hover .rowdel { opacity: 1; }
 .rev .rowdel:hover { color: var(--red); }
@@ -1518,7 +1540,11 @@ html.locked, html.locked body { overflow: hidden; }
     const won   = useMemo(() => gather('won', true).sort((a, b) => ownV(b) - ownV(a)), [quarters, rep, monthIdx]);
     const open  = useMemo(() => gather('open', true).filter(d => ownV(d) > 0), [quarters, rep, monthIdx]);
     const lost  = useMemo(() => gather('lost', true), [quarters, rep, monthIdx]);
-    const churn = useMemo(() => gather('churn', false), [quarters, monthIdx]);
+    const churn = useMemo(() => {
+      const sheet = window.revenueChurnFor && window.revenueChurnFor(ctx.year);
+      if (sheet) return sheet.filter(c => quarters.includes(c.quarter)).filter(c => monthIdx == null || c.mon === monthIdx);
+      return gather('churn', false);
+    }, [quarters, monthIdx, ctx.year]);
     const wonAllReps = useMemo(() => gather('won', false), [quarters, monthIdx]);
 
     const salesTotal  = sumOwn(won);
@@ -1643,8 +1669,8 @@ html.locked, html.locked body { overflow: hidden; }
       { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
       { key: 'industry', label: 'Industry', sortable: true, render: r => <span className="sub">{window.industryName(r.industry) || '—'}</span> },
       { key: 'kind', label: 'Type', sortable: true, render: r => { const m = churnKind(r); return <span className={`tag ${m[1]}`}>{m[0]}</span>; } },
-      { key: 'reason', label: 'Reason', render: r => <span className="sub">{r.reason || '—'}</span> },
-      { key: 'when', label: 'Month churned', sortable: true, render: r => <span className="sub">{r.when}</span> },
+      { key: 'reason', label: 'Source / reason', render: r => <span className="sub">{r.reason || '—'}</span> },
+      { key: 'when', label: 'Month churned', sortable: true, render: r => <span className="sub">{r.when || '—'}</span> },
       { key: 'value', label: 'Churn value', num: true, sortable: true, render: r => window.fmtFull(r.value, cur) },
     ];
     const churnFoot = {
@@ -1903,98 +1929,124 @@ html.locked, html.locked body { overflow: hidden; }
   <script type="text/babel">
 /* ===== tab_financials.jsx ===== */
 /* ============================================================
-   Financials tab — company YTD + finance-sheet figures
+   Financials tab — company sales YTD + revenue-sheet figures
+   ARR / renewal / churn figures come from the Revenue tab
+   (sheet data + manual edits), per selected year.
    ============================================================ */
 (function () {
-  const { useState, useEffect } = React;
+  const { useState } = React;
   const { Card } = window;
   const sumOwn = window.sumOwn;
 
   function FinancialsTab({ ctx }) {
     const { cur, goalsOn } = ctx;
     const D = window.DATA;
+    const YEARS = window.REVENUE_YEARS || [2026, 2027];
+    const [year, setYear] = useState(YEARS[0]);
+    const CUR_YEAR = new Date().getFullYear();
 
-    // ---- sales YTD, straight from won deals (NL + Upsell, all quarters so far) ----
+    // ---- sales YTD, straight from won deals (Teamleader) ----
     const ytd = window.ytdQuarters();
     const won = ytd.flatMap(q => D.quarters[q].won);
     const nl = sumOwn(won, 'New logo');
     const up = sumOwn(won, 'Upsell');
     const sales = nl + up;
-    // goals here are the FULL-YEAR (annual) targets — all four quarters
     const ALL_Q = ['Q1', 'Q2', 'Q3', 'Q4'];
     const goalSales = window.goalSum(ALL_Q, 'combined');
     const goalNL = window.goalSum(ALL_Q, 'newLogo');
     const goalUP = window.goalSum(ALL_Q, 'upsell');
+    const showYTD = year === CUR_YEAR;
 
-    // ---- ARR + Total Safesight: pulled live from the finance Google Sheet ----
-    const [fin, setFin] = useState(null);
-    const [finState, setFinState] = useState('loading'); // loading | ok | err
-    useEffect(() => {
-      let alive = true;
-      fetch('/.netlify/functions/finance', { cache: 'no-store' })
-        .then(r => r.ok ? r.json() : Promise.reject())
-        .then(j => { if (alive) { setFin(j); setFinState('ok'); } })
-        .catch(() => { if (alive) setFinState('err'); });
-      return () => { alive = false; };
-    }, []);
-    const arrTotal = fin ? fin.arrTotal : D.finance.arrTotal;
-    const safeTotal = fin ? fin.totalSafesight : D.finance.totalSafesight;
-
-    const Loadable = ({ value }) => finState === 'loading'
-      ? <span className="shimmer" style={{ width: 150, height: 42, borderRadius: 8 }}>&nbsp;</span>
-      : <span>{value}</span>;
+    // ---- revenue sheet figures for the selected year ----
+    const rows = (window.revenueRowsFor && window.revenueRowsFor(year)) || [];
+    const sum = k => rows.reduce((a, r) => a + (+r[k] || 0), 0);
+    const arrAnnual = sum('arrAnnual'), arrEvent = sum('arrEvent');
+    const awaiting = sum('awaiting'), churn = sum('churn'), upsell = sum('upsell');
+    const oneoff = sum('oneoff'), onboarding = sum('onboarding'), sponsorship = sum('sponsorship');
+    const arrTotal = arrAnnual + arrEvent;
+    const safeTotal = arrTotal + awaiting + churn + upsell + oneoff + onboarding;   // sheet column S
+    const afterSponsor = safeTotal + sponsorship;                                    // sheet column U
+    const fmtI = v => window.fmtInt(v, cur);
 
     return (
       <React.Fragment>
+        <div className="filterrow" style={{ marginTop: 6 }}>
+          <div className="seg">
+            {YEARS.map(y => <button key={y} aria-pressed={year === y} onClick={() => setYear(y)}>{y}</button>)}
+          </div>
+          <span className="rev-note">Revenue figures from the Revenue tab · EUR</span>
+        </div>
+
         <p className="intro">
-          <b>2026 figures.</b> Sales achieved year-to-date ({ytd.join(' + ')}), measured against the <b>full-year</b> goals.
-          <b> ARR &amp; Total Safesight</b> are pulled live from the finance sheet.
+          <b>{year} figures.</b> {showYTD
+            ? <span>Sales achieved year-to-date ({ytd.join(' + ')}), measured against the <b>full-year</b> goals. </span>
+            : <span>Sales YTD is only shown for the running year. </span>}
+          <b>ARR, renewals and churn</b> come from the Revenue tab — including any manual edits made there.
         </p>
 
+        {showYTD && (
+          <div className="grid g-3">
+            <Card className="kpi pad-lg">
+              <div className="eyebrow">TOTAL SALES · YTD</div>
+              <div className="big tnum">{window.fmtFull(sales, cur)}</div>
+              {goalsOn && <div className="bar"><i style={{ width: Math.min(100, window.pct(sales, goalSales)) + '%' }} /></div>}
+              <div className="kpi-foot" style={{ marginTop: goalsOn ? 0 : 14 }}>
+                <span className="pct">{goalsOn ? `${window.pct(sales, goalSales)}%` : ''}</span>
+                <span className="goal">{won.length} deals won{goalsOn ? <span> · of {window.fmtK(goalSales, cur)} annual</span> : null}</span>
+              </div>
+            </Card>
+
+            <Card soft className="kpi pad-lg">
+              <div className="eyebrow"><span className="dot green" />NEW LOGO · YTD</div>
+              <div className="big tnum">{window.fmtFull(nl, cur)}</div>
+              <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(nl, goalNL)}% of ${window.fmtK(goalNL, cur)} annual goal` : 'New business closed this year'}</div>
+            </Card>
+
+            <Card soft className="kpi pad-lg">
+              <div className="eyebrow"><span className="dot blue" />UPSELL · YTD</div>
+              <div className="big tnum">{window.fmtFull(up, cur)}</div>
+              <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(up, goalUP)}% of ${window.fmtK(goalUP, cur)} annual goal` : 'Expansion revenue this year'}</div>
+            </Card>
+          </div>
+        )}
+
         <div className="grid g-3">
-          <Card className="kpi pad-lg">
-            <div className="eyebrow">TOTAL SALES · YTD</div>
-            <div className="big tnum">{window.fmtFull(sales, cur)}</div>
-            {goalsOn && <div className="bar"><i style={{ width: Math.min(100, window.pct(sales, goalSales)) + '%' }} /></div>}
-            <div className="kpi-foot" style={{ marginTop: goalsOn ? 0 : 14 }}>
-              <span className="pct">{goalsOn ? `${window.pct(sales, goalSales)}%` : ''}</span>
-              <span className="goal">{won.length} deals won{goalsOn ? <span> · of {window.fmtK(goalSales, cur)} annual</span> : null}</span>
-            </div>
+          <Card soft className="kpi pad-lg">
+            <div className="eyebrow">ARR — TOTAL · {year}</div>
+            <div className="big tnum">{fmtI(arrTotal)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{fmtI(arrAnnual)} annual licence · {fmtI(arrEvent)} event based</div>
+          </Card>
+
+          <Card soft className="kpi pad-lg" style={{ borderColor: 'var(--green)', boxShadow: '0 0 0 1px var(--green-soft)' }}>
+            <div className="eyebrow"><span className="dot green" />TOTAL SAFESIGHT (75%)</div>
+            <div className="big tnum">{fmtI(safeTotal)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{fmtI(afterSponsor)} after sponsorship ({fmtI(sponsorship)})</div>
           </Card>
 
           <Card soft className="kpi pad-lg">
-            <div className="eyebrow"><span className="dot green" />NEW LOGO · YTD</div>
-            <div className="big tnum">{window.fmtFull(nl, cur)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(nl, goalNL)}% of ${window.fmtK(goalNL, cur)} annual goal` : 'New business closed this year'}</div>
-          </Card>
-
-          <Card soft className="kpi pad-lg">
-            <div className="eyebrow"><span className="dot blue" />UPSELL · YTD</div>
-            <div className="big tnum">{window.fmtFull(up, cur)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>{goalsOn ? `${window.pct(up, goalUP)}% of ${window.fmtK(goalUP, cur)} annual goal` : 'Expansion revenue this year'}</div>
+            <div className="eyebrow"><span className="dot red" />CHURN · {year}</div>
+            <div className="big tnum red">{fmtI(churn)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{rows.filter(r => +r.churn > 0).length} contracts flagged in the sheet</div>
           </Card>
         </div>
 
         <div className="grid g-3">
           <Card soft className="kpi pad-lg">
-            <div className="eyebrow">ARR — TOTAL</div>
-            <div className="big tnum"><Loadable value={window.fmtInt(arrTotal, cur)} /></div>
-            <div className="sub" style={{ marginTop: 14 }}>
-              {finState === 'err' ? <span style={{ color: 'var(--red)' }}>Finance sheet unreachable — showing fallback</span>
-                : 'Annual recurring revenue · live from finance sheet (C6)'}
-            </div>
-          </Card>
-
-          <Card soft className="kpi pad-lg" style={{ borderColor: 'var(--green)', boxShadow: '0 0 0 1px var(--green-soft)' }}>
-            <div className="eyebrow"><span className="dot green" />TOTAL SAFESIGHT (75%)</div>
-            <div className="big tnum"><Loadable value={window.fmtInt(safeTotal, cur)} /></div>
-            <div className="sub" style={{ marginTop: 14 }}>Weighted company total · live from finance sheet (L6)</div>
+            <div className="eyebrow"><span className="dot blue" />AWAITING RENEWAL · {year}</div>
+            <div className="big tnum">{fmtI(awaiting)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{rows.filter(r => +r.awaiting > 0).length} contracts not yet re-signed</div>
           </Card>
 
           <Card soft className="kpi pad-lg">
-            <div className="eyebrow"><span className="dot red" />CHURN — TOTAL</div>
-            <div className="big tnum red">{window.fmtInt(D.finance.churnTotal, cur)}</div>
-            <div className="sub" style={{ marginTop: 14 }}>Lost ARR · year to date</div>
+            <div className="eyebrow">EXPECTED UPSELL (75%)</div>
+            <div className="big tnum">{fmtI(upsell)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>expansion budgeted on existing customers</div>
+          </Card>
+
+          <Card soft className="kpi pad-lg">
+            <div className="eyebrow">ONE-OFF · ONBOARDING</div>
+            <div className="big tnum">{fmtI(oneoff + onboarding)}</div>
+            <div className="sub" style={{ marginTop: 14 }}>{fmtI(oneoff)} one-off · {fmtI(onboarding)} onboarding</div>
           </Card>
         </div>
       </React.Fragment>
@@ -2216,17 +2268,26 @@ html.locked, html.locked body { overflow: hidden; }
     // Contract end dates + ARR come from the Revenue tab (sheet data + manual
     // edits). Teamleader contracts are the fallback for years the sheet lacks.
     const revRows = (window.revenueRowsFor && window.revenueRowsFor(year)) || null;
-    const today = new Date(new Date().toISOString().slice(0, 10));
-    const minusMonths = (iso, m) => { const d = new Date(iso); if (isNaN(d)) return ''; d.setMonth(d.getMonth() - m); return d.toISOString().slice(0, 10); };
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const parseLocal = iso => { const p = String(iso || '').split('-').map(Number); return (p.length === 3 && p.every(n => !isNaN(n))) ? new Date(p[0], p[1] - 1, p[2]) : null; };
+    const toIso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const minusMonths = (iso, m) => {
+      const d = parseLocal(iso); if (!d) return '';
+      const day = d.getDate();
+      d.setMonth(d.getMonth() - m);
+      if (d.getDate() !== day) d.setDate(0);      // clamp 31 May -> 30 Nov, not 1 Dec
+      return toIso(d);
+    };
     const ORD = d => d + (d > 3 && d < 21 ? 'th' : ['th','st','nd','rd'][d % 10] || 'th');
     const MONTHS_L = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const dateLong = iso => { if (!iso) return '—'; const d = new Date(iso); return isNaN(d) ? iso : ORD(d.getDate()) + ' of ' + MONTHS_L[d.getMonth()] + ' ' + d.getFullYear(); };
+    const dateLong = iso => { const d = parseLocal(iso); return d ? ORD(d.getDate()) + ' of ' + MONTHS_L[d.getMonth()] + ' ' + d.getFullYear() : (iso || '—'); };
 
-    const renewalBook = (revRows || []).filter(r => r.end && new Date(r.end).getFullYear() === year).map(r => {
+    const renewalBook = (revRows || []).filter(r => r.end && (parseLocal(r.end) || new Date(r.end)).getFullYear() === year).map(r => {
       const arr = (+r.arrAnnual || 0) + (+r.arrEvent || 0) + (+r.awaiting || 0);
       const contact = minusMonths(r.end, 6);
-      const end = new Date(r.end);
-      const state = end < today ? 'passed' : (new Date(contact) <= today ? 'now' : 'later');
+      const end = parseLocal(r.end) || new Date(r.end);
+      const state = end < today ? 'passed' : ((parseLocal(contact) || end) <= today ? 'now' : 'later');
       return { customer: r.customer, sector: r.sector, country: r.country, arr, end: r.end, contact, state,
                quarter: 'Q' + (Math.floor(end.getMonth() / 3) + 1), days: Math.round((end - today) / 86400000) };
     });
@@ -2236,8 +2297,12 @@ html.locked, html.locked body { overflow: hidden; }
       return { q, n: rows.length, value: rows.reduce((a, r) => a + r.arr, 0) };
     });
     const bookInScope = renewalBook
-      .filter(r => monthIdx != null ? monthOf(r.end) === monthIdx : quarters.includes(r.quarter))
-      .sort((a, b) => new Date(a.end) - new Date(b.end));
+      .filter(r => monthIdx != null ? (parseLocal(r.end) || new Date(r.end)).getMonth() === monthIdx : quarters.includes(r.quarter))
+      .sort((a, b) => {
+        const ea = a.state === 'passed' ? 1 : 0, eb = b.state === 'passed' ? 1 : 0;
+        if (ea !== eb) return ea - eb;                       // ended → bottom
+        return (parseLocal(a.end) || 0) - (parseLocal(b.end) || 0);   // soonest deadline first
+      });
     const contactNow = renewalBook.filter(r => r.state === 'now');
 
     const bookCols = [
@@ -2290,7 +2355,12 @@ html.locked, html.locked body { overflow: hidden; }
     // Pull from window.DATA.quarters[q].churn for every quarter in scope
     const allQData = ctx.qdata || D.quarters || {};
     let churnRows = [];
-    quarters.forEach(q => {
+    const sheetChurn = window.revenueChurnFor && window.revenueChurnFor(year);
+    if (sheetChurn) {
+      churnRows = sheetChurn
+        .filter(c => quarters.includes(c.quarter))
+        .filter(c => monthIdx == null || c.mon === monthIdx);
+    } else quarters.forEach(q => {
       const rows = (allQData[q] && allQData[q].churn) || [];
       rows.forEach(r => {
         // filter by month if a specific month is selected
@@ -2302,7 +2372,7 @@ html.locked, html.locked body { overflow: hidden; }
       });
     });
     // Sort: actual first (lost/partial), then forecast; within each group by value desc
-    churnRows.sort((a, b) => {
+    churnRows = [...churnRows].sort((a, b) => {
       const order = { lost: 0, partial: 1, forecast: 2 };
       const oa = order[a.kind] ?? 2, ob = order[b.kind] ?? 2;
       if (oa !== ob) return oa - ob;
@@ -2321,29 +2391,41 @@ html.locked, html.locked body { overflow: hidden; }
       { key: 'value',    label: 'Value',     sortable: true, render: r => <span className="tnum">{fmt(r.value)}</span> },
     ];
 
-    /* ---- 3. RENEWED CONTRACTS — won deals with VL (renewal) value ---- */
-    // Sourced from window.DATA.renewals: won upsell deals that carried VL fields
-    const allRenewals = D.renewals || [];
-    const renewedRows = allRenewals
-      .filter(r => r.year === year)
-      .filter(r => monthIdx != null
-        ? new Date(r.close).getMonth() === monthIdx
-        : quarters.includes(r.quarter))
-      .sort((a, b) => new Date(b.close) - new Date(a.close));
+    /* ---- 3. RENEWED CONTRACTS ----------------------------------------------
+       Signed renewals from Teamleader: deal CLOSED in the selected year and the
+       new contract STARTING in that same year. Shows the new term and value. */
+    const addMonthsIso = (iso, m) => {
+      const d = parseLocal(iso); if (!d || !m) return '';
+      const day = d.getDate(); d.setMonth(d.getMonth() + m); if (d.getDate() !== day) d.setDate(0);
+      return toIso(d);
+    };
+    const monthsBetween = (a, b) => {
+      const s = parseLocal(a), e = parseLocal(b); if (!s || !e) return 0;
+      return Math.max(0, Math.round((e - s) / (30.44 * 86400000)));
+    };
+    const renewedRows = (D.renewals || [])
+      .filter(r => r.startDate && new Date(r.close).getFullYear() === year && (parseLocal(r.startDate) || {}).getFullYear?.() === year)
+      .filter(r => monthIdx == null || new Date(r.close).getMonth() === monthIdx)
+      .map(r => {
+        const end = r.endDate || addMonthsIso(r.startDate, +r.duration || 0);
+        const months = +r.duration || monthsBetween(r.startDate, end);
+        return { ...r, end, months, value: r.total || ((+r.arr || 0) + (+r.oneoff || 0) + (+r.onboarding || 0)) };
+      })
+      .sort((a, b) => b.value - a.value);
 
-    const renewedTotal = renewedRows.reduce((s, r) => s + (r.total || 0), 0);
-    const renewedArr   = renewedRows.reduce((s, r) => s + (r.arr || 0), 0);
+    const renewedTotal = renewedRows.reduce((s, r) => s + (r.value || 0), 0);
 
+    const termLabel = m => !m ? '—' : m % 12 === 0 ? (m / 12) + (m === 12 ? ' year' : ' years') : m + ' months';
     const renewedCols = [
-      { key: 'customer',   label: 'Customer',        sortable: true, render: r => <span className="co">{r.customer}</span> },
-      { key: 'owner',      label: 'Representative',   sortable: true, render: r => <span className="sub">{r.owner}</span> },
-      { key: 'industry',   label: 'Industry',         sortable: true, render: r => <span className="sub">{window.industryName(r.industry) || '—'}</span> },
-      { key: 'arr',        label: 'ARR',              sortable: true, render: r => r.arr ? <span className="tnum">{fmt(r.arr)}</span> : <span className="muted">—</span> },
-      { key: 'oneoff',     label: 'One-off',          sortable: true, render: r => r.oneoff ? <span className="tnum">{fmt(r.oneoff)}</span> : <span className="muted">—</span> },
-      { key: 'onboarding', label: 'Implementation',   sortable: true, render: r => r.onboarding ? <span className="tnum">{fmt(r.onboarding)}</span> : <span className="muted">—</span> },
-      { key: 'total',      label: 'Total',            sortable: true, render: r => <span className="tnum" style={{ fontWeight: 600 }}>{fmt(r.total)}</span> },
-      { key: 'close',      label: 'Date',             sortable: true, sortVal: r => new Date(r.close).getTime(), render: r => <span className="tnum">{isoToEU(r.close)}</span> },
+      { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
+      { key: 'startDate', label: 'New contract starts', sortable: true, sortVal: r => new Date(r.startDate).getTime(), render: r => <span className="tnum">{dateLong(r.startDate)}</span> },
+      { key: 'end', label: 'Runs until', sortable: true, sortVal: r => new Date(r.end || 0).getTime(), render: r => r.end ? <span className="tnum">{dateLong(r.end)}</span> : <span className="muted">—</span> },
+      { key: 'months', label: 'Term', sortable: true, render: r => <span className="tag healthy">{termLabel(r.months)}</span> },
+      { key: 'owner', label: 'Representative', sortable: true, render: r => <span className="sub">{r.owner}</span> },
+      { key: 'close', label: 'Closed', sortable: true, sortVal: r => new Date(r.close).getTime(), render: r => <span className="sub tnum">{isoToEU(r.close)}</span> },
+      { key: 'value', label: 'Contract value', num: true, sortable: true, render: r => <span className="tnum" style={{ fontWeight: 700 }}>{fmt(r.value)}</span> },
     ];
+    const renewedFoot = { customer: 'Total', startDate: '', end: '', months: `${renewedRows.length} renewals`, owner: '', close: '', value: fmt(renewedTotal) };
 
     return (
       <React.Fragment>
@@ -2377,7 +2459,7 @@ html.locked, html.locked body { overflow: hidden; }
                 count={`${bookInScope.length} contract${bookInScope.length !== 1 ? 's' : ''} · ${periodLabel}`}
                 headRight={<span className="sub" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{revRows ? 'Revenue sheet' : 'no sheet data for this year'}</span>}>
             <div className="scroll-y" style={{ maxHeight: 560 }}>
-              <SortableTable columns={bookCols} rows={bookInScope} footer={bookInScope.length ? bookFoot : null} initialSort={{ key: 'end', dir: 'asc' }} />
+              <SortableTable columns={bookCols} rows={bookInScope} footer={bookInScope.length ? bookFoot : null} />
               {!bookInScope.length && <div className="empty">No contracts ending in this period</div>}
             </div>
           </Card>
@@ -2387,25 +2469,31 @@ html.locked, html.locked body { overflow: hidden; }
         <div className="grid g-2">
           <Card title="Contact now · inside the 6-month window" count={`${contactNow.length}`}
                 total={fmt(contactNow.reduce((a, r) => a + r.arr, 0))}>
-            <div className="scroll-y" style={{ maxHeight: 360 }}>
+            <div className="scroll-y" style={{ maxHeight: 340 }}>
               {contactNow.length ? (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {[...contactNow].sort((a, b) => new Date(a.end) - new Date(b.end)).map((c, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid var(--border)' }}>
-                      <span><b style={{ fontWeight: 600 }}>{c.customer}</b><small className="sub" style={{ marginLeft: 9 }}>{c.sector || '—'}</small></span>
-                      <span className="tnum" style={{ color: 'var(--text-2)' }}>{dateLong(c.end)}</span>
-                    </div>
-                  ))}
+                <div className="cw-grid">
+                  {[...contactNow].sort((a, b) => (parseLocal(a.end) || 0) - (parseLocal(b.end) || 0)).map((c, i) => {
+                    const wk = Math.max(0, Math.round(c.days / 7));
+                    const urg = c.days <= 30 ? 'hot' : c.days <= 90 ? 'warm' : 'cool';
+                    return (
+                      <div className={`cw ${urg}`} key={i} title={`${c.customer} · ends ${dateLong(c.end)} · ${fmt(c.arr)}`}>
+                        <i />
+                        <span className="nm">{c.customer}</span>
+                        <span className="dl tnum">{c.days <= 0 ? 'now' : wk <= 8 ? wk + 'w' : Math.round(c.days / 30) + 'mo'}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : <div className="empty">No contract is inside its 6-month contact window</div>}
             </div>
           </Card>
 
           {/* ---- Renewed contracts ---- */}
-          <Card title="Renewed contracts" count={`${renewedRows.length} won · ${fmt(renewedTotal)}`}>
-            <div className="scroll-y" style={{ maxHeight: 360 }}>
-              <SortableTable columns={renewedCols} rows={renewedRows} initialSort={{ key: 'close', dir: 'desc' }} />
-              {!renewedRows.length && <div className="empty">No renewed contracts in this period</div>}
+          <Card title={`Renewed contracts · ${year}`} count={`${renewedRows.length} signed`} total={fmt(renewedTotal)}
+                headRight={<span className="sub" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>closed &amp; starting in {year}</span>}>
+            <div className="scroll-y" style={{ maxHeight: 340 }}>
+              <SortableTable columns={renewedCols} rows={renewedRows} footer={renewedRows.length ? renewedFoot : null} />
+              {!renewedRows.length && <div className="empty">No renewals closed and starting in {year}</div>}
             </div>
           </Card>
         </div>
@@ -2679,12 +2767,12 @@ html.locked, html.locked body { overflow: hidden; }
   const { Card, KpiCard, HBarList } = window;
   const STORE = y => 'safesight_revenue_' + y + '_v1';
   const SOURCE_BY_YEAR = {"2026":[{"id":"r7","sector":"Construction & Industry","country":"NL","end":"2027-03-31","invoicing":"Quarterly","customer":"BAM Groep Nederland B.V.: Licence","license":5250,"indexation":"Per 01 April-26","arrAnnual":63000,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r8","sector":"Security","country":"NL","end":"2026-12-31","invoicing":"Quarterly","customer":"PROFI-SEC Security B.V.","license":4308.66,"indexation":"per 01 Jan-26","arrAnnual":53131,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r9","sector":"Construction & Industry","country":"NL","end":"2028-12-31","invoicing":"Yearly","customer":"Hanab","license":4500,"indexation":"No indexation, new contract","arrAnnual":53400,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":9900,"sponsorship":0},{"id":"r10","sector":"Events","country":"UK","end":"2028-12-31","invoicing":"Quarterly","customer":"Superstruct","license":0,"indexation":"","arrAnnual":41250,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r11","sector":"Venues & Stadiums","country":"DE","end":"2026-12-31","invoicing":"Half-yearly","customer":"Messe Munchen","license":2950,"indexation":"No indexation in contract","arrAnnual":34400,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r12","sector":"Security","country":"DE","end":"2028-03-17","invoicing":"Yearly + Quarterly","customer":"Munich Security Services GmbH","license":2050,"indexation":"per 17 Jan-26","arrAnnual":25337,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r13","sector":"Construction & Industry","country":"NL","end":"2027-06-30","invoicing":"Yearly","customer":"DOW Benelux: Licence fase 3","license":1778.33,"indexation":"Per 01 Aug-26","arrAnnual":21607,"arrEvent":0,"awaiting":0,"churn":0,"upsell":1880,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r14","sector":"Security","country":"NL","end":"2027-02-28","invoicing":"Yearly","customer":"Monoma Nederland","license":1495,"indexation":"No indexation, new contract","arrAnnual":37715,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r15","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"Feyenoord Rotterdam N.V.","license":1620.56,"indexation":"per 01 Jul-26","arrAnnual":19738,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-1500},{"id":"r16","sector":"Events","country":"DE","end":"2027-04-30","invoicing":"Yearly","customer":"Landeshauptstadt München (Oktoberfest)","license":0,"indexation":"","arrAnnual":0,"arrEvent":19500,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r17","sector":"Venues & Stadiums","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"RAI Amsterdam B.V.","license":1575,"indexation":"per 01 May-26","arrAnnual":19278,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r18","sector":"Government","country":"NL","end":"2026-12-31","invoicing":"Yearly","customer":"Veiligheidsregio Zeeland","license":1600,"indexation":"No indexation, new contract","arrAnnual":19200,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r19","sector":"Construction & Industry","country":"NL","end":"2028-02-28","invoicing":"Yearly","customer":"Klok Groep","license":1535,"indexation":"per 01- Mar-26","arrAnnual":18834,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r20","sector":"Construction & Industry","country":"NL","end":"2029-10-31","invoicing":"Yearly","customer":"Jorritsma Bouw","license":1493.5,"indexation":"No indexation in 2026","arrAnnual":18328,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r21","sector":"Venues & Stadiums","country":"ES","end":"2027-06-30","invoicing":"Yearly","customer":"Valencia Club de Futbol S.A.D.","license":1550,"indexation":"No indexation, 1 year contract","arrAnnual":18870,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r22","sector":"Venues & Stadiums","country":"DE","end":"2028-06-30","invoicing":"Yearly","customer":"1. FSV Mainz 05 e.V.","license":0,"indexation":"No indexation, yearly increase","arrAnnual":16800,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r23","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"FC Twente '65 B.V.","license":1355.88,"indexation":"No indexation, new contract","arrAnnual":17148,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":5980},{"id":"r24","sector":"Venues & Stadiums","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"Stadion Amsterdam NV","license":1154.68,"indexation":"No indexation in 2026","arrAnnual":15670,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r25","sector":"Venues & Stadiums","country":"NL","end":"2026-10-31","invoicing":"Yearly","customer":"BV Sport","license":1344.88,"indexation":"No indexation in 2026","arrAnnual":0,"arrEvent":0,"awaiting":16139,"churn":0,"upsell":400,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r26","sector":"Venues & Stadiums","country":"NL","end":"2029-01-31","invoicing":"Yearly","customer":"Jens Security B.V.: general licence","license":1038,"indexation":"No indexation, new contract","arrAnnual":15348,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r27","sector":"Venues & Stadiums","country":"DE","end":"2028-06-30","invoicing":"Yearly","customer":"BORUSSIA VFL 1900 MÖNCHENGLADBACH GmbH","license":0,"indexation":"No indexation, yearly increase","arrAnnual":15000,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r28","sector":"Events","country":"BR","end":"2027-12-31","invoicing":"Yearly","customer":"BVBA Weareone.world","license":1125,"indexation":"Per 01 Jan-26","arrAnnual":16600,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r29","sector":"Security","country":"NL","end":"2028-01-01","invoicing":"Yearly","customer":"Alpha Security International","license":1108.33,"indexation":"Per 01 Jan-26","arrAnnual":13698,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r30","sector":"Security","country":"NL","end":"2027-05-31","invoicing":"Quarterly","customer":"Promeon Security","license":1020,"indexation":"Per 01 Jan-26","arrAnnual":13059.58,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r31","sector":"Construction & Industry","country":"NL","end":"2028-03-30","invoicing":"Yearly","customer":"BM van Houwelingen B.V.","license":1085,"indexation":"Per 01 Apr-26","arrAnnual":13312.95,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r32","sector":"Venues & Stadiums","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"SC Cambuur","license":1086.5,"indexation":"Per 01 May-26","arrAnnual":13298,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-1800},{"id":"r33","sector":"Venues & Stadiums","country":"BE","end":"2028-06-30","invoicing":"Yearly","customer":"Koninklijke Beerschot Voetbalclub Antwerpen","license":1015,"indexation":"per 01 Jul-26","arrAnnual":12362.7,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-3540},{"id":"r34","sector":"Venues & Stadiums","country":"BE","end":"2028-05-31","invoicing":"Yearly","customer":"KAA Gent cvba-so","license":1010,"indexation":"per 01 Jun-26","arrAnnual":12332.1,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-1309},{"id":"r35","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"FC Utrecht","license":1108.33,"indexation":"Per 01 Jan-26","arrAnnual":11973.8,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r36","sector":"Construction & Industry","country":"NL","end":"2029-03-12","invoicing":"Yearly","customer":"Royal van Lent Shipyard","license":995,"indexation":"No indexation, new contract","arrAnnual":11550,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":750,"sponsorship":0},{"id":"r37","sector":"Venues & Stadiums","country":"NL","end":"2027-05-31","invoicing":"Yearly","customer":"Nijmegen Eendracht Combinatie B.V. (NEC)","license":957.38,"indexation":"Per 01 Jun-26","arrAnnual":14774,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-10060},{"id":"r38","sector":"Construction & Industry","country":"NL","end":"2028-12-31","invoicing":"Yearly","customer":"De Kok Bouwgroep","license":995,"indexation":"No indexation, new contract","arrAnnual":11730,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":900,"sponsorship":0},{"id":"r39","sector":"Venues & Stadiums","country":"NL","end":"2027-06-30","invoicing":"Yearly","customer":"Roda JC Kerkrade","license":925,"indexation":"per 01 Jul-26","arrAnnual":11730,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-3000},{"id":"r40","sector":"Venues & Stadiums","country":"NL","end":"2028-07-30","invoicing":"Yearly","customer":"Go Ahead Eagles Voetbal B.V.","license":873.33,"indexation":"per 01 Aug-26","arrAnnual":10610.96,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-3480},{"id":"r41","sector":"Venues & Stadiums","country":"NL","end":"2027-08-31","invoicing":"Yearly","customer":"Wilminktheater","license":853.88,"indexation":"per 01 Sep-26","arrAnnual":10349,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r42","sector":"Venues & Stadiums","country":"NL","end":"2026-06-30","invoicing":"Yearly","customer":"Jaarbeurs Holding","license":618.92,"indexation":"No indexation in 2026","arrAnnual":0,"arrEvent":0,"awaiting":7427,"churn":0,"upsell":1057,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r43","sector":"Construction & Industry","country":"NL","end":"2026-08-31","invoicing":"Yearly","customer":"Kooiker Logistiek","license":831.17,"indexation":"No indexation in 2026","arrAnnual":0,"arrEvent":0,"awaiting":8580,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r44","sector":"Construction & Industry","country":"NL","end":"2027-12-31","invoicing":"Monthly","customer":"APM Terminals Maasvlakte II B.V.","license":846,"indexation":"per 01 Mar-26","arrAnnual":9903.5,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r45","sector":"Venues & Stadiums","country":"NL","end":"2028-06-30","invoicing":"Yearly","customer":"Willem II Tilburg B.V.","license":800,"indexation":"per 01 Jul-26","arrAnnual":9744,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r46","sector":"Venues & Stadiums","country":"DE","end":"2027-01-31","invoicing":"Yearly","customer":"SV Wehen Wiesbaden","license":950,"indexation":"No indexation, new contract","arrAnnual":11895,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-2400},{"id":"r47","sector":"Events","country":"NL","end":"2028-08-31","invoicing":"July","customer":"Stichting Vierdaagsefeesten","license":9000,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":10903,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r48","sector":"Construction & Industry","country":"NL","end":"2027-09-11","invoicing":"Yearly","customer":"SDR Elektrotechniek BV","license":791.78,"indexation":"per 12 Sep-26","arrAnnual":9560.47,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r49","sector":"Events","country":"NL","end":"2026-12-31","invoicing":"Quarterly","customer":"Vinke Vision: Recurring licence","license":750,"indexation":"No indexation, new contract","arrAnnual":9000,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r50","sector":"Government","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"Gemeente Utrecht: Control room","license":717.32,"indexation":"per 01 Jan-26 ( 4 months)","arrAnnual":8694,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r51","sector":"Events","country":"NL","end":"2029-01-01","invoicing":"December","customer":"Gemeente Valkenburg ad Geul","license":7703.2,"indexation":"per 01 Jan-27","arrAnnual":0,"arrEvent":8477.6,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r52","sector":"Security","country":"NL","end":"2026-12-31","invoicing":"Yearly","customer":"Tribe Security","license":700,"indexation":"per 01 Jan-26","arrAnnual":8916,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r53","sector":"Venues & Stadiums","country":"NL","end":"2027-08-30","invoicing":"Quarterly","customer":"FC Groningen B.V.","license":698.63,"indexation":"per 01 Sep-26","arrAnnual":8467.4,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-1500},{"id":"r54","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"AZ Nv","license":720,"indexation":"No indexation, new contract","arrAnnual":10500,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-3630},{"id":"r55","sector":"Construction & Industry","country":"NL","end":"2026-10-31","invoicing":"Yearly","customer":"ACV Groep","license":610.65,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":8865,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r56","sector":"Security","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"F4SEC Security Group","license":595.15,"indexation":"per 01 Jan-26","arrAnnual":7540,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r57","sector":"Venues & Stadiums","country":"NL","end":"2028-09-30","invoicing":"Yearly","customer":"De Graafschap","license":575,"indexation":"per 01 Oct-26","arrAnnual":10410,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":1350,"sponsorship":5190},{"id":"r58","sector":"Venues & Stadiums","country":"NL","end":"2028-06-30","invoicing":"Yearly","customer":"AFC AJAX","license":575,"indexation":"per 01 Jul-26","arrAnnual":7003.5,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r59","sector":"Venues & Stadiums","country":"NL","end":"2028-06-30","invoicing":"Yearly","customer":"Heracles Almelo B.V.","license":550,"indexation":"per 01 Jul-26","arrAnnual":7003.5,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r60","sector":"Venues & Stadiums","country":"DK","end":"2028-12-31","invoicing":"Yearly","customer":"Brondby IF","license":575,"indexation":"No indexation, new contract","arrAnnual":6900,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r61","sector":"Government","country":"NL","end":"2027-02-01","invoicing":"Yearly","customer":"Gemeente Tilburg","license":550,"indexation":"per 01 Feb-26","arrAnnual":6783.5,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r62","sector":"Venues & Stadiums","country":"DE","end":"2027-06-30","invoicing":"Yearly","customer":"FC Ingolstadt 04","license":542,"indexation":"per 01 Jul-26","arrAnnual":6601.6,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r63","sector":"Events","country":"NL","end":"2026-11-30","invoicing":"Quarterly","customer":"Vigilans Group BV","license":512.33,"indexation":"per 01- Mar-26","arrAnnual":0,"arrEvent":0,"awaiting":6302,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r64","sector":"Construction & Industry","country":"NL","end":"2027-08-31","invoicing":"Yearly","customer":"MNE b.v.","license":512.33,"indexation":"No indexation in 2026","arrAnnual":6148,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r65","sector":"Security","country":"DE","end":"2026-12-31","invoicing":"Yearly","customer":"ES Company event support GmbH","license":500,"indexation":"per 01 Jan-26","arrAnnual":6396,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r66","sector":"Events","country":"NL","end":"2026-08-30","invoicing":"August","customer":"DGP Race B.V.","license":3681,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":4741,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r67","sector":"Security","country":"NL","end":"2026-06-30","invoicing":"Yearly","customer":"Dutchbase Security","license":250,"indexation":"No indexation, new contract","arrAnnual":1500,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r68","sector":"Construction & Industry","country":"NL","end":"2026-05-31","invoicing":"Yearly","customer":"NVT Betonrenovatie B.V.","license":807.3,"indexation":"No indexation, contact ends","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":4036.5,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r69","sector":"Construction & Industry","country":"NL","end":"2026-04-30","invoicing":"Yearly","customer":"Sagro Decom","license":976,"indexation":"No indexation in 2026","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":3904,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r70","sector":"Security","country":"NL","end":"2027-06-01","invoicing":"Juni","customer":"GOB Safety & Security","license":295,"indexation":"per 01 Jun-26","arrAnnual":3593.1,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r71","sector":"Events","country":"NL","end":"2028-08-31","invoicing":"Yearly","customer":"KNAF","license":295,"indexation":"per 01 Sep-26","arrAnnual":3575.4,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r72","sector":"Municipality","country":"NL","end":"2029-09-30","invoicing":"Yearly","customer":"Municipality of 'S-Hertogenbosch","license":0,"indexation":"","arrAnnual":3540,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r73","sector":"Government","country":"DE","end":"One-off","invoicing":"June","customer":"Amt für Sport Stadt Leipzig I Conference league Final 2026","license":3185,"indexation":"No indexation","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":2105,"onboarding":1180,"sponsorship":0},{"id":"r74","sector":"Security","country":"NL","end":"2027-05-31","invoicing":"Yearly","customer":"Bravo Evenementenbeveiliging B.V.","license":258.75,"indexation":"per 01 Jan-26","arrAnnual":10403,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r75","sector":"Events","country":"NL","end":"2026-12-31","invoicing":"August","customer":"BV The Factory I Pukkelpop","license":2380,"indexation":"per 01 Jan-26 ( One time)","arrAnnual":2441,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r76","sector":"Events","country":"NL","end":"2026-12-31","invoicing":"December (24)","customer":"Stichting Zevenheuvelenloop: Zevenheuvelen","license":2625,"indexation":"per 01 Jan-26","arrAnnual":3252,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r77","sector":"Events","country":"NL","end":"2028-12-31","invoicing":"July","customer":"Stichting Nederlands Veteraneninstituut","license":2258,"indexation":"No indexation","arrAnnual":0,"arrEvent":2397.5,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r78","sector":"","country":"NL","end":"2028-08-31","invoicing":"Yearly","customer":"Brands Bouw","license":0,"indexation":"","arrAnnual":2480,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r79","sector":"Government","country":"NL","end":"2026-04-30","invoicing":"May","customer":"Gemeente Utrecht: Kingsday","license":1740,"indexation":"No indexation","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":980,"onboarding":760,"sponsorship":0},{"id":"r80","sector":"Events","country":"DE","end":"2026-12-31","invoicing":"June","customer":"CSD GmbH München","license":2170,"indexation":"per 01 Jan-26","arrAnnual":0,"arrEvent":2403,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r81","sector":"Government","country":"NL","end":"2029-03-31","invoicing":"October","customer":"Gemeente Wageningen","license":2052,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":2135,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r82","sector":"Government","country":"NL","end":"2028-12-31","invoicing":"October","customer":"Gemeente Weert","license":2052,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":2155,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r83","sector":"Events","country":"NL","end":"2027-02-28","invoicing":"June","customer":"Jera On Air","license":2040,"indexation":"Indexation","arrAnnual":0,"arrEvent":2093,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r84","sector":"Events","country":"CH","end":"2028-12-31","invoicing":"June","customer":"OpenAir St.Gallen AG / Summerdays Festival: Open Air St Gallen","license":1830,"indexation":"per 01 Jan-26","arrAnnual":0,"arrEvent":2086,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r85","sector":"Government","country":"NL","end":"2026-12-31","invoicing":"May","customer":"Gemeente Arnhem: Kingsday","license":1658,"indexation":"per 01 Jan-26 ( One time)","arrAnnual":1693,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r86","sector":"Government","country":"NL","end":"2026-12-31","invoicing":"September","customer":"Gemeente Arnhem: Bridge to liberation","license":570,"indexation":"No indexation","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":575,"onboarding":0,"sponsorship":0},{"id":"r87","sector":"Events","country":"CH","end":"2028-12-31","invoicing":"September","customer":"OpenAir St.Gallen AG / Summerdays Festival: Summerdays Festival","license":1500,"indexation":"per 01 Jan-26","arrAnnual":1534,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r88","sector":"Events","country":"BE","end":"2028-08-31","invoicing":"August","customer":"VZW Lokerse Feesten","license":1812.5,"indexation":"No indexation","arrAnnual":0,"arrEvent":1812.5,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r89","sector":"Events","country":"NL","end":"2028-05-31","invoicing":"July","customer":"Concert at Sea","license":1450,"indexation":"per 01 Jan-26 ( One time)","arrAnnual":0,"arrEvent":1485,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r90","sector":"Events","country":"DE","end":"2029-06-30","invoicing":"July","customer":"Karlsruhe Marketing & Event","license":0,"indexation":"","arrAnnual":0,"arrEvent":1485,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r91","sector":"Events","country":"NL","end":"2025-12-31","invoicing":"September","customer":"Appelpop","license":1421,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":1421,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r92","sector":"Venues & Stadiums","country":"NL","end":"2026-02-01","invoicing":"Yearly","customer":"PEC Zwolle","license":616,"indexation":"No indexation, contract ends","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":615.83,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r93","sector":"Construction & Industry","country":"NL","end":"2026-01-31","invoicing":"Yearly","customer":"Flowfirm","license":550,"indexation":"No indexation, contract ends","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":550,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r94","sector":"Construction & Industry","country":"NL","end":"2026-02-28","invoicing":"Yearly","customer":"VIS Groep","license":207,"indexation":"No indecation, churn after feb 26","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":400,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r95","sector":"Events","country":"NL","end":"2026-12-31","invoicing":"August","customer":"Solar Festival","license":750,"indexation":"per 01 Jan-26 ( One time)","arrAnnual":0,"arrEvent":772.5,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r96","sector":"Events","country":"DE","end":"2027-12-31","invoicing":"January","customer":"GROSKOPF Consulting e.K. (Berlinale)","license":2975,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":4215,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r97","sector":"Events","country":"BE","end":"One-off","invoicing":"August","customer":"360 Solutions Risk & Safety","license":1264,"indexation":"No indexation","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":1220,"onboarding":0,"sponsorship":0},{"id":"r98","sector":"Events","country":"NL","end":"2029-06-30","invoicing":"July","customer":"Les Ardentes","license":1216,"indexation":"No indexation","arrAnnual":0,"arrEvent":1895,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r99","sector":"Events","country":"NL","end":"2027-12-31","invoicing":"July","customer":"Stichting Bospop","license":115,"indexation":"No indexation","arrAnnual":0,"arrEvent":1751,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r100","sector":"Events","country":"NL","end":"2027-12-31","invoicing":"August","customer":"Dekmantel BV I Dekmantel Festival","license":500,"indexation":"No indexation","arrAnnual":0,"arrEvent":865,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"r101","sector":"Events","country":"NL","end":"2027-12-31","invoicing":"June","customer":"Dekmantel BV I Het Kabinet events","license":500,"indexation":"No indexation","arrAnnual":0,"arrEvent":720,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0}],"2027":[{"id":"y27r7","sector":"Construction & Industry","country":"NL","end":"2027-03-31","invoicing":"Quarterly","customer":"BAM Groep Nederland B.V.: Licence","license":5250,"indexation":"Per 01 April-26","arrAnnual":16222.5,"arrEvent":0,"awaiting":48667.6,"churn":0,"upsell":49109,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r8","sector":"Security","country":"NL","end":"2026-12-31","invoicing":"Quarterly","customer":"PROFI-SEC Security B.V.","license":4308.66,"indexation":"per 01 Jan-26","arrAnnual":0,"arrEvent":0,"awaiting":53131,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r9","sector":"Construction & Industry","country":"NL","end":"2028-12-31","invoicing":"Yearly","customer":"Hanab","license":4500,"indexation":"No indexation, new contract","arrAnnual":53400,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r10","sector":"Events","country":"UK","end":"2028-12-31","invoicing":"Quarterly","customer":"Superstruct","license":0,"indexation":"","arrAnnual":41250,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r11","sector":"Venues & Stadiums","country":"DE","end":"2026-12-31","invoicing":"Half-yearly","customer":"Messe Munchen","license":2950,"indexation":"No indexation in contract","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":34400,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r12","sector":"Security","country":"DE","end":"2028-03-17","invoicing":"Yearly + Quarterly","customer":"Munich Security Services GmbH","license":2050,"indexation":"per 17 Jan-26","arrAnnual":25337,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r13","sector":"Construction & Industry","country":"NL","end":"2027-06-30","invoicing":"Yearly","customer":"DOW Benelux: Licence fase 3","license":1778.33,"indexation":"Per 01 Aug-26","arrAnnual":29500,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r14","sector":"Security","country":"NL","end":"2027-02-28","invoicing":"Yearly","customer":"Monoma Nederland","license":1495,"indexation":"No indexation, new contract","arrAnnual":8640,"arrEvent":0,"awaiting":43200,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r15","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"Feyenoord Rotterdam N.V.","license":1620.56,"indexation":"per 01 Jul-26","arrAnnual":19738,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-1500},{"id":"y27r16","sector":"Events","country":"DE","end":"2028-04-30","invoicing":"Yearly","customer":"Landeshauptstadt München (Oktoberfest)","license":0,"indexation":"","arrAnnual":0,"arrEvent":19500,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r17","sector":"Venues & Stadiums","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"RAI Amsterdam B.V.","license":1575,"indexation":"per 01 May-26","arrAnnual":6490,"arrEvent":0,"awaiting":12980,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r18","sector":"Government","country":"NL","end":"2026-12-31","invoicing":"Yearly","customer":"Veiligheidsregio Zeeland","license":1600,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":19200,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r19","sector":"Construction & Industry","country":"NL","end":"2028-02-28","invoicing":"Yearly","customer":"Klok Groep","license":1535,"indexation":"per 01- Mar-26","arrAnnual":18972,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r20","sector":"Construction & Industry","country":"NL","end":"2029-10-31","invoicing":"Yearly","customer":"Jorritsma Bouw","license":1493.5,"indexation":"No indexation in 2026","arrAnnual":22800,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r21","sector":"Venues & Stadiums","country":"ES","end":"2027-06-30","invoicing":"Yearly","customer":"Valencia Club de Futbol S.A.D.","license":1550,"indexation":"No indexation, 1 year contract","arrAnnual":9570,"arrEvent":0,"awaiting":9570,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r22","sector":"Venues & Stadiums","country":"DE","end":"2028-06-30","invoicing":"Yearly","customer":"1. FSV Mainz 05 e.V.","license":0,"indexation":"No indexation, yearly increase","arrAnnual":18000,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r23","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"FC Twente '65 B.V.","license":1355.88,"indexation":"No indexation, new contract","arrAnnual":18060,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":6500},{"id":"y27r24","sector":"Venues & Stadiums","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"Stadion Amsterdam NV","license":1154.68,"indexation":"No indexation in 2026","arrAnnual":16221,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r25","sector":"Venues & Stadiums","country":"NL","end":"2026-10-31","invoicing":"Yearly","customer":"BV Sport","license":1344.88,"indexation":"No indexation in 2026","arrAnnual":0,"arrEvent":0,"awaiting":16539,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r26","sector":"Venues & Stadiums","country":"NL","end":"2029-01-31","invoicing":"Yearly","customer":"Jens Security B.V.: general licence","license":1038,"indexation":"No indexation, new contract","arrAnnual":14760,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r27","sector":"Venues & Stadiums","country":"DE","end":"2028-06-30","invoicing":"Yearly","customer":"BORUSSIA VFL 1900 MÖNCHENGLADBACH GmbH","license":0,"indexation":"No indexation, yearly increase","arrAnnual":16200,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r28","sector":"Events","country":"BR","end":"2027-12-31","invoicing":"Yearly","customer":"BVBA Weareone.world","license":1125,"indexation":"Per 01 Jan-26","arrAnnual":16600,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r29","sector":"Security","country":"NL","end":"2028-01-01","invoicing":"Yearly","customer":"Alpha Security International","license":1108.33,"indexation":"Per 01 Jan-26","arrAnnual":13698,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r30","sector":"Security","country":"NL","end":"2027-05-31","invoicing":"Quarterly","customer":"Promeon Security","license":1020,"indexation":"Per 01 Jan-26","arrAnnual":5441.67,"arrEvent":0,"awaiting":7618,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r31","sector":"Construction & Industry","country":"NL","end":"2028-03-30","invoicing":"Yearly","customer":"BM van Houwelingen B.V.","license":1085,"indexation":"Per 01 Apr-26","arrAnnual":13428,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r32","sector":"Venues & Stadiums","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"SC Cambuur","license":1086.5,"indexation":"Per 01 May-26","arrAnnual":13298,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-1800},{"id":"y27r33","sector":"Venues & Stadiums","country":"BE","end":"2028-06-30","invoicing":"Yearly","customer":"Koninklijke Beerschot Voetbalclub Antwerpen","license":1015,"indexation":"per 01 Jul-26","arrAnnual":12545,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-3540},{"id":"y27r34","sector":"Venues & Stadiums","country":"BE","end":"2028-05-31","invoicing":"Yearly","customer":"KAA Gent cvba-so","license":1010,"indexation":"per 01 Jun-26","arrAnnual":12480,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-1309},{"id":"y27r35","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"FC Utrecht","license":1108.33,"indexation":"Per 01 Jan-26","arrAnnual":10620,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r36","sector":"Construction & Industry","country":"NL","end":"2029-03-12","invoicing":"Yearly","customer":"Royal van Lent Shipyard","license":995,"indexation":"No indexation, new contract","arrAnnual":11940,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r37","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"Nijmegen Eendracht Combinatie B.V. (NEC)","license":957.38,"indexation":"Per 01 Jun-26","arrAnnual":18060,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-10060},{"id":"y27r38","sector":"Construction & Industry","country":"NL","end":"2028-12-31","invoicing":"Yearly","customer":"De Kok Bouwgroep","license":995,"indexation":"No indexation, new contract","arrAnnual":15480,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r39","sector":"Venues & Stadiums","country":"NL","end":"2027-06-30","invoicing":"Yearly","customer":"Roda JC Kerkrade","license":925,"indexation":"per 01 Jul-26","arrAnnual":5712,"arrEvent":0,"awaiting":5712,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-3000},{"id":"y27r40","sector":"Venues & Stadiums","country":"NL","end":"2028-07-30","invoicing":"Yearly","customer":"Go Ahead Eagles Voetbal B.V.","license":873.33,"indexation":"per 01 Aug-26","arrAnnual":10794,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-3480},{"id":"y27r41","sector":"Venues & Stadiums","country":"NL","end":"2027-08-31","invoicing":"Yearly","customer":"Wilminktheater","license":853.88,"indexation":"per 01 Sep-26","arrAnnual":7036,"arrEvent":0,"awaiting":3518,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r42","sector":"Venues & Stadiums","country":"NL","end":"2026-06-30","invoicing":"Yearly","customer":"Jaarbeurs Holding","license":618.92,"indexation":"No indexation in 2026","arrAnnual":9540,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r43","sector":"Construction & Industry","country":"NL","end":"2026-08-31","invoicing":"Yearly","customer":"Kooiker Logistiek","license":831.17,"indexation":"No indexation in 2026","arrAnnual":0,"arrEvent":0,"awaiting":8580,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r44","sector":"Construction & Industry","country":"NL","end":"2027-12-31","invoicing":"Monthly","customer":"APM Terminals Maasvlakte II B.V.","license":846,"indexation":"per 01 Mar-26","arrAnnual":9949.8,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r45","sector":"Venues & Stadiums","country":"NL","end":"2028-06-30","invoicing":"Yearly","customer":"Willem II Tilburg B.V.","license":800,"indexation":"per 01 Jul-26","arrAnnual":9744,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r46","sector":"Venues & Stadiums","country":"DE","end":"2027-01-31","invoicing":"Yearly","customer":"SV Wehen Wiesbaden","license":950,"indexation":"No indexation, new contract","arrAnnual":995,"arrEvent":0,"awaiting":10945,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-2400},{"id":"y27r47","sector":"Events","country":"NL","end":"2028-08-31","invoicing":"July","customer":"Stichting Vierdaagsefeesten","license":9000,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":10903,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r48","sector":"Construction & Industry","country":"NL","end":"2027-09-11","invoicing":"Yearly","customer":"SDR Elektrotechniek BV","license":791.78,"indexation":"per 12 Sep-26","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":9780,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r49","sector":"Events","country":"NL","end":"2026-12-31","invoicing":"Quarterly","customer":"Vinke Vision: Recurring licence","license":750,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":9000,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r50","sector":"Government","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"Gemeente Utrecht: Control room","license":717.32,"indexation":"per 01 Jan-26 ( 4 months)","arrAnnual":2955,"arrEvent":0,"awaiting":5910,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r51","sector":"Events","country":"NL","end":"2029-01-01","invoicing":"December","customer":"Gemeente Valkenburg ad Geul","license":7703.2,"indexation":"per 01 Jan-27","arrAnnual":0,"arrEvent":8477.6,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r52","sector":"Security","country":"NL","end":"2026-12-31","invoicing":"Yearly","customer":"Tribe Security","license":700,"indexation":"per 01 Jan-26","arrAnnual":0,"arrEvent":0,"awaiting":8916,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r53","sector":"Venues & Stadiums","country":"NL","end":"2027-08-30","invoicing":"Quarterly","customer":"FC Groningen B.V.","license":698.63,"indexation":"per 01 Sep-26","arrAnnual":5752,"arrEvent":0,"awaiting":2876,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-1500},{"id":"y27r54","sector":"Venues & Stadiums","country":"NL","end":"2029-06-30","invoicing":"Yearly","customer":"AZ NV","license":720,"indexation":"No indexation, new contract","arrAnnual":12360,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":-7260},{"id":"y27r55","sector":"Construction & Industry","country":"NL","end":"2026-10-31","invoicing":"Yearly","customer":"ACV Groep","license":610.65,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":11940,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r56","sector":"Security","country":"NL","end":"2027-04-30","invoicing":"Yearly","customer":"F4SEC Security Group","license":595.15,"indexation":"per 01 Jan-26","arrAnnual":2580,"arrEvent":0,"awaiting":5160,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r57","sector":"Venues & Stadiums","country":"NL","end":"2028-09-30","invoicing":"Yearly","customer":"De Graafschap","license":575,"indexation":"per 01 Oct-26","arrAnnual":13920,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":5280},{"id":"y27r58","sector":"Venues & Stadiums","country":"NL","end":"2028-06-30","invoicing":"Yearly","customer":"AFC AJAX","license":575,"indexation":"per 01 Jul-26","arrAnnual":7110,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r59","sector":"Venues & Stadiums","country":"NL","end":"2028-06-30","invoicing":"Yearly","customer":"Heracles Almelo B.V.","license":550,"indexation":"per 01 Jul-26","arrAnnual":7110,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r60","sector":"Venues & Stadiums","country":"DK","end":"2028-12-31","invoicing":"Yearly","customer":"Brondby IF","license":575,"indexation":"No indexation, new contract","arrAnnual":6900,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r61","sector":"Government","country":"NL","end":"2027-02-01","invoicing":"Yearly","customer":"Gemeente Tilburg","license":550,"indexation":"per 01 Feb-26","arrAnnual":6789,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r62","sector":"Venues & Stadiums","country":"DE","end":"2027-06-30","invoicing":"Yearly","customer":"FC Ingolstadt 04","license":542,"indexation":"per 01 Jul-26","arrAnnual":6601.6,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r63","sector":"Events","country":"NL","end":"2026-11-30","invoicing":"Quarterly","customer":"Vigilans Group BV","license":512.33,"indexation":"per 01- Mar-26","arrAnnual":0,"arrEvent":0,"awaiting":6332,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r64","sector":"Construction & Industry","country":"NL","end":"2027-08-31","invoicing":"Yearly","customer":"MNE b.v.","license":512.33,"indexation":"No indexation in 2026","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":4098,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r65","sector":"Security","country":"DE","end":"2026-12-31","invoicing":"Yearly","customer":"ES Company event support GmbH","license":500,"indexation":"per 01 Jan-26","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":6396,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r66","sector":"Events","country":"NL","end":"2026-08-30","invoicing":"August","customer":"DGP Race B.V.","license":3681,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r67","sector":"Security","country":"NL","end":"2026-06-30","invoicing":"Yearly","customer":"Dutchbase Security","license":250,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r68","sector":"Construction & Industry","country":"NL","end":"2026-05-31","invoicing":"Yearly","customer":"NVT Betonrenovatie B.V.","license":807.3,"indexation":"No indexation, contact ends","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r69","sector":"Construction & Industry","country":"NL","end":"2026-04-30","invoicing":"Yearly","customer":"Sagro Decom","license":976,"indexation":"No indexation in 2026","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r70","sector":"Security","country":"NL","end":"2027-06-01","invoicing":"Juni","customer":"GOB Safety & Security","license":295,"indexation":"per 01 Jun-26","arrAnnual":1823.1,"arrEvent":0,"awaiting":1823,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r71","sector":"Events","country":"NL","end":"2028-08-31","invoicing":"Yearly","customer":"KNAF","license":295,"indexation":"per 01 Sep-26","arrAnnual":3646.2,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r72","sector":"Municipality","country":"NL","end":"2029-09-30","invoicing":"Yearly","customer":"Municipality of 'S-Hertogenbosch","license":0,"indexation":"","arrAnnual":14160,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r73","sector":"Government","country":"DE","end":"One-off","invoicing":"June","customer":"Amt für Sport Stadt Leipzig I Conference league Final 2026","license":3185,"indexation":"No indexation","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r74","sector":"Security","country":"NL","end":"2027-05-31","invoicing":"Yearly","customer":"Bravo Evenementenbeveiliging B.V.","license":258.75,"indexation":"per 01 Jan-26","arrAnnual":5875,"arrEvent":0,"awaiting":8225,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r75","sector":"Events","country":"NL","end":"2026-12-31","invoicing":"August","customer":"BV The Factory I Pukkelpop","license":2380,"indexation":"per 01 Jan-26 ( One time)","arrAnnual":0,"arrEvent":0,"awaiting":2441,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r76","sector":"Events","country":"NL","end":"2026-12-31","invoicing":"December (24)","customer":"Stichting Zevenheuvelenloop: Zevenheuvelen","license":2625,"indexation":"per 01 Jan-26","arrAnnual":0,"arrEvent":0,"awaiting":3252,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r77","sector":"Events","country":"NL","end":"2028-12-31","invoicing":"July","customer":"Stichting Nederlands Veteraneninstituut","license":2258,"indexation":"No indexation","arrAnnual":0,"arrEvent":2397.5,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r78","sector":"Construction & Industry","country":"NL","end":"2028-08-31","invoicing":"Yearly","customer":"Brands Bouw","license":0,"indexation":"","arrAnnual":11940,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r79","sector":"Government","country":"NL","end":"2026-04-30","invoicing":"May","customer":"Gemeente Utrecht: Kingsday","license":1740,"indexation":"No indexation","arrAnnual":0,"arrEvent":0,"awaiting":1740,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r80","sector":"Events","country":"DE","end":"2026-12-31","invoicing":"June","customer":"CSD GmbH München","license":2170,"indexation":"per 01 Jan-26","arrAnnual":0,"arrEvent":0,"awaiting":2403,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r81","sector":"Government","country":"NL","end":"2029-03-31","invoicing":"October","customer":"Gemeente Wageningen","license":2052,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":2135,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r82","sector":"Government","country":"NL","end":"2028-12-31","invoicing":"October","customer":"Gemeente Weert","license":2052,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":2155,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r83","sector":"Events","country":"NL","end":"2027-02-28","invoicing":"June","customer":"Jera On Air","license":2040,"indexation":"Indexation","arrAnnual":0,"arrEvent":0,"awaiting":2093,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r84","sector":"Events","country":"CH","end":"2028-12-31","invoicing":"June","customer":"OpenAir St.Gallen AG / Summerdays Festival: Open Air St Gallen","license":1830,"indexation":"per 01 Jan-26","arrAnnual":0,"arrEvent":2086,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r85","sector":"Government","country":"NL","end":"2026-12-31","invoicing":"May","customer":"Gemeente Arnhem: Kingsday","license":1658,"indexation":"per 01 Jan-26 ( One time)","arrAnnual":0,"arrEvent":0,"awaiting":1693,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r86","sector":"Government","country":"NL","end":"2026-12-31","invoicing":"September","customer":"Gemeente Arnhem: Bridge to liberation","license":570,"indexation":"No indexation","arrAnnual":0,"arrEvent":0,"awaiting":575,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r87","sector":"Events","country":"CH","end":"2028-12-31","invoicing":"September","customer":"OpenAir St.Gallen AG / Summerdays Festival: Summerdays Festival","license":1500,"indexation":"per 01 Jan-26","arrAnnual":1534,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r88","sector":"Events","country":"BE","end":"2028-08-31","invoicing":"August","customer":"VZW Lokerse Feesten","license":1812.5,"indexation":"No indexation","arrAnnual":0,"arrEvent":1812.5,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r89","sector":"Events","country":"NL","end":"2028-05-31","invoicing":"July","customer":"Concert at Sea","license":1450,"indexation":"per 01 Jan-26 ( One time)","arrAnnual":0,"arrEvent":1485,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r90","sector":"Events","country":"DE","end":"2029-06-30","invoicing":"July","customer":"Karlsruhe Marketing & Event","license":0,"indexation":"","arrAnnual":0,"arrEvent":1485,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r91","sector":"Events","country":"NL","end":"2025-12-31","invoicing":"September","customer":"Appelpop","license":1421,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r92","sector":"Venues & Stadiums","country":"NL","end":"2026-02-01","invoicing":"Yearly","customer":"PEC Zwolle","license":616,"indexation":"No indexation, contract ends","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r93","sector":"Construction & Industry","country":"NL","end":"2026-01-31","invoicing":"Yearly","customer":"Flowfirm","license":550,"indexation":"No indexation, contract ends","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r94","sector":"Construction & Industry","country":"NL","end":"2026-02-28","invoicing":"Yearly","customer":"VIS Groep","license":207,"indexation":"No indecation, churn after feb 26","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r95","sector":"Events","country":"NL","end":"2026-12-31","invoicing":"August","customer":"Solar Festival","license":750,"indexation":"per 01 Jan-26 ( One time)","arrAnnual":0,"arrEvent":0,"awaiting":772.5,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r96","sector":"Events","country":"DE","end":"2027-12-31","invoicing":"January","customer":"GROSKOPF Consulting e.K. (Berlinale)","license":2975,"indexation":"No indexation, new contract","arrAnnual":0,"arrEvent":4215,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r97","sector":"Events","country":"BE","end":"One-off","invoicing":"August","customer":"360 Solutions Risk & Safety","license":1264,"indexation":"No indexation","arrAnnual":0,"arrEvent":0,"awaiting":0,"churn":0,"upsell":0,"oneoff":1220,"onboarding":0,"sponsorship":0},{"id":"y27r98","sector":"Events","country":"NL","end":"2029-06-30","invoicing":"July","customer":"Les Ardentes","license":1216,"indexation":"No indexation","arrAnnual":0,"arrEvent":1895,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r99","sector":"Events","country":"NL","end":"2028-12-31","invoicing":"July","customer":"Stichting Bospop","license":115,"indexation":"No indexation","arrAnnual":0,"arrEvent":1751,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r100","sector":"Events","country":"NL","end":"2027-12-31","invoicing":"August","customer":"Dekmantel BV I Dekmantel Festival","license":500,"indexation":"No indexation","arrAnnual":0,"arrEvent":865,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0},{"id":"y27r101","sector":"Events","country":"NL","end":"2027-12-31","invoicing":"June","customer":"Dekmantel BV I Het Kabinet events","license":500,"indexation":"No indexation","arrAnnual":0,"arrEvent":720,"awaiting":0,"churn":0,"upsell":0,"oneoff":0,"onboarding":0,"sponsorship":0}]};
-  const YEARS = [2026, 2027];
+  const YEARS = [2026, 2027, 2028, 2029];
 
   // columns that make up the total, in table order
   const NUMS = [
     ['arrAnnual', 'ARR annual'], ['arrEvent', 'ARR event'], ['awaiting', 'Awaiting renewal'],
-    ['churn', 'Expected churn'], ['upsell', 'Expected upsell'], ['oneoff', 'One-off'], ['onboarding', 'Onboarding'],
+    ['churn', 'Churn'], ['upsell', 'Expected upsell'], ['oneoff', 'One-off'], ['onboarding', 'Onboarding'],
   ];
   const rowTotal = r => NUMS.reduce((a, [k]) => a + (+r[k] || 0), 0);
   const eur = v => '€' + Math.round(+v || 0).toLocaleString('en-US');
@@ -2699,7 +2787,100 @@ html.locked, html.locked body { overflow: hidden; }
   const SECTOR_COLOR = { 'Venues & Stadiums': 'var(--purple)', 'Construction & Industry': 'var(--blue)', 'Events': 'var(--green)', 'Security': 'var(--red)', 'Government': 'var(--gray-series)', 'Municipality': 'var(--gray-series)' };
   const blank = () => ({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), sector: '', country: '', end: '', invoicing: '', customer: 'New customer', license: 0, indexation: '', arrAnnual: 0, arrEvent: 0, awaiting: 0, churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0 });
   const loadRows = y => { try { const s = JSON.parse(localStorage.getItem(STORE(y))); return Array.isArray(s) && s.length ? s : null; } catch (e) { return null; } };
-  const baseRows = y => (SOURCE_BY_YEAR[y] || []).map(r => ({ ...r }));
+  const yearOf = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[0]) : NaN; };
+  const monthOfIso = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[1]) - 1 : null; };
+  const addMonthsIso = (iso, m) => {
+    const p = String(iso || '').split('-').map(Number); if (p.length !== 3 || p.some(isNaN)) return '';
+    const d = new Date(p[0], p[1] - 1, p[2]), day = d.getDate();
+    d.setMonth(d.getMonth() + m); if (d.getDate() !== day) d.setDate(0);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  };
+
+  /* ---- contract -> year projection ----------------------------------------
+     A contract only earns in the months it actually runs. Months of the year
+     AFTER the contract end keep the same monthly rate but sit in "Awaiting
+     renewal" (same amount, not yet re-signed). Months BEFORE a contract
+     starts earn nothing - the contract didn't exist yet. */
+  const dayOfIso = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[2]) : null; };
+  const monthSpan = (y, start, end) => {
+    const sY = yearOf(start), eY = yearOf(end);
+    let from = 0, to = 11;
+    if (!isNaN(sY)) { if (sY > y) return { pre: 12, run: 0, post: 0 }; if (sY === y) from = monthOfIso(start); }
+    if (!isNaN(eY)) {
+      if (eY < y) return { pre: 0, run: 0, post: 12 };          // expired before this year -> all awaiting
+      if (eY === y) to = monthOfIso(end) - (dayOfIso(end) >= 15 ? 0 : 1);
+    }
+    const run = Math.max(0, to - from + 1);
+    return { pre: from, run, post: Math.max(0, 12 - from - run) };
+  };
+  const r2 = v => Math.round((+v || 0) * 100) / 100;
+  /* rate = FULL-YEAR run rate { annual, event } -> this year's split */
+  const project = (y, start, end, rate) => {
+    const { run, post } = monthSpan(y, start, end);
+    const per = (rate.annual + rate.event) / 12;
+    return { arrAnnual: r2(rate.annual / 12 * run), arrEvent: r2(rate.event / 12 * run), awaiting: r2(per * post) };
+  };
+
+  /* Years the sheets don't cover (2028+) are projected from the last sheet
+     year: each contract keeps its full-year run rate, split into the months
+     inside the contract and the months awaiting renewal. */
+  const baseRows = y => {
+    if (SOURCE_BY_YEAR[y]) return SOURCE_BY_YEAR[y].map(r => ({ ...r }));
+    const latest = Math.max(...Object.keys(SOURCE_BY_YEAR).map(Number));
+    return (SOURCE_BY_YEAR[latest] || []).map(r => {
+      const a = +r.arrAnnual || 0, e = +r.arrEvent || 0, w = +r.awaiting || 0;   // sheet row = run rate, already split
+      const rate = a + e > 0 ? { annual: a + w * (a / (a + e)), event: e + w * (e / (a + e)) } : { annual: a + w, event: e };
+      return { r, rate };
+    }).filter(x => x.rate.annual + x.rate.event > 0).map(({ r, rate }) => ({
+      ...r, id: 'c' + y + '_' + r.id, ...project(y, r.start || '', r.end, rate),
+      churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true,
+    }));
+  };
+
+  /* ---- Teamleader → Revenue -------------------------------------------------
+     Every won deal that carries a contract start + end feeds the years its
+     contract runs through. Rows the user edited by hand are never overwritten. */
+  const norm = s => String(s || '').toLowerCase().replace(/\b(b\.?v\.?|n\.?v\.?|gmbh|ltd|limited|holding|group|groep)\b/g, '').replace(/[^a-z0-9]/g, '').trim();
+  const wonDeals = () => {
+    const D = window.DATA || {}, out = [];
+    const buckets = D.quartersByYear || {};
+    Object.keys(buckets).forEach(y => ['Q1','Q2','Q3','Q4'].forEach(q => ((buckets[y][q] || {}).won || []).forEach(d => out.push(d))));
+    if (!Object.keys(buckets).length && D.quarters) ['Q1','Q2','Q3','Q4'].forEach(q => ((D.quarters[q] || {}).won || []).forEach(d => out.push(d)));
+    const seen = {};
+    return out.filter(d => { const k = (d.customer || d.name) + '|' + (d.startDate || '') + '|' + (d.endDate || '') + '|' + d.value; if (seen[k]) return false; seen[k] = 1; return true; });
+  };
+  const mergeTeamleader = (rows, y) => {
+    const deals = wonDeals().filter(d => {
+      const start = d.startDate || d.refused || d.close, end = d.endDate || (d.duration ? addMonthsIso(start, +d.duration) : '');
+      if (!start || !end) return false;
+      return yearOf(start) <= y;        // every year from the start on; years past the end are awaiting renewal
+    });
+    if (!deals.length) return rows;
+    const next = rows.map(r => ({ ...r }));
+    deals.forEach(d => {
+      const name = d.customer || d.name;
+      const start = d.startDate || d.refused || d.close;
+      const end = d.endDate || addMonthsIso(start, +d.duration || 0);
+      const arr = +d.arr || 0, ev = +d.eventArr || 0;
+      const hit = next.find(r => norm(r.customer) === norm(name));
+      if (hit) {
+        if (hit.manual) return;                       // hand-edited rows win
+        hit.end = end || hit.end;
+        hit.start = hit.start || start;
+        hit.sector = hit.sector || d.industry || '';
+        if (arr || ev) Object.assign(hit, project(y, start, end, { annual: arr, event: ev }));
+        hit.src = 'tl';
+      } else {
+        const first = yearOf(start) === y;      // one-off + onboarding only land in the contract's first year
+        next.push({ id: 'tl' + y + '_' + norm(name), customer: name, sector: d.industry || '', country: '',
+          end: end, start: start, invoicing: '', license: 0, indexation: '',
+          ...project(y, start, end, { annual: arr, event: ev }),
+          churn: 0, upsell: 0, oneoff: first ? +d.oneoff || 0 : 0, onboarding: first ? +d.onboarding || 0 : 0, sponsorship: 0, src: 'tl' });
+      }
+    });
+    return next;
+  };
+  const rowsFor = y => mergeTeamleader(loadRows(y) || baseRows(y), y);
 
   /* one editable cell — click to type, Enter commits, Esc cancels */
   function Cell({ value, onCommit, kind }) {
@@ -2730,14 +2911,42 @@ html.locked, html.locked body { overflow: hidden; }
          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s', marginLeft: 3, verticalAlign: 'middle' }}><path d="M6 9l6 6 6-6" /></svg>
   );
 
+  /* monthly licence: editable amount, plus a note that shows on hover */
+  function LicenceCell({ value, note, onValue, onNote }) {
+    const [editing, setEditing] = useState(null);   // 'amount' | 'note' | null
+    const [draft, setDraft] = useState('');
+    const start = (what, v) => { setDraft(v == null ? '' : String(v)); setEditing(what); };
+    if (editing === 'amount' || editing === 'note') {
+      const isNote = editing === 'note';
+      return (
+        <input className={`cell ${isNote ? '' : 'num'}`} autoFocus value={draft}
+               type={isNote ? 'text' : 'number'} step={isNote ? undefined : '0.01'}
+               placeholder={isNote ? 'Note (shown on hover)' : ''}
+               onChange={e => setDraft(e.target.value)}
+               onBlur={() => { isNote ? onNote(draft.trim()) : onValue(parseFloat(draft) || 0); setEditing(null); }}
+               onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setEditing(null); }} />
+      );
+    }
+    return (
+      <div className={`lic ${note ? 'has-note' : ''}`}>
+        <button className={`cell num ${+value ? '' : 'zero'}`} onClick={() => start('amount', +value || '')}>
+          {+value ? <span className="cur">€</span> : null}<span className="amt">{+value ? Math.round(+value).toLocaleString('en-US') : '—'}</span>
+        </button>
+        {note && <span className="lic-tip">{note}</span>}
+        <button className="lic-note" title={note ? 'Edit note' : 'Add note'} onClick={() => start('note', note || '')}>{note ? '●' : '+'}</button>
+      </div>
+    );
+  }
+
   function RevenueTab() {
     const [year, setYear] = useState(2026);
-    const [rows, setRows] = useState(() => loadRows(2026) || baseRows(2026));
+    const [rows, setRows] = useState(() => rowsFor(2026));
     const [edited, setEdited] = useState(() => !!loadRows(2026));
     const [q, setQ] = useState('');
     const [sector, setSector] = useState('All sectors');
     const [menu, setMenu] = useState(null);
     const [sort, setSort] = useState({ key: 'total', dir: 'desc' });
+    const [showLicence, setShowLicence] = useState(true);
     const sortBy = key => setSort(s => s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: typeof (rows[0] || {})[key] === 'string' ? 'asc' : 'desc' });
     const sortVal = (r, key) => key === 'total' ? rowTotal(r) : (typeof r[key] === 'string' ? r[key].toLowerCase() : (+r[key] || 0));
     const barRef = useRef(null);
@@ -2749,12 +2958,12 @@ html.locked, html.locked body { overflow: hidden; }
       return () => document.removeEventListener('mousedown', off);
     }, [menu]);
 
-    const pickYear = y => { setYear(y); setRows(loadRows(y) || baseRows(y)); setEdited(!!loadRows(y)); setMenu(null); };
+    const pickYear = y => { setYear(y); setRows(rowsFor(y)); setEdited(!!loadRows(y)); setMenu(null); };
     const persist = next => { setRows(next); setEdited(true); try { localStorage.setItem(STORE(year), JSON.stringify(next)); } catch (e) {} };
-    const setCell = (id, key, val) => persist(rows.map(r => r.id === id ? { ...r, [key]: val } : r));
+    const setCell = (id, key, val) => persist(rows.map(r => r.id === id ? { ...r, [key]: val, manual: true } : r));
     const addRow = () => persist([blank(), ...rows]);
     const delRow = id => persist(rows.filter(r => r.id !== id));
-    const reset = () => { try { localStorage.removeItem(STORE(year)); } catch (e) {} setRows(baseRows(year)); setEdited(false); };
+    const reset = () => { try { localStorage.removeItem(STORE(year)); } catch (e) {} setRows(rowsFor(year)); setEdited(false); };
 
     const sectors = useMemo(() => ['All sectors', ...[...new Set(rows.map(r => r.sector).filter(Boolean))].sort()], [rows]);
     const view = useMemo(() => {
@@ -2762,7 +2971,12 @@ html.locked, html.locked body { overflow: hidden; }
         (sector === 'All sectors' || r.sector === sector) &&
         (!q || (r.customer + ' ' + r.sector + ' ' + r.country).toLowerCase().includes(q.toLowerCase())));
       const d = sort.dir === 'asc' ? 1 : -1;
+      // customers whose only figure is churn always sink to the bottom
+      const churnOnly = r => (+r.churn || 0) > 0 &&
+        NUMS.every(([k]) => k === 'churn' || !(+r[k] || 0));
       return list.sort((a, b) => {
+        const ca = churnOnly(a) ? 1 : 0, cb = churnOnly(b) ? 1 : 0;
+        if (ca !== cb) return ca - cb;
         const av = sortVal(a, sort.key), bv = sortVal(b, sort.key);
         return av < bv ? -d : av > bv ? d : 0;
       });
@@ -2793,12 +3007,12 @@ html.locked, html.locked body { overflow: hidden; }
             <span className="s">{eur(T.arrAnnual)} + {eur(T.arrEvent)} event</span></div>
           <div className="rk"><span className="eyebrow">AWAITING RENEWAL</span><span className="v">{eur(T.awaiting)}</span>
             <span className="s">not yet re-signed</span></div>
-          <div className="rk"><span className="eyebrow">EXPECTED CHURN</span><span className="v red">{eur(T.churn)}</span>
+          <div className="rk"><span className="eyebrow">CHURN</span><span className="v red">{eur(T.churn)}</span>
             <span className="s">{eur(T.upsell)} upsell</span></div>
           <div className="rk"><span className="eyebrow">ONE-OFF · ONB.</span><span className="v">{eur(T.oneoff + T.onboarding)}</span>
             <span className="s">{eur(T.oneoff)} + {eur(T.onboarding)}</span></div>
-          <div className="rk accent"><span className="eyebrow">TOTAL EXCL. SPONSORSHIP</span><span className="v">{eur(grand)}</span>
-            <span className="s">sponsorship {eur(T.sponsorship)} excluded</span></div>
+          <div className="rk accent"><span className="eyebrow">TOTAL (75%) SAFESIGHT</span><span className="v">{eur(grand)}</span>
+            <span className="s">{eur(grand + T.sponsorship)} after sponsorship</span></div>
 
           <div className={`rk rk-drop ${menu === 'sector' ? 'on' : ''}`} role="button" tabIndex={0}
                onClick={() => setMenu(m => m === 'sector' ? null : 'sector')}
@@ -2825,8 +3039,9 @@ html.locked, html.locked body { overflow: hidden; }
                   {NUMS.map(([k, label]) => (
                     <div className="comp-row" key={k}><span className="lbl">{label}</span><span className="val">{eur(T[k])}</span></div>
                   ))}
-                  <div className="comp-row tot"><span className="lbl">Total excl. sponsorship</span><span className="val">{eur(grand)}</span></div>
+                  <div className="comp-row tot"><span className="lbl">Total (75%) Safesight</span><span className="val">{eur(grand)}</span></div>
                   <div className="comp-row"><span className="lbl sub">Sponsorship (outside total)</span><span className="val sub">{eur(T.sponsorship)}</span></div>
+                  <div className="comp-row"><span className="lbl sub">After sponsorship</span><span className="val sub">{eur(grand + T.sponsorship)}</span></div>
                 </div>
               </div>
             )}
@@ -2844,6 +3059,8 @@ html.locked, html.locked body { overflow: hidden; }
               <select className="select" value={sector} onChange={e => setSector(e.target.value)}>
                 {sectors.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+              <button className="btn" aria-pressed={showLicence} onClick={() => setShowLicence(v => !v)}
+                      title="Monthly licence column">{showLicence ? 'Hide' : 'Show'} monthly licence</button>
               <button className="btn" onClick={addRow}>+ Add customer</button>
               <button className="btn" onClick={reset} disabled={!edited} title="Restore the numbers from the Excel sheet">Reset to sheet</button>
               <span className="spacer" style={{ marginLeft: 'auto' }} />
@@ -2858,7 +3075,8 @@ html.locked, html.locked body { overflow: hidden; }
                     <th className="sortable" onClick={() => sortBy('country')}>Country {sortArrow('country')}</th>
                     <th className="sortable" onClick={() => sortBy('end')}>End date contract {sortArrow('end')}</th>
                     <th>Invoicing</th>
-                    {NUMS.map(([k, label]) => <th key={k} className="num sortable" onClick={() => sortBy(k)}>{label} {sortArrow(k)}</th>)}
+                    {showLicence && <th className="num sortable lic-col" onClick={() => sortBy('license')}>Monthly licence {sortArrow('license')}</th>}
+                    {NUMS.map(([k, label]) => <th key={k} className={`num sortable ${k === 'churn' ? 'churn-col' : ''}`} onClick={() => sortBy(k)}>{label} {sortArrow(k)}</th>)}
                     <th className="num tot sortable" onClick={() => sortBy('total')}>Total {sortArrow('total')}</th>
                     <th className="num sortable" onClick={() => sortBy('sponsorship')}>Sponsorship {sortArrow('sponsorship')}</th>
                     <th />
@@ -2880,7 +3098,14 @@ html.locked, html.locked body { overflow: hidden; }
                         <td><Cell value={r.country} onCommit={v => setCell(r.id, 'country', v)} /></td>
                         <td><Cell kind="date" value={r.end} onCommit={v => setCell(r.id, 'end', v)} /></td>
                         <td><Cell value={r.invoicing} onCommit={v => setCell(r.id, 'invoicing', v)} /></td>
-                        {NUMS.map(([k]) => <td key={k}><Cell kind="money" value={r[k]} onCommit={v => setCell(r.id, k, v)} /></td>)}
+                        {showLicence && (
+                          <td className="lic-col">
+                            <LicenceCell value={r.license} note={r.licenseNote}
+                                         onValue={v => setCell(r.id, 'license', v)}
+                                         onNote={v => setCell(r.id, 'licenseNote', v)} />
+                          </td>
+                        )}
+                        {NUMS.map(([k]) => <td key={k} className={k === 'churn' ? 'churn-col' : ''}><Cell kind="money" value={r[k]} onCommit={v => setCell(r.id, k, v)} /></td>)}
                         <td className="num tot"><span className="cur">€</span><span className="amt">{Math.round(tot).toLocaleString('en-US')}</span></td>
                         <td><Cell kind="money" value={r.sponsorship} onCommit={v => setCell(r.id, 'sponsorship', v)} /></td>
                         <td><button className="rowdel" title="Delete row" onClick={() => delRow(r.id)}>×</button></td>
@@ -2892,7 +3117,8 @@ html.locked, html.locked body { overflow: hidden; }
                   <tr>
                     <td className="sticky-l">Total{view.length !== rows.length ? ' (filtered)' : ''}</td>
                     <td /><td /><td /><td />
-                    {NUMS.map(([k]) => <td key={k} className="num"><span className="cur">€</span><span className="amt">{Math.round(vT[k]).toLocaleString('en-US')}</span></td>)}
+                    {showLicence && <td className="num lic-col"><span className="cur">€</span><span className="amt">{Math.round(sum(view, 'license')).toLocaleString('en-US')}</span></td>}
+                    {NUMS.map(([k]) => <td key={k} className={`num ${k === 'churn' ? 'churn-col' : ''}`}><span className="cur">€</span><span className="amt">{Math.round(vT[k]).toLocaleString('en-US')}</span></td>)}
                     <td className="num tot"><span className="cur">€</span><span className="amt">{Math.round(view.reduce((a, r) => a + rowTotal(r), 0)).toLocaleString('en-US')}</span></td>
                     <td className="num"><span className="cur">€</span><span className="amt">{Math.round(sum(view, 'sponsorship')).toLocaleString('en-US')}</span></td>
                     <td />
@@ -2908,8 +3134,19 @@ html.locked, html.locked body { overflow: hidden; }
   }
 
   window.RevenueTab = RevenueTab;
-  window.revenueRowsFor = y => (SOURCE_BY_YEAR[y] ? (loadRows(y) || baseRows(y)) : null);
+  window.revenueRowsFor = y => (YEARS.includes(+y) ? rowsFor(+y) : null);
   window.REVENUE_YEARS = YEARS;
+  const MON3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  /* churn rows for the Overview tab, straight from the revenue sheet */
+  window.revenueChurnFor = y => {
+    if (!YEARS.includes(+y)) return null;
+    return rowsFor(+y).filter(r => (+r.churn || 0) > 0).map(r => {
+      const m = monthOfIso(r.end);
+      return { customer: r.customer, industry: r.sector, value: +r.churn || 0, kind: 'lost',
+               when: m == null ? '' : MON3[m], mon: m, quarter: m == null ? 'Q1' : 'Q' + (Math.floor(m / 3) + 1),
+               reason: 'Revenue sheet' };
+    });
+  };
 })();
 
 </script>
