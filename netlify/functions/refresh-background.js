@@ -30,6 +30,8 @@ const FRESH_FROM = 2026;          // only re-read detail for deals in this year 
 const dealYear = d => new Date(d.closedAt || d.estClose || d.created).getFullYear();
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const BUDGET = 7000, DETAIL_BATCH = 6;
+const DETAIL_SCHEMA = 7;          // bump when a NEW custom field is added to the detail record,
+                                  // so already-cached deals get re-read once and backfilled
 const num = v => (v == null || v === '') ? 0 : (Number(v) || 0);
 const riskVal = v => (v === true || v === 'Yes' || v === 'yes' || v === 'Ja') ? 'Yes' : (v === false || v === 'No' || v === 'no' || v === 'Nee') ? 'No' : '';
 function cfMap(d) { const m = {}; (d.custom_fields || []).forEach(f => { if (f.definition) m[f.definition.id] = f.value; }); return m; }
@@ -48,8 +50,9 @@ exports.handler = async function (event) {
   // persistent cache across syncs. We DO NOT wipe details on a version change
   // anymore — older-year detail is frozen and reused so syncs only refresh 2026+.
   let cache = await store.get('cache', { type: 'json' }).catch(() => null);
-  if (!cache) cache = { version: 6, details: {}, companyName: {}, userName: {} };
-  cache.version = 6;
+  if (!cache) cache = { version: 7, details: {}, companyName: {}, userName: {}, cfIds: {} };
+  cache.version = 7;
+  if (!cache.cfIds) cache.cfIds = {};
 
   // in-flight job (resume mid-sync). Self-healing: if a job got wedged and is
   // older than 10 min, discard it and start fresh so a sync can never stay
@@ -68,6 +71,29 @@ exports.handler = async function (event) {
     while (Date.now() - t0 < BUDGET && !done) {
 
       if (job.phase === 'deals') {
+        // custom-field definitions — find "Duration (in months)" by its label,
+        // so the contract length comes from Teamleader itself (no hard-coded id).
+        if (!cache.cfIds.scanned) {
+          try {
+            let dp = 1, defs;
+            do {
+              defs = await page('customFieldDefinitions.list', {}, dp);
+              defs.forEach(def => {
+                const label = String(def.label || '').toLowerCase();
+                if (!cache.cfIds.duration && /(duration|looptijd|duur)/.test(label)) cache.cfIds.duration = def.id;
+                // "ARR - event annual" — a per-event ARR field, on New logo and/or Upsell
+                if (/event/.test(label) && /arr/.test(label)) {
+                  if (/new\s*logo|^nl\b|nl\s*-/.test(label)) cache.cfIds.nlEventArr = def.id;
+                  else if (/^us|us\s*-|upsell/.test(label)) cache.cfIds.usEventArr = def.id;
+                  else cache.cfIds.eventArr = def.id;
+                }
+              });
+              dp++;
+            } while (defs.length === 100 && Date.now() - t0 < BUDGET);
+            cache.cfIds.scanned = true;
+          } catch (e) { /* definitions endpoint unavailable → new fields stay 0 */ }
+        }
+
         // user names — only if we've never cached them
         if (Object.keys(cache.userName).length === 0) {
           let up = 1, urows;
@@ -95,7 +121,7 @@ exports.handler = async function (event) {
           // Plus: only if missing or changed since cached.
           job.detailIds = job.deals
             .filter(d => d.pipeline === PIPE.upsell || dealYear(d) >= FRESH_FROM)   // upsell always; NL only 2026+ (any status, so churn on 'new' deals is caught)
-            .filter(d => { const c = cache.details[d.id]; return !c || c.updated !== d.updated; })
+            .filter(d => { const c = cache.details[d.id]; return !c || c.updated !== d.updated || (c.v || 0) < DETAIL_SCHEMA; })
             .map(d => d.id);
           // companies whose names we don't yet have
           job.companyIds = [...new Set(job.deals.map(d => d.cust).filter(Boolean))].filter(id => !cache.companyName[id]);
@@ -113,14 +139,16 @@ exports.handler = async function (event) {
             const id = slice[i], d = dealById[id]; if (!full || !d) return;
             const cf = cfMap(full), isNL = d.pipeline === PIPE.newLogo;
             cache.details[id] = {
-              updated: d.updated,
+              updated: d.updated, v: DETAIL_SCHEMA,
               industry: cf[CF.customerType] || '',
               arr: isNL ? num(cf[CF.nlArr]) : num(cf[CF.usArr]),
+              eventArr: num(cf[isNL ? cache.cfIds.nlEventArr : cache.cfIds.usEventArr]) || num(cf[cache.cfIds.eventArr]),
               oneoff: isNL ? num(cf[CF.nlOneoff]) : num(cf[CF.usOneoff]),
               onboarding: isNL ? num(cf[CF.nlOnboarding]) : num(cf[CF.usOnboarding]),
               rArr: isNL ? 0 : num(cf[CF.vlRecurring]), rOneoff: isNL ? 0 : num(cf[CF.vlOneoff]), rImpl: isNL ? 0 : num(cf[CF.vlImpl]),
               churn: num(cf[CF.vlChurn]),                          // churn can sit on ANY pipeline (incl. New logo)
               endDate: (cf[CF.contractEnd] || ''), startDate: (cf[CF.contractStart] || ''),   // needed to date churn
+              duration: num(cf[cache.cfIds.duration]),                                        // contract length in months
               risk: isNL ? '' : riskVal(cf[CF.risk]), statusRenewal: isNL ? '' : (cf[CF.statusRenewal] || ''),
             };
           });
@@ -180,18 +208,31 @@ function build(deals, cache) {
   const histNL = {}, histUP = {}, leaderboard = { Q1: {}, Q2: {}, Q3: {}, Q4: {} }, renewals = [], contracts = [];
   let arrTotal = 0, churnTotal = 0;
 
+  // end date = start date + duration (months); falls back to the contract-end field
+  const addMonths = (iso, months) => {
+    if (!iso || !months) return '';
+    const dt = new Date(iso); if (isNaN(dt)) return '';
+    const day = dt.getDate();
+    dt.setMonth(dt.getMonth() + months);
+    if (dt.getDate() < day) dt.setDate(0);            // clamp e.g. 31 Jan + 1m → 28/29 Feb
+    return dt.toISOString().slice(0, 10);
+  };
+
   deals.forEach(d => {
     const det = cache.details[d.id] || {};
     const isNL = d.pipeline === PIPE.newLogo, type = isNL ? 'New logo' : 'Upsell';
-    const arr = num(det.arr), oneoff = num(det.oneoff), onboarding = num(det.onboarding);
-    const total = arr + oneoff + onboarding;                 // sales value = ONLY the relevant custom fields
+    const arr = num(det.arr), oneoff = num(det.oneoff), onboarding = num(det.onboarding), eventArr = num(det.eventArr);
+    const total = arr + oneoff + onboarding + eventArr;      // sales value = ONLY the relevant custom fields
     const rTotal = num(det.rArr) + num(det.rOneoff) + num(det.rImpl), churn = num(det.churn);
     const owner = (d.owner && cache.userName[d.owner]) || '—';
     const date = new Date(d.closedAt || d.estClose || d.created);
     const yr = date.getFullYear(), q = 'Q' + (Math.floor(date.getMonth() / 3) + 1), idx = Number(q.slice(1)) - 1;
-    const row = { name: d.title || (d.cust && cache.companyName[d.cust]) || 'Untitled deal', type, value: total, arr, oneoff, onboarding, owner,
+    const row = { name: d.title || (d.cust && cache.companyName[d.cust]) || 'Untitled deal', type, value: total, arr, eventArr, oneoff, onboarding, owner,
       industry: det.industry || '', prob: d.prob != null ? d.prob : 0.5, close: (d.estClose || '').slice(0, 10),
       customer: (d.cust && cache.companyName[d.cust]) || '', refused: (d.closedAt || '').slice(0, 10),
+      startDate: String(det.startDate || '').slice(0, 10),
+      duration: num(det.duration),
+      endDate: addMonths(String(det.startDate || '').slice(0, 10), num(det.duration)) || String(det.endDate || '').slice(0, 10),
       thisMonth: date.getMonth() === new Date().getMonth() && yr === CUR };
 
     // WON new-business / expansion — only deals with real value in their own fields.
@@ -212,13 +253,15 @@ function build(deals, cache) {
       // renewal value rows (won renewals carrying VL value)
       if (d.status === 'won' && (rTotal > 0 || churn > 0)) {
         renewals.push({ customer: row.customer || row.name, industry: row.industry, owner,
+          startDate: row.startDate, duration: row.duration, endDate: row.endDate,
           arr: num(det.rArr), oneoff: num(det.rOneoff), onboarding: num(det.rImpl), total: rTotal, churn,
           close: row.refused, year: yr, quarter: q });
       }
       // CSM renewal book: any renewal deal that carries a contract end date
       if (det.endDate) {
         contracts.push({ customer: row.customer || row.name, endDate: String(det.endDate).slice(0, 10),
-          owner, risk: det.risk || '', status: det.statusRenewal || '', signed: d.status === 'won' });
+          startDate: row.startDate, duration: row.duration, endCalc: row.endDate,
+          industry: row.industry, owner, risk: det.risk || '', status: det.statusRenewal || '', signed: d.status === 'won' });
       }
     }
     // churn, dated to the month the contract should have (re)started:
@@ -240,6 +283,7 @@ function build(deals, cache) {
         if (ybc) {
           if (sYr === CUR && ck !== 'forecast') churnTotal += churn;
           ybc[sQ].churn.push({ customer: row.customer || row.name, industry: row.industry,
+            startDate: row.startDate, duration: row.duration, endDate: row.endDate,
             reason: det.statusRenewal || '', kind: ck, when: MONTHS[start.getMonth()], value: churn });
         }
       }
@@ -260,7 +304,7 @@ function build(deals, cache) {
   const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
   const reps = ['All reps', ...Object.values(cache.userName)];
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'pipeline2027-v20',
+    buildVersion: 'eventarr-v24',
     years, reps, goals: GOALS, quarters, quartersByYear, leaderboard: lb,
     historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
