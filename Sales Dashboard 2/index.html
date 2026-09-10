@@ -620,7 +620,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v26 · 10 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v27 · 10 Sep (single-file)</div>
     </div>
   </div>
 
@@ -2784,7 +2784,9 @@ html.locked, html.locked body { overflow: hidden; }
     ['arrAnnual', 'ARR annual'], ['arrEvent', 'ARR event'], ['awaiting', 'Awaiting renewal'],
     ['churn', 'Churn'], ['upsell', 'Expected upsell'], ['oneoff', 'One-off'], ['onboarding', 'Onboarding'],
   ];
-  const rowTotal = r => NUMS.reduce((a, [k]) => a + (+r[k] || 0), 0);
+  const rowTotal = r => TOTAL_COLS.reduce((a, k) => a + (+r[k] || 0), 0);
+  // churn is reported on its own - it is never part of the total
+  const TOTAL_COLS = NUMS.map(([k]) => k).filter(k => k !== 'churn');
   const eur = v => '€' + Math.round(+v || 0).toLocaleString('en-US');
   const ORD = d => d + (d > 3 && d < 21 ? 'th' : ['th', 'st', 'nd', 'rd'][d % 10] || 'th');
   const MONTHS_L = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -2797,6 +2799,19 @@ html.locked, html.locked body { overflow: hidden; }
   const SECTOR_COLOR = { 'Venues & Stadiums': 'var(--purple)', 'Construction & Industry': 'var(--blue)', 'Events': 'var(--green)', 'Security': 'var(--red)', 'Government': 'var(--gray-series)', 'Municipality': 'var(--gray-series)' };
   const blank = () => ({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), sector: '', country: '', end: '', invoicing: '', customer: 'New customer', license: 0, indexation: '', arrAnnual: 0, arrEvent: 0, awaiting: 0, churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0 });
   const loadRows = y => { try { const s = JSON.parse(localStorage.getItem(STORE(y))); return Array.isArray(s) && s.length ? s : null; } catch (e) { return null; } };
+  const hasBackup = y => { try { return !!localStorage.getItem(STORE(y) + '_bak'); } catch (e) { return false; } };
+  /* ---- edits are kept on the server too --------------------------------
+     localStorage is only the instant cache; the server copy is the record, so
+     a redeploy, another browser or another laptop still sees the same numbers.
+     Newest timestamp wins. */
+  const EDITS_API = '/.netlify/functions/revenue-store';
+  const localTs = y => { try { return Number(localStorage.getItem(STORE(y) + '_ts')) || 0; } catch (e) { return 0; } };
+  const writeLocal = (y, rows, ts) => { try { localStorage.setItem(STORE(y), JSON.stringify(rows)); localStorage.setItem(STORE(y) + '_ts', String(ts)); } catch (e) {} };
+  const pushEdits = (y, rows, ts) => {
+    try { fetch(EDITS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: y, rows, ts }) }).catch(() => {}); } catch (e) {}
+  };
+  const pullEdits = () => fetch(EDITS_API).then(r => r.ok ? r.json() : null).catch(() => null);
   const yearOf = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[0]) : NaN; };
   const monthOfIso = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[1]) - 1 : null; };
   const addMonthsIso = (iso, m) => {
@@ -2812,12 +2827,54 @@ html.locked, html.locked body { overflow: hidden; }
 
   /* Years the sheets don't cover (2028+) are projected: every contract that still
      runs into that year is carried forward with its recurring value only. */
+  /* A carried year only earns for the months the contract actually runs.
+     The rest of that year keeps the same monthly rate but sits in "awaiting
+     renewal" - not yet re-signed. Sheet years (2026/2027) are never touched. */
+  const monthsRunning = (y, start, end) => {
+    const sY = yearOf(start), eY = yearOf(end);
+    let from = 0, to = 11;
+    if (!isNaN(sY)) { if (sY > y) return { run: 0, pre: 12 }; if (sY === y) from = Number(String(start).split('-')[1]) - 1; }
+    if (!isNaN(eY)) {
+      if (eY < y) return { run: 0, pre: 0 };
+      if (eY === y) { const p = String(end).split('-'); to = Number(p[1]) - 1 - (Number(p[2]) >= 15 ? 0 : 1); }
+    }
+    const run = Math.max(0, to - from + 1);
+    return { run, pre: from };
+  };
+  const r2 = v => Math.round((+v || 0) * 100) / 100;
+  /* full-year run rate -> this year's split for a projected year */
+  const spread = (y, start, end, annual, event) => {
+    const { run, pre } = monthsRunning(y, start, end);
+    const rest = 12 - run - pre;                     // months after the contract ends
+    return { arrAnnual: r2(annual / 12 * run), arrEvent: r2(event / 12 * run), awaiting: r2((annual + event) / 12 * rest) };
+  };
   const baseRows = y => {
     if (SOURCE_BY_YEAR[y]) return SOURCE_BY_YEAR[y].map(r => ({ ...r }));
     const latest = Math.max(...Object.keys(SOURCE_BY_YEAR).map(Number));
-    return (SOURCE_BY_YEAR[latest] || [])
-      .filter(r => r.end && yearOf(r.end) >= y)
-      .map(r => ({ ...r, id: 'c' + y + '_' + r.id, awaiting: 0, churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true }));
+    const tlEnd = tlEndByCustomer();
+    const out = (SOURCE_BY_YEAR[latest] || [])
+      .map(r => ({ r, end: tlEnd[norm(r.customer)] > r.end ? tlEnd[norm(r.customer)] : r.end }))   // renewal signed in Teamleader wins
+      .filter(({ end }) => end && yearOf(end) >= y)
+      .map(({ r, end }) => ({ ...r, end, id: 'c' + y + '_' + r.id,
+        ...spread(y, r.start || '', end, +r.arrAnnual || 0, +r.arrEvent || 0),
+        churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true }));
+    /* customers won in Teamleader that the sheets don't know yet - new logo and
+       renewals alike - projected on the same rule */
+    wonDeals().forEach(d => {
+      const name = d.customer || d.name, k = norm(name);
+      if (!k || out.some(r => norm(r.customer) === k)) return;
+      const start = d.startDate || d.refused || d.close;
+      const end = d.endDate || (d.duration ? addMonthsIso(start, +d.duration) : '');
+      const annual = +d.arr || 0, event = +d.eventArr || 0;
+      if (!start || !end || yearOf(start) > y || !(annual + event)) return;
+      const s = spread(y, start, end, annual, event);
+      if (!(s.arrAnnual + s.arrEvent + s.awaiting)) return;
+      out.push({ id: 'tl' + y + '_' + k, customer: name, sector: d.industry || '', country: '',
+        start, end, signed: d.refused || d.close || '', duration: +d.duration || 0,
+        invoicing: '', license: 0, indexation: '', ...s,
+        churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true, src: 'tl' });
+    });
+    return out;
   };
 
   /* ---- Teamleader → Revenue -------------------------------------------------
@@ -2847,7 +2904,7 @@ html.locked, html.locked body { overflow: hidden; }
       const hit = next.find(r => norm(r.customer) === norm(name));
       if (!hit || hit.manual) return;                 // sheet rows only; hand-edited rows win
       // metadata only - the sheet owns every number
-      hit.end = end || hit.end;
+      hit.end = hit.end || end;            // fill only - never overwrite what the sheet says
       hit.start = hit.start || start;
       hit.signed = hit.signed || d.refused || d.close || '';
       hit.duration = hit.duration || +d.duration || 0;
@@ -2855,6 +2912,20 @@ html.locked, html.locked body { overflow: hidden; }
       hit.src = 'tl';
     });
     return next;
+  };
+  /* contract end per customer, from won deals - so a renewal signed in
+     Teamleader keeps the customer in the projected years even when the sheet
+     still holds the old end date */
+  const tlEndByCustomer = () => {
+    const m = {};
+    wonDeals().forEach(d => {
+      const start = d.startDate || d.refused || d.close;
+      const end = d.endDate || (d.duration ? addMonthsIso(start, +d.duration) : '');
+      if (!end) return;
+      const k = norm(d.customer || d.name);
+      if (!m[k] || end > m[k]) m[k] = end;
+    });
+    return m;
   };
   const rowsFor = y => mergeTeamleader(loadRows(y) || baseRows(y), y);
 
@@ -2932,6 +3003,7 @@ html.locked, html.locked body { overflow: hidden; }
     const [year, setYear] = useState(2026);
     const [rows, setRows] = useState(() => rowsFor(2026));
     const [edited, setEdited] = useState(() => !!loadRows(2026));
+    const [undo, setUndo] = useState(() => hasBackup(2026));
     const [q, setQ] = useState('');
     const [sector, setSector] = useState('All sectors');
     const [menu, setMenu] = useState(null);
@@ -2941,6 +3013,23 @@ html.locked, html.locked body { overflow: hidden; }
     const sortVal = (r, key) => key === 'total' ? rowTotal(r) : (typeof r[key] === 'string' ? r[key].toLowerCase() : (+r[key] || 0));
     const barRef = useRef(null);
 
+    /* on open: adopt the server copy of any year whose saved edits are newer
+       than this device's */
+    useEffect(() => {
+      let live = true;
+      pullEdits().then(data => {
+        if (!live || !data || !data.years) return;
+        let changed = false;
+        Object.keys(data.years).forEach(y => {
+          const s = data.years[y];
+          if (!s || !Array.isArray(s.rows) || !s.rows.length) return;
+          if ((+s.ts || 0) > localTs(+y)) { writeLocal(+y, s.rows, +s.ts || Date.now()); changed = true; }
+        });
+        if (changed) { setRows(rowsFor(year)); setEdited(!!loadRows(year)); }
+      });
+      return () => { live = false; };
+    }, []);
+
     useEffect(() => {
       if (!menu) return;
       const off = e => { if (barRef.current && !barRef.current.contains(e.target)) setMenu(null); };
@@ -2948,12 +3037,25 @@ html.locked, html.locked body { overflow: hidden; }
       return () => document.removeEventListener('mousedown', off);
     }, [menu]);
 
-    const pickYear = y => { setYear(y); setRows(rowsFor(y)); setEdited(!!loadRows(y)); setMenu(null); };
-    const persist = next => { setRows(next); setEdited(true); try { localStorage.setItem(STORE(year), JSON.stringify(next)); } catch (e) {} };
+    const pickYear = y => { setYear(y); setRows(rowsFor(y)); setEdited(!!loadRows(y)); setMenu(null); setUndo(hasBackup(y)); };
+    const persist = next => {
+      const ts = Date.now();
+      setRows(next); setEdited(true);
+      writeLocal(year, next, ts);
+      pushEdits(year, next, ts);          // server copy - survives redeploys and other devices
+    };
     const setCell = (id, key, val) => persist(rows.map(r => r.id === id ? { ...r, [key]: val, manual: true } : r));
     const addRow = () => persist([blank(), ...rows]);
     const delRow = id => persist(rows.filter(r => r.id !== id));
-    const reset = () => { try { localStorage.removeItem(STORE(year)); } catch (e) {} setRows(rowsFor(year)); setEdited(false); };
+    const reset = () => {
+      try { const cur = localStorage.getItem(STORE(year)); if (cur) localStorage.setItem(STORE(year) + '_bak', cur); localStorage.removeItem(STORE(year)); localStorage.removeItem(STORE(year) + '_ts'); } catch (e) {}
+      setRows(rowsFor(year)); setEdited(false); setUndo(true);
+      pushEdits(year, [], Date.now());        // clear the server copy too
+    };
+    const undoReset = () => {
+      try { const bak = localStorage.getItem(STORE(year) + '_bak'); if (bak) { localStorage.setItem(STORE(year), bak); const back = JSON.parse(bak); const ts = Date.now(); localStorage.setItem(STORE(year) + '_ts', String(ts)); pushEdits(year, back, ts); } } catch (e) {}
+      setRows(rowsFor(year)); setEdited(!!loadRows(year)); setUndo(false);
+    };
 
     const sectors = useMemo(() => ['All sectors', ...[...new Set(rows.map(r => r.sector).filter(Boolean))].sort()], [rows]);
     const view = useMemo(() => {
@@ -2977,7 +3079,7 @@ html.locked, html.locked body { overflow: hidden; }
     const T = {}; NUMS.forEach(([k]) => { T[k] = sum(rows, k); });
     T.sponsorship = sum(rows, 'sponsorship');
     const arrTotal = T.arrAnnual + T.arrEvent;
-    const grand = NUMS.reduce((a, [k]) => a + T[k], 0);
+    const grand = TOTAL_COLS.reduce((a, k) => a + T[k], 0);
 
     const bySector = useMemo(() => {
       const m = {};
@@ -3053,8 +3155,9 @@ html.locked, html.locked body { overflow: hidden; }
                       title="Monthly licence column">{showLicence ? 'Hide' : 'Show'} monthly licence</button>
               <button className="btn" onClick={addRow}>+ Add customer</button>
               <button className="btn" onClick={reset} disabled={!edited} title="Restore the numbers from the Excel sheet">Reset to sheet</button>
+              {undo && <button className="btn" onClick={undoReset} title="Put your manual edits back">Undo reset</button>}
               <span className="spacer" style={{ marginLeft: 'auto' }} />
-              <span className="rev-note">{edited ? 'Manual edits saved on this device' : 'Click any cell to edit'}</span>
+              <span className="rev-note">{edited ? 'Manual edits saved' : 'Click any cell to edit'}</span>
             </div>
             <div className="rev-wrap">
               <table className="rev">
@@ -3131,7 +3234,7 @@ html.locked, html.locked body { overflow: hidden; }
     const rows = rowsFor(+y), s = k => rows.reduce((a, r) => a + (+r[k] || 0), 0);
     const t = {}; NUMS.forEach(([k]) => { t[k] = s(k); });
     t.sponsorship = s('sponsorship');
-    t.grand = NUMS.reduce((a, [k]) => a + t[k], 0);          // = "Total (75%) Safesight" in the Revenue tab
+    t.grand = TOTAL_COLS.reduce((a, k) => a + t[k], 0);      // = "Total (75%) Safesight", churn excluded
     return t;
   };
   window.REVENUE_YEARS = YEARS;
@@ -4123,7 +4226,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v26</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v27</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
