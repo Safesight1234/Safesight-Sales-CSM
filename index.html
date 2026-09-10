@@ -1045,7 +1045,9 @@ html.locked, html.locked body { overflow: hidden; }
       vrow('Combined', goalC, achC),
     ];
 
-    // contract end = start + duration (months); falls back to the synced end date
+    // contract start/duration/end for the export. The Teamleader custom fields
+    // are the source; anything missing is derived the same way the Revenue tab
+    // does it, so the columns are never blank when the dates are knowable.
     const addMonths = (iso, months) => {
       if (!iso || !months) return '';
       const dt = new Date(iso); if (isNaN(dt)) return '';
@@ -1054,7 +1056,15 @@ html.locked, html.locked body { overflow: hidden; }
       if (dt.getDate() < day) dt.setDate(0);
       return dt.toISOString().slice(0, 10);
     };
-    const endOf = d => addMonths(d.startDate, d.duration) || d.endDate || '';
+    const monthsBetween = (a, b) => {
+      const s = new Date(a), e = new Date(b);
+      if (!a || !b || isNaN(s) || isNaN(e)) return '';
+      const m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + (e.getDate() >= s.getDate() - 1 ? 0 : -1);
+      return m > 0 ? m : '';
+    };
+    const startOf = d => String(d.startDate || d.refused || d.close || '').slice(0, 10);
+    const endOf = d => addMonths(startOf(d), d.duration) || String(d.endDate || '').slice(0, 10);
+    const durOf = d => (+d.duration || monthsBetween(startOf(d), endOf(d)) || '');
     // same fallback as the on-screen breakdown: a deal with no component fields
     // reports its whole value as ARR rather than a misleading 0
     const arrCell = d => Math.round(d.arr != null ? +d.arr : ownV(d));
@@ -1065,12 +1075,12 @@ html.locked, html.locked body { overflow: hidden; }
       d.name, d.customer || '', d.refused || '', d.name, Math.round(ownV(d)),
       arrCell(d), compCell(d.eventArr), compCell(d.oneoff), compCell(d.onboarding),
       d.owner || '', window.industryName(d.industry), d.type === 'Upsell' ? 'Upsell' : 'New Logo',
-      d.startDate || '', d.duration || '', endOf(d),
+      startOf(d), durOf(d), endOf(d),
     ]));
 
     const churnRows = [['Customer Name', 'Industry', 'Month ARR gets impacted', 'Item Name', 'Amount (Euros)', 'Contract start', 'Duration (months)', 'Contract end (calculated)']];
     churn.forEach(c => churnRows.push([c.customer || '', window.industryName(c.industry), c.when || '', c.reason || '', Math.round(c.value || 0),
-      c.startDate || '', c.duration || '', endOf(c)]));
+      startOf(c), durOf(c), endOf(c)]));
 
     // Industry summary — Teamleader "Customer type", verbatim
     const indMap = {};
@@ -3959,7 +3969,7 @@ Object.assign(window, {
     // Poll dashboard-data (cache-busted) until the FRESHLY-REBUILT payload is
     // ready — identified by the current buildVersion stamp. (Waiting for any
     // complete payload would return the stale cached one instantly.)
-    const STAMP = 'eventarr-v24';
+    const STAMP = 'eventarr-v25';
     const pollData = async (onProgress) => {
       for (let i = 0; i < 72; i++) {               // up to ~6 min at 5s
         try {

@@ -30,7 +30,7 @@ const FRESH_FROM = 2026;          // only re-read detail for deals in this year 
 const dealYear = d => new Date(d.closedAt || d.estClose || d.created).getFullYear();
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const BUDGET = 7000, DETAIL_BATCH = 6;
-const DETAIL_SCHEMA = 7;          // bump when a NEW custom field is added to the detail record,
+const DETAIL_SCHEMA = 8;          // bump when a NEW custom field is added to the detail record,
                                   // so already-cached deals get re-read once and backfilled
 const num = v => (v == null || v === '') ? 0 : (Number(v) || 0);
 const riskVal = v => (v === true || v === 'Yes' || v === 'yes' || v === 'Ja') ? 'Yes' : (v === false || v === 'No' || v === 'no' || v === 'Nee') ? 'No' : '';
@@ -50,9 +50,10 @@ exports.handler = async function (event) {
   // persistent cache across syncs. We DO NOT wipe details on a version change
   // anymore — older-year detail is frozen and reused so syncs only refresh 2026+.
   let cache = await store.get('cache', { type: 'json' }).catch(() => null);
-  if (!cache) cache = { version: 7, details: {}, companyName: {}, userName: {}, cfIds: {} };
-  cache.version = 7;
+  if (!cache) cache = { version: 8, details: {}, companyName: {}, userName: {}, cfIds: {} };
+  cache.version = 8;
   if (!cache.cfIds) cache.cfIds = {};
+  if (cache.cfIds.scanVersion !== 2) cache.cfIds = { scanVersion: 2 };   // re-scan definitions (start/end date by label)
 
   // in-flight job (resume mid-sync). Self-healing: if a job got wedged and is
   // older than 10 min, discard it and start fresh so a sync can never stay
@@ -71,16 +72,20 @@ exports.handler = async function (event) {
     while (Date.now() - t0 < BUDGET && !done) {
 
       if (job.phase === 'deals') {
-        // custom-field definitions — find "Duration (in months)" by its label,
-        // so the contract length comes from Teamleader itself (no hard-coded id).
+        // custom-field definitions — find "Duration (in months)", "Startdate"
+        // and the contract end field by LABEL, so the contract dates come from
+        // Teamleader itself (no hard-coded ids that can drift).
         if (!cache.cfIds.scanned) {
           try {
             let dp = 1, defs;
             do {
               defs = await page('customFieldDefinitions.list', {}, dp);
               defs.forEach(def => {
-                const label = String(def.label || '').toLowerCase();
+                const label = String(def.label || '').toLowerCase().trim();
                 if (!cache.cfIds.duration && /(duration|looptijd|duur)/.test(label)) cache.cfIds.duration = def.id;
+                // "Startdate" / "Start date" / "Contract start" / "Startdatum"
+                if (!cache.cfIds.startDate && /^(contract\s*)?start\s*-?\s*(date|datum)?$|contract\s*start|start\s*date|startdatum/.test(label)) cache.cfIds.startDate = def.id;
+                if (!cache.cfIds.endDate && /(contract\s*end|end\s*date|einddatum|eind\s*datum)/.test(label)) cache.cfIds.endDate = def.id;
                 // "ARR - event annual" — a per-event ARR field, on New logo and/or Upsell
                 if (/event/.test(label) && /arr/.test(label)) {
                   if (/new\s*logo|^nl\b|nl\s*-/.test(label)) cache.cfIds.nlEventArr = def.id;
@@ -147,8 +152,9 @@ exports.handler = async function (event) {
               onboarding: isNL ? num(cf[CF.nlOnboarding]) : num(cf[CF.usOnboarding]),
               rArr: isNL ? 0 : num(cf[CF.vlRecurring]), rOneoff: isNL ? 0 : num(cf[CF.vlOneoff]), rImpl: isNL ? 0 : num(cf[CF.vlImpl]),
               churn: num(cf[CF.vlChurn]),                          // churn can sit on ANY pipeline (incl. New logo)
-              endDate: (cf[CF.contractEnd] || ''), startDate: (cf[CF.contractStart] || ''),   // needed to date churn
-              duration: num(cf[cache.cfIds.duration]),                                        // contract length in months
+              endDate: (cf[cache.cfIds.endDate] || cf[CF.contractEnd] || ''),
+              startDate: (cf[cache.cfIds.startDate] || cf[CF.contractStart] || ''),   // "Startdate" custom field
+              duration: num(cf[cache.cfIds.duration]),                                // contract length in months
               risk: isNL ? '' : riskVal(cf[CF.risk]), statusRenewal: isNL ? '' : (cf[CF.statusRenewal] || ''),
             };
           });
@@ -304,7 +310,7 @@ function build(deals, cache) {
   const lb = {}; Object.keys(leaderboard).forEach(q => { lb[q] = Object.entries(leaderboard[q]).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value); });
   const reps = ['All reps', ...Object.values(cache.userName)];
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'eventarr-v24',
+    buildVersion: 'eventarr-v25',
     years, reps, goals: GOALS, quarters, quartersByYear, leaderboard: lb,
     historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
