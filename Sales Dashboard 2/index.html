@@ -2782,10 +2782,10 @@ html.locked, html.locked body { overflow: hidden; }
   // columns that make up the total, in table order
   const NUMS = [
     ['arrAnnual', 'ARR annual'], ['arrEvent', 'ARR event'], ['awaiting', 'Awaiting renewal'],
-    ['churn', 'Churn'], ['upsell', 'Expected upsell'], ['oneoff', 'One-off'], ['onboarding', 'Onboarding'],
+    ['churn', 'Churn'], ['churnIncl', 'Churn (included in 75% Safesight)'], ['upsell', 'Expected upsell'], ['oneoff', 'One-off'], ['onboarding', 'Onboarding'],
   ];
   const rowTotal = r => TOTAL_COLS.reduce((a, k) => a + (+r[k] || 0), 0);
-  // churn is reported on its own - it is never part of the total
+  // churn is reported on its own card - never part of the total
   const TOTAL_COLS = NUMS.map(([k]) => k).filter(k => k !== 'churn');
   const eur = v => '€' + Math.round(+v || 0).toLocaleString('en-US');
   const ORD = d => d + (d > 3 && d < 21 ? 'th' : ['th', 'st', 'nd', 'rd'][d % 10] || 'th');
@@ -2797,7 +2797,7 @@ html.locked, html.locked body { overflow: hidden; }
     return ORD(d.getDate()) + ' of ' + MONTHS_L[d.getMonth()] + ' ' + d.getFullYear();
   };
   const SECTOR_COLOR = { 'Venues & Stadiums': 'var(--purple)', 'Construction & Industry': 'var(--blue)', 'Events': 'var(--green)', 'Security': 'var(--red)', 'Government': 'var(--gray-series)', 'Municipality': 'var(--gray-series)' };
-  const blank = () => ({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), sector: '', country: '', end: '', invoicing: '', customer: 'New customer', license: 0, indexation: '', arrAnnual: 0, arrEvent: 0, awaiting: 0, churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0 });
+  const blank = () => ({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), sector: '', country: '', end: '', invoicing: '', customer: 'New customer', license: 0, indexation: '', arrAnnual: 0, arrEvent: 0, awaiting: 0, churn: 0, churnIncl: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0 });
   const loadRows = y => { try { const s = JSON.parse(localStorage.getItem(STORE(y))); return Array.isArray(s) && s.length ? s : null; } catch (e) { return null; } };
   const hasBackup = y => { try { return !!localStorage.getItem(STORE(y) + '_bak'); } catch (e) { return false; } };
   /* ---- edits are kept on the server too --------------------------------
@@ -2857,7 +2857,7 @@ html.locked, html.locked body { overflow: hidden; }
       .filter(({ end }) => end && yearOf(end) >= y)
       .map(({ r, end }) => ({ ...r, end, id: 'c' + y + '_' + r.id,
         ...spread(y, r.start || '', end, +r.arrAnnual || 0, +r.arrEvent || 0),
-        churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true }));
+        churn: 0, churnIncl: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true }));
     /* customers won in Teamleader that the sheets don't know yet - new logo and
        renewals alike - projected on the same rule */
     wonDeals().forEach(d => {
@@ -2872,7 +2872,7 @@ html.locked, html.locked body { overflow: hidden; }
       out.push({ id: 'tl' + y + '_' + k, customer: name, sector: d.industry || '', country: '',
         start, end, signed: d.refused || d.close || '', duration: +d.duration || 0,
         invoicing: '', license: 0, indexation: '', ...s,
-        churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true, src: 'tl' });
+        churn: 0, churnIncl: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true, src: 'tl' });
     });
     return out;
   };
@@ -3065,7 +3065,7 @@ html.locked, html.locked body { overflow: hidden; }
       const d = sort.dir === 'asc' ? 1 : -1;
       // customers whose only figure is churn always sink to the bottom
       const churnOnly = r => (+r.churn || 0) > 0 &&
-        NUMS.every(([k]) => k === 'churn' || !(+r[k] || 0));
+        NUMS.every(([k]) => k.slice(0,5) === 'churn' || !(+r[k] || 0));
       return list.sort((a, b) => {
         const ca = churnOnly(a) ? 1 : 0, cb = churnOnly(b) ? 1 : 0;
         if (ca !== cb) return ca - cb;
@@ -3169,7 +3169,7 @@ html.locked, html.locked body { overflow: hidden; }
                     <th className="sortable" onClick={() => sortBy('end')}>End date contract {sortArrow('end')}</th>
                     <th>Invoicing</th>
                     {showLicence && <th className="num sortable lic-col" onClick={() => sortBy('license')}>Monthly licence {sortArrow('license')}</th>}
-                    {NUMS.map(([k, label]) => <th key={k} className={`num sortable ${k === 'churn' ? 'churn-col' : ''}`} onClick={() => sortBy(k)}>{label} {sortArrow(k)}</th>)}
+                    {NUMS.map(([k, label]) => <th key={k} className={`num sortable ${k.slice(0,5) === 'churn' ? 'churn-col' : ''}`} onClick={() => sortBy(k)}>{label} {sortArrow(k)}</th>)}
                     <th className="num tot sortable" onClick={() => sortBy('total')}>Total {sortArrow('total')}</th>
                     <th className="num sortable" onClick={() => sortBy('sponsorship')}>Sponsorship {sortArrow('sponsorship')}</th>
                     <th />
@@ -3198,7 +3198,7 @@ html.locked, html.locked body { overflow: hidden; }
                                          onNote={v => setCell(r.id, 'licenseNote', v)} />
                           </td>
                         )}
-                        {NUMS.map(([k]) => <td key={k} className={k === 'churn' ? 'churn-col' : ''}><Cell kind="money" value={r[k]} onCommit={v => setCell(r.id, k, v)} /></td>)}
+                        {NUMS.map(([k]) => <td key={k} className={k.slice(0,5) === 'churn' ? 'churn-col' : ''}><Cell kind="money" value={r[k]} onCommit={v => setCell(r.id, k, v)} /></td>)}
                         <td className="num tot"><span className="cur">€</span><span className="amt">{Math.round(tot).toLocaleString('en-US')}</span></td>
                         <td><Cell kind="money" value={r.sponsorship} onCommit={v => setCell(r.id, 'sponsorship', v)} /></td>
                         <td><button className="rowdel" title="Delete row" onClick={() => delRow(r.id)}>×</button></td>
@@ -3211,7 +3211,7 @@ html.locked, html.locked body { overflow: hidden; }
                     <td className="sticky-l">Total{view.length !== rows.length ? ' (filtered)' : ''}</td>
                     <td /><td /><td /><td />
                     {showLicence && <td className="num lic-col"><span className="cur">€</span><span className="amt">{Math.round(sum(view, 'license')).toLocaleString('en-US')}</span></td>}
-                    {NUMS.map(([k]) => <td key={k} className={`num ${k === 'churn' ? 'churn-col' : ''}`}><span className="cur">€</span><span className="amt">{Math.round(vT[k]).toLocaleString('en-US')}</span></td>)}
+                    {NUMS.map(([k]) => <td key={k} className={`num ${k.slice(0,5) === 'churn' ? 'churn-col' : ''}`}><span className="cur">€</span><span className="amt">{Math.round(vT[k]).toLocaleString('en-US')}</span></td>)}
                     <td className="num tot"><span className="cur">€</span><span className="amt">{Math.round(view.reduce((a, r) => a + rowTotal(r), 0)).toLocaleString('en-US')}</span></td>
                     <td className="num"><span className="cur">€</span><span className="amt">{Math.round(sum(view, 'sponsorship')).toLocaleString('en-US')}</span></td>
                     <td />
@@ -3234,7 +3234,7 @@ html.locked, html.locked body { overflow: hidden; }
     const rows = rowsFor(+y), s = k => rows.reduce((a, r) => a + (+r[k] || 0), 0);
     const t = {}; NUMS.forEach(([k]) => { t[k] = s(k); });
     t.sponsorship = s('sponsorship');
-    t.grand = TOTAL_COLS.reduce((a, k) => a + t[k], 0);      // = "Total (75%) Safesight", churn excluded
+    t.grand = TOTAL_COLS.reduce((a, k) => a + t[k], 0);      // churn excluded
     return t;
   };
   window.REVENUE_YEARS = YEARS;
