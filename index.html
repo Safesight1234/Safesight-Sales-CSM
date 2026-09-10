@@ -1031,11 +1031,9 @@ html.locked, html.locked body { overflow: hidden; }
 
     const won = quarters.flatMap(q => D.quarters[q].won).filter(inMonth);
     // churn comes from the Revenue tab (sheet + manual edits), not Teamleader
-    const sheetChurn = window.revenueChurnFor && window.revenueChurnFor(year);
-    let churn = sheetChurn ? sheetChurn.filter(c => quarters.includes(c.quarter))
-                           : quarters.flatMap(q => D.quarters[q].churn);
-    if (monthIdx != null) churn = sheetChurn ? churn.filter(c => c.mon === monthIdx)
-                                             : churn.filter(c => c.when === MONTHS[monthIdx] || c.when === MONTHS_FULL[monthIdx]);
+    const sheetChurn = (window.revenueChurnFor && window.revenueChurnFor(year)) || [];
+    let churn = sheetChurn.filter(c => quarters.includes(c.quarter));
+    if (monthIdx != null) churn = churn.filter(c => c.mon === monthIdx);
 
     const achNL = window.sumOwn(won, 'New logo');
     const achUP = window.sumOwn(won, 'Upsell');
@@ -1563,11 +1561,11 @@ html.locked, html.locked body { overflow: hidden; }
     const won   = useMemo(() => gather('won', true).sort((a, b) => ownV(b) - ownV(a)), [quarters, rep, monthIdx]);
     const open  = useMemo(() => gather('open', true).filter(d => ownV(d) > 0), [quarters, rep, monthIdx]);
     const lost  = useMemo(() => gather('lost', true), [quarters, rep, monthIdx]);
+    /* churn always comes from the Revenue tab's Churn column - never Teamleader */
     const churn = useMemo(() => {
-      const sheet = window.revenueChurnFor && window.revenueChurnFor(ctx.year);
-      if (sheet) return sheet.filter(c => quarters.includes(c.quarter)).filter(c => monthIdx == null || c.mon === monthIdx);
-      return gather('churn', false);
-    }, [quarters, monthIdx, ctx.year]);
+      const sheet = (window.revenueChurnFor && window.revenueChurnFor(ctx.year)) || [];
+      return sheet.filter(c => quarters.includes(c.quarter)).filter(c => monthIdx == null || c.mon === monthIdx);
+    }, [quarters, monthIdx, ctx.year, ctx.churnStamp]);
     const wonAllReps = useMemo(() => gather('won', false), [quarters, monthIdx]);
 
     const salesTotal  = sumOwn(won);
@@ -2365,22 +2363,10 @@ html.locked, html.locked body { overflow: hidden; }
     // Pull from window.DATA.quarters[q].churn for every quarter in scope
     const allQData = ctx.qdata || D.quarters || {};
     let churnRows = [];
-    const sheetChurn = window.revenueChurnFor && window.revenueChurnFor(year);
-    if (sheetChurn) {
-      churnRows = sheetChurn
-        .filter(c => quarters.includes(c.quarter))
-        .filter(c => monthIdx == null || c.mon === monthIdx);
-    } else quarters.forEach(q => {
-      const rows = (allQData[q] && allQData[q].churn) || [];
-      rows.forEach(r => {
-        // filter by month if a specific month is selected
-        if (monthIdx != null) {
-          const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          if (MONTHS.indexOf(r.when) !== monthIdx) return;
-        }
-        churnRows.push(r);
-      });
-    });
+    const sheetChurn = (window.revenueChurnFor && window.revenueChurnFor(year)) || [];
+    churnRows = sheetChurn
+      .filter(c => quarters.includes(c.quarter))
+      .filter(c => monthIdx == null || c.mon === monthIdx);
     // Sort: actual first (lost/partial), then forecast; within each group by value desc
     churnRows = [...churnRows].sort((a, b) => {
       const order = { lost: 0, partial: 1, forecast: 2 };
@@ -3043,6 +3029,7 @@ html.locked, html.locked body { overflow: hidden; }
       setRows(next); setEdited(true);
       writeLocal(year, next, ts);
       pushEdits(year, next, ts);          // server copy - survives redeploys and other devices
+      try { window.dispatchEvent(new CustomEvent('revenue-edited')); } catch (e) {}
     };
     const setCell = (id, key, val) => persist(rows.map(r => r.id === id ? { ...r, [key]: val, manual: true } : r));
     const addRow = () => persist([blank(), ...rows]);
@@ -4129,9 +4116,16 @@ Object.assign(window, {
 
     // data source for the effective year (current for Financials/Pipeline).
     const D0 = window.DATA;
+    // bumped whenever the Revenue tab saves, so churn figures refresh live
+    const [churnStamp, setChurnStamp] = useState(0);
+    useEffect(() => {
+      const bump = () => setChurnStamp(n => n + 1);
+      window.addEventListener('revenue-edited', bump);
+      return () => window.removeEventListener('revenue-edited', bump);
+    }, []);
     const qdata = (D0.quartersByYear && D0.quartersByYear[effYear]) || D0.quarters;
 
-    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year: effYear, goalsOn, financeReady, qdata };
+    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year: effYear, goalsOn, financeReady, qdata, churnStamp };
 
     const showYear = tab !== 'financials' && tab !== 'revenue';
     // Pipeline only offers forecast years (current + next); other tabs list all.
