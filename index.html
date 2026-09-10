@@ -2806,45 +2806,18 @@ html.locked, html.locked body { overflow: hidden; }
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   };
 
-  /* ---- contract -> year projection ----------------------------------------
-     A contract only earns in the months it actually runs. Months of the year
-     AFTER the contract end keep the same monthly rate but sit in "Awaiting
-     renewal" (same amount, not yet re-signed). Months BEFORE a contract
-     starts earn nothing - the contract didn't exist yet. */
-  const dayOfIso = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[2]) : null; };
-  const monthSpan = (y, start, end) => {
-    const sY = yearOf(start), eY = yearOf(end);
-    let from = 0, to = 11;
-    if (!isNaN(sY)) { if (sY > y) return { pre: 12, run: 0, post: 0 }; if (sY === y) from = monthOfIso(start); }
-    if (!isNaN(eY)) {
-      if (eY < y) return { pre: 0, run: 0, post: 12 };          // expired before this year -> all awaiting
-      if (eY === y) to = monthOfIso(end) - (dayOfIso(end) >= 15 ? 0 : 1);
-    }
-    const run = Math.max(0, to - from + 1);
-    return { pre: from, run, post: Math.max(0, 12 - from - run) };
-  };
-  const r2 = v => Math.round((+v || 0) * 100) / 100;
-  /* rate = FULL-YEAR run rate { annual, event } -> this year's split */
-  const project = (y, start, end, rate) => {
-    const { run, post } = monthSpan(y, start, end);
-    const per = (rate.annual + rate.event) / 12;
-    return { arrAnnual: r2(rate.annual / 12 * run), arrEvent: r2(rate.event / 12 * run), awaiting: r2(per * post) };
-  };
+  /* ---- contract dates ------------------------------------------------------
+     The sheet is the source of truth for the numbers; Teamleader only fills in
+     contract dates and adds genuinely new customers. */
 
-  /* Years the sheets don't cover (2028+) are projected from the last sheet
-     year: each contract keeps its full-year run rate, split into the months
-     inside the contract and the months awaiting renewal. */
+  /* Years the sheets don't cover (2028+) are projected: every contract that still
+     runs into that year is carried forward with its recurring value only. */
   const baseRows = y => {
     if (SOURCE_BY_YEAR[y]) return SOURCE_BY_YEAR[y].map(r => ({ ...r }));
     const latest = Math.max(...Object.keys(SOURCE_BY_YEAR).map(Number));
-    return (SOURCE_BY_YEAR[latest] || []).map(r => {
-      const a = +r.arrAnnual || 0, e = +r.arrEvent || 0, w = +r.awaiting || 0;   // sheet row = run rate, already split
-      const rate = a + e > 0 ? { annual: a + w * (a / (a + e)), event: e + w * (e / (a + e)) } : { annual: a + w, event: e };
-      return { r, rate };
-    }).filter(x => x.rate.annual + x.rate.event > 0).map(({ r, rate }) => ({
-      ...r, id: 'c' + y + '_' + r.id, ...project(y, r.start || '', r.end, rate),
-      churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true,
-    }));
+    return (SOURCE_BY_YEAR[latest] || [])
+      .filter(r => r.end && yearOf(r.end) >= y)
+      .map(r => ({ ...r, id: 'c' + y + '_' + r.id, awaiting: 0, churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true }));
   };
 
   /* ---- Teamleader → Revenue -------------------------------------------------
@@ -2863,7 +2836,7 @@ html.locked, html.locked body { overflow: hidden; }
     const deals = wonDeals().filter(d => {
       const start = d.startDate || d.refused || d.close, end = d.endDate || (d.duration ? addMonthsIso(start, +d.duration) : '');
       if (!start || !end) return false;
-      return yearOf(start) <= y;        // every year from the start on; years past the end are awaiting renewal
+      return yearOf(start) <= y && yearOf(end) >= y;
     });
     if (!deals.length) return rows;
     const next = rows.map(r => ({ ...r }));
@@ -2880,14 +2853,13 @@ html.locked, html.locked body { overflow: hidden; }
         hit.signed = hit.signed || d.refused || d.close || '';
         hit.duration = hit.duration || +d.duration || 0;
         hit.sector = hit.sector || d.industry || '';
-        if (arr || ev) Object.assign(hit, project(y, start, end, { annual: arr, event: ev }));
+        if (arr || ev) { hit.arrAnnual = arr; hit.arrEvent = ev; hit.awaiting = 0; }
         hit.src = 'tl';
       } else {
-        const first = yearOf(start) === y;      // one-off + onboarding only land in the contract's first year
         next.push({ id: 'tl' + y + '_' + norm(name), customer: name, sector: d.industry || '', country: '',
           end: end, start: start, signed: d.refused || d.close || '', duration: +d.duration || 0, invoicing: '', license: 0, indexation: '',
-          ...project(y, start, end, { annual: arr, event: ev }),
-          churn: 0, upsell: 0, oneoff: first ? +d.oneoff || 0 : 0, onboarding: first ? +d.onboarding || 0 : 0, sponsorship: 0, src: 'tl' });
+          arrAnnual: arr, arrEvent: ev, awaiting: 0,
+          churn: 0, upsell: 0, oneoff: +d.oneoff || 0, onboarding: +d.onboarding || 0, sponsorship: 0, src: 'tl' });
       }
     });
     return next;
@@ -3099,7 +3071,6 @@ html.locked, html.locked body { overflow: hidden; }
                     <th className="sticky-l sortable" onClick={() => sortBy('customer')}>Customer {sortArrow('customer')}</th>
                     <th className="sortable" onClick={() => sortBy('sector')}>Sector {sortArrow('sector')}</th>
                     <th className="sortable" onClick={() => sortBy('country')}>Country {sortArrow('country')}</th>
-                    <th className="sortable" onClick={() => sortBy('start')}>Start date contract {sortArrow('start')}</th>
                     <th className="sortable" onClick={() => sortBy('end')}>End date contract {sortArrow('end')}</th>
                     <th>Invoicing</th>
                     {showLicence && <th className="num sortable lic-col" onClick={() => sortBy('license')}>Monthly licence {sortArrow('license')}</th>}
@@ -3124,7 +3095,6 @@ html.locked, html.locked body { overflow: hidden; }
                             <Cell value={r.sector} onCommit={v => setCell(r.id, 'sector', v)} /></span>
                         </td>
                         <td><Cell value={r.country} onCommit={v => setCell(r.id, 'country', v)} /></td>
-                        <td><Cell kind="date" value={r.start} onCommit={v => setCell(r.id, 'start', v)} /></td>
                         <td><Cell kind="date" value={r.end} onCommit={v => setCell(r.id, 'end', v)} /></td>
                         <td><Cell value={r.invoicing} onCommit={v => setCell(r.id, 'invoicing', v)} /></td>
                         {showLicence && (
@@ -3145,7 +3115,7 @@ html.locked, html.locked body { overflow: hidden; }
                 <tfoot>
                   <tr>
                     <td className="sticky-l">Total{view.length !== rows.length ? ' (filtered)' : ''}</td>
-                    <td /><td /><td /><td /><td />
+                    <td /><td /><td /><td />
                     {showLicence && <td className="num lic-col"><span className="cur">€</span><span className="amt">{Math.round(sum(view, 'license')).toLocaleString('en-US')}</span></td>}
                     {NUMS.map(([k]) => <td key={k} className={`num ${k === 'churn' ? 'churn-col' : ''}`}><span className="cur">€</span><span className="amt">{Math.round(vT[k]).toLocaleString('en-US')}</span></td>)}
                     <td className="num tot"><span className="cur">€</span><span className="amt">{Math.round(view.reduce((a, r) => a + rowTotal(r), 0)).toLocaleString('en-US')}</span></td>
