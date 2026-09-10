@@ -2844,23 +2844,15 @@ html.locked, html.locked body { overflow: hidden; }
       const name = d.customer || d.name;
       const start = d.startDate || d.refused || d.close;
       const end = d.endDate || addMonthsIso(start, +d.duration || 0);
-      const arr = +d.arr || 0, ev = +d.eventArr || 0;
       const hit = next.find(r => norm(r.customer) === norm(name));
-      if (hit) {
-        if (hit.manual) return;                       // hand-edited rows win
-        hit.end = end || hit.end;
-        hit.start = hit.start || start;
-        hit.signed = hit.signed || d.refused || d.close || '';
-        hit.duration = hit.duration || +d.duration || 0;
-        hit.sector = hit.sector || d.industry || '';
-        if (arr || ev) { hit.arrAnnual = arr; hit.arrEvent = ev; hit.awaiting = 0; }
-        hit.src = 'tl';
-      } else {
-        next.push({ id: 'tl' + y + '_' + norm(name), customer: name, sector: d.industry || '', country: '',
-          end: end, start: start, signed: d.refused || d.close || '', duration: +d.duration || 0, invoicing: '', license: 0, indexation: '',
-          arrAnnual: arr, arrEvent: ev, awaiting: 0,
-          churn: 0, upsell: 0, oneoff: +d.oneoff || 0, onboarding: +d.onboarding || 0, sponsorship: 0, src: 'tl' });
-      }
+      if (!hit || hit.manual) return;                 // sheet rows only; hand-edited rows win
+      // metadata only - the sheet owns every number
+      hit.end = end || hit.end;
+      hit.start = hit.start || start;
+      hit.signed = hit.signed || d.refused || d.close || '';
+      hit.duration = hit.duration || +d.duration || 0;
+      hit.sector = hit.sector || d.industry || '';
+      hit.src = 'tl';
     });
     return next;
   };
@@ -2869,13 +2861,13 @@ html.locked, html.locked body { overflow: hidden; }
   /* hover note on a Teamleader-sourced row: when it was signed, how long it
      runs and which sheet years it lands in */
   const tlNote = r => {
-    const bits = ['Won deal synced from Teamleader'];
+    const bits = ['Contract dates synced from Teamleader'];
     if (r.signed) bits.push('signed ' + dateLabel(r.signed));
     if (r.start || r.end) bits.push('contract ' + (dateLabel(r.start) || '?') + ' → ' + (dateLabel(r.end) || '?') + (r.duration ? ' (' + r.duration + ' months)' : ''));
     const sY = yearOf(r.start), eY = yearOf(r.end);
     if (!isNaN(sY) || !isNaN(eY)) {
       const from = isNaN(sY) ? eY : sY, to = isNaN(eY) ? sY : eY;
-      bits.push('in the revenue sheets ' + (from === to ? from : from + '–' + to) + (to < Math.max(...YEARS) ? ', awaiting renewal after that' : ''));
+      bits.push('in the revenue sheets ' + (from === to ? from : from + '–' + to));
     }
     return bits.join(' · ');
   };
@@ -3087,7 +3079,6 @@ html.locked, html.locked body { overflow: hidden; }
                       <tr key={r.id}>
                         <td className="sticky-l">
                           <Cell value={r.customer} onCommit={v => setCell(r.id, 'customer', v)} />
-                          {r.src === 'tl' && <span className="tlbadge" title={tlNote(r)}>TL</span>}
                           <i className="rowbar" style={{ width: Math.max(2, (tot / maxRow) * 100) + '%', background: SECTOR_COLOR[r.sector] || 'var(--gray-series)' }} />
                         </td>
                         <td>
