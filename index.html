@@ -2812,12 +2812,54 @@ html.locked, html.locked body { overflow: hidden; }
 
   /* Years the sheets don't cover (2028+) are projected: every contract that still
      runs into that year is carried forward with its recurring value only. */
+  /* A carried year only earns for the months the contract actually runs.
+     The rest of that year keeps the same monthly rate but sits in "awaiting
+     renewal" - not yet re-signed. Sheet years (2026/2027) are never touched. */
+  const monthsRunning = (y, start, end) => {
+    const sY = yearOf(start), eY = yearOf(end);
+    let from = 0, to = 11;
+    if (!isNaN(sY)) { if (sY > y) return { run: 0, pre: 12 }; if (sY === y) from = Number(String(start).split('-')[1]) - 1; }
+    if (!isNaN(eY)) {
+      if (eY < y) return { run: 0, pre: 0 };
+      if (eY === y) { const p = String(end).split('-'); to = Number(p[1]) - 1 - (Number(p[2]) >= 15 ? 0 : 1); }
+    }
+    const run = Math.max(0, to - from + 1);
+    return { run, pre: from };
+  };
+  const r2 = v => Math.round((+v || 0) * 100) / 100;
+  /* full-year run rate -> this year's split for a projected year */
+  const spread = (y, start, end, annual, event) => {
+    const { run, pre } = monthsRunning(y, start, end);
+    const rest = 12 - run - pre;                     // months after the contract ends
+    return { arrAnnual: r2(annual / 12 * run), arrEvent: r2(event / 12 * run), awaiting: r2((annual + event) / 12 * rest) };
+  };
   const baseRows = y => {
     if (SOURCE_BY_YEAR[y]) return SOURCE_BY_YEAR[y].map(r => ({ ...r }));
     const latest = Math.max(...Object.keys(SOURCE_BY_YEAR).map(Number));
-    return (SOURCE_BY_YEAR[latest] || [])
-      .filter(r => r.end && yearOf(r.end) >= y)
-      .map(r => ({ ...r, id: 'c' + y + '_' + r.id, awaiting: 0, churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true }));
+    const tlEnd = tlEndByCustomer();
+    const out = (SOURCE_BY_YEAR[latest] || [])
+      .map(r => ({ r, end: tlEnd[norm(r.customer)] > r.end ? tlEnd[norm(r.customer)] : r.end }))   // renewal signed in Teamleader wins
+      .filter(({ end }) => end && yearOf(end) >= y)
+      .map(({ r, end }) => ({ ...r, end, id: 'c' + y + '_' + r.id,
+        ...spread(y, r.start || '', end, +r.arrAnnual || 0, +r.arrEvent || 0),
+        churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true }));
+    /* customers won in Teamleader that the sheets don't know yet - new logo and
+       renewals alike - projected on the same rule */
+    wonDeals().forEach(d => {
+      const name = d.customer || d.name, k = norm(name);
+      if (!k || out.some(r => norm(r.customer) === k)) return;
+      const start = d.startDate || d.refused || d.close;
+      const end = d.endDate || (d.duration ? addMonthsIso(start, +d.duration) : '');
+      const annual = +d.arr || 0, event = +d.eventArr || 0;
+      if (!start || !end || yearOf(start) > y || !(annual + event)) return;
+      const s = spread(y, start, end, annual, event);
+      if (!(s.arrAnnual + s.arrEvent + s.awaiting)) return;
+      out.push({ id: 'tl' + y + '_' + k, customer: name, sector: d.industry || '', country: '',
+        start, end, signed: d.refused || d.close || '', duration: +d.duration || 0,
+        invoicing: '', license: 0, indexation: '', ...s,
+        churn: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0, carried: true, src: 'tl' });
+    });
+    return out;
   };
 
   /* ---- Teamleader → Revenue -------------------------------------------------
@@ -2852,9 +2894,26 @@ html.locked, html.locked body { overflow: hidden; }
       hit.signed = hit.signed || d.refused || d.close || '';
       hit.duration = hit.duration || +d.duration || 0;
       hit.sector = hit.sector || d.industry || '';
+      // re-signed through this year -> the "awaiting renewal" amount is contracted
+      // revenue again. Same money, moved between columns; the total is unchanged.
+      if (+hit.awaiting > 0 && yearOf(end) > y && !hit.carried) { hit.arrAnnual = (+hit.arrAnnual || 0) + (+hit.awaiting || 0); hit.awaiting = 0; }
       hit.src = 'tl';
     });
     return next;
+  };
+  /* contract end per customer, from won deals - so a renewal signed in
+     Teamleader keeps the customer in the projected years even when the sheet
+     still holds the old end date */
+  const tlEndByCustomer = () => {
+    const m = {};
+    wonDeals().forEach(d => {
+      const start = d.startDate || d.refused || d.close;
+      const end = d.endDate || (d.duration ? addMonthsIso(start, +d.duration) : '');
+      if (!end) return;
+      const k = norm(d.customer || d.name);
+      if (!m[k] || end > m[k]) m[k] = end;
+    });
+    return m;
   };
   const rowsFor = y => mergeTeamleader(loadRows(y) || baseRows(y), y);
 
