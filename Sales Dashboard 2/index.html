@@ -250,6 +250,9 @@ body {
 .kpi .big.red { color: var(--red); }
 .kpi .sub { font-size: 12.5px; color: var(--text-2); margin-top: auto; }
 .kpi .sub .lead { color: var(--text); font-weight: 650; }
+.data-asof { white-space: nowrap; }
+.data-asof a { color: var(--text-2); opacity: 1; text-decoration: none; border-bottom: 1px dotted var(--border-2); }
+.data-asof a:hover { color: var(--text); }
 .kpi.sm { min-height: 133px; padding: 15px 17px; }
 .kpi.sm .big { font-size: 29px; margin-top: 9px; }
 .kpi.sm .sub, .kpi.sm .kpi-foot { font-size: 12px; }
@@ -617,7 +620,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v24 · 9 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v26 · 10 Sep (single-file)</div>
     </div>
   </div>
 
@@ -1027,8 +1030,12 @@ html.locked, html.locked body { overflow: hidden; }
     const inMonth = d => monthIdx == null || dealMonth(d) === monthIdx;
 
     const won = quarters.flatMap(q => D.quarters[q].won).filter(inMonth);
-    let churn = quarters.flatMap(q => D.quarters[q].churn);
-    if (monthIdx != null) churn = churn.filter(c => c.when === MONTHS[monthIdx] || c.when === MONTHS_FULL[monthIdx]);
+    // churn comes from the Revenue tab (sheet + manual edits), not Teamleader
+    const sheetChurn = window.revenueChurnFor && window.revenueChurnFor(year);
+    let churn = sheetChurn ? sheetChurn.filter(c => quarters.includes(c.quarter))
+                           : quarters.flatMap(q => D.quarters[q].churn);
+    if (monthIdx != null) churn = sheetChurn ? churn.filter(c => c.mon === monthIdx)
+                                             : churn.filter(c => c.when === MONTHS[monthIdx] || c.when === MONTHS_FULL[monthIdx]);
 
     const achNL = window.sumOwn(won, 'New logo');
     const achUP = window.sumOwn(won, 'Upsell');
@@ -1045,7 +1052,9 @@ html.locked, html.locked body { overflow: hidden; }
       vrow('Combined', goalC, achC),
     ];
 
-    // contract end = start + duration (months); falls back to the synced end date
+    // contract start/duration/end for the export. The Teamleader custom fields
+    // are the source; anything missing is derived the same way the Revenue tab
+    // does it, so the columns are never blank when the dates are knowable.
     const addMonths = (iso, months) => {
       if (!iso || !months) return '';
       const dt = new Date(iso); if (isNaN(dt)) return '';
@@ -1054,7 +1063,15 @@ html.locked, html.locked body { overflow: hidden; }
       if (dt.getDate() < day) dt.setDate(0);
       return dt.toISOString().slice(0, 10);
     };
-    const endOf = d => addMonths(d.startDate, d.duration) || d.endDate || '';
+    const monthsBetween = (a, b) => {
+      const s = new Date(a), e = new Date(b);
+      if (!a || !b || isNaN(s) || isNaN(e)) return '';
+      const m = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + (e.getDate() >= s.getDate() - 1 ? 0 : -1);
+      return m > 0 ? m : '';
+    };
+    const startOf = d => String(d.startDate || d.refused || d.close || '').slice(0, 10);
+    const endOf = d => addMonths(startOf(d), d.duration) || String(d.endDate || '').slice(0, 10);
+    const durOf = d => (+d.duration || monthsBetween(startOf(d), endOf(d)) || '');
     // same fallback as the on-screen breakdown: a deal with no component fields
     // reports its whole value as ARR rather than a misleading 0
     const arrCell = d => Math.round(d.arr != null ? +d.arr : ownV(d));
@@ -1065,12 +1082,12 @@ html.locked, html.locked body { overflow: hidden; }
       d.name, d.customer || '', d.refused || '', d.name, Math.round(ownV(d)),
       arrCell(d), compCell(d.eventArr), compCell(d.oneoff), compCell(d.onboarding),
       d.owner || '', window.industryName(d.industry), d.type === 'Upsell' ? 'Upsell' : 'New Logo',
-      d.startDate || '', d.duration || '', endOf(d),
+      startOf(d), durOf(d), endOf(d),
     ]));
 
     const churnRows = [['Customer Name', 'Industry', 'Month ARR gets impacted', 'Item Name', 'Amount (Euros)', 'Contract start', 'Duration (months)', 'Contract end (calculated)']];
     churn.forEach(c => churnRows.push([c.customer || '', window.industryName(c.industry), c.when || '', c.reason || '', Math.round(c.value || 0),
-      c.startDate || '', c.duration || '', endOf(c)]));
+      startOf(c), durOf(c), endOf(c)]));
 
     // Industry summary — Teamleader "Customer type", verbatim
     const indMap = {};
@@ -3082,6 +3099,7 @@ html.locked, html.locked body { overflow: hidden; }
                     <th className="sticky-l sortable" onClick={() => sortBy('customer')}>Customer {sortArrow('customer')}</th>
                     <th className="sortable" onClick={() => sortBy('sector')}>Sector {sortArrow('sector')}</th>
                     <th className="sortable" onClick={() => sortBy('country')}>Country {sortArrow('country')}</th>
+                    <th className="sortable" onClick={() => sortBy('start')}>Start date contract {sortArrow('start')}</th>
                     <th className="sortable" onClick={() => sortBy('end')}>End date contract {sortArrow('end')}</th>
                     <th>Invoicing</th>
                     {showLicence && <th className="num sortable lic-col" onClick={() => sortBy('license')}>Monthly licence {sortArrow('license')}</th>}
@@ -3106,6 +3124,7 @@ html.locked, html.locked body { overflow: hidden; }
                             <Cell value={r.sector} onCommit={v => setCell(r.id, 'sector', v)} /></span>
                         </td>
                         <td><Cell value={r.country} onCommit={v => setCell(r.id, 'country', v)} /></td>
+                        <td><Cell kind="date" value={r.start} onCommit={v => setCell(r.id, 'start', v)} /></td>
                         <td><Cell kind="date" value={r.end} onCommit={v => setCell(r.id, 'end', v)} /></td>
                         <td><Cell value={r.invoicing} onCommit={v => setCell(r.id, 'invoicing', v)} /></td>
                         {showLicence && (
@@ -3126,7 +3145,7 @@ html.locked, html.locked body { overflow: hidden; }
                 <tfoot>
                   <tr>
                     <td className="sticky-l">Total{view.length !== rows.length ? ' (filtered)' : ''}</td>
-                    <td /><td /><td /><td />
+                    <td /><td /><td /><td /><td />
                     {showLicence && <td className="num lic-col"><span className="cur">€</span><span className="amt">{Math.round(sum(view, 'license')).toLocaleString('en-US')}</span></td>}
                     {NUMS.map(([k]) => <td key={k} className={`num ${k === 'churn' ? 'churn-col' : ''}`}><span className="cur">€</span><span className="amt">{Math.round(vT[k]).toLocaleString('en-US')}</span></td>)}
                     <td className="num tot"><span className="cur">€</span><span className="amt">{Math.round(view.reduce((a, r) => a + rowTotal(r), 0)).toLocaleString('en-US')}</span></td>
@@ -3159,10 +3178,25 @@ html.locked, html.locked body { overflow: hidden; }
   /* churn rows for the Overview tab, straight from the revenue sheet */
   window.revenueChurnFor = y => {
     if (!YEARS.includes(+y)) return null;
+    /* contract dates for a sheet row: the row's own, else the matching won deal
+       in Teamleader, else derived backwards from the end date + duration */
+    const dealFor = name => wonDeals().find(d => norm(d.customer || d.name) === norm(name));
+    const minusMonths = (iso, m) => {
+      const p = String(iso || '').split('-').map(Number);
+      if (p.length !== 3 || p.some(isNaN) || !m) return '';
+      const dt = new Date(p[0], p[1] - 1, p[2]);
+      const day = dt.getDate(); dt.setMonth(dt.getMonth() - Number(m));
+      if (dt.getDate() < day) dt.setDate(0);
+      return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+    };
     return rowsFor(+y).filter(r => (+r.churn || 0) > 0).map(r => {
       const m = monthOfIso(r.end);
+      const d = (!r.start || !r.duration) ? dealFor(r.customer) : null;
+      const duration = +r.duration || (d && +d.duration) || 0;
+      const start = r.start || (d && d.startDate) || minusMonths(r.end, duration);
       return { customer: r.customer, industry: r.sector, value: +r.churn || 0, kind: 'lost',
                when: m == null ? '' : MON3[m], mon: m, quarter: m == null ? 'Q1' : 'Q' + (Math.floor(m / 3) + 1),
+               startDate: start || '', duration: duration, endDate: r.end || '',
                reason: 'Revenue sheet' };
     });
   };
@@ -3959,7 +3993,7 @@ Object.assign(window, {
     // Poll dashboard-data (cache-busted) until the FRESHLY-REBUILT payload is
     // ready — identified by the current buildVersion stamp. (Waiting for any
     // complete payload would return the stale cached one instantly.)
-    const STAMP = 'eventarr-v24';
+    const STAMP = 'eventarr-v26';
     const pollData = async (onProgress) => {
       for (let i = 0; i < 72; i++) {               // up to ~6 min at 5s
         try {
@@ -4128,7 +4162,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v24</span></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v26</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
