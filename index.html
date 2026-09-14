@@ -251,6 +251,18 @@ body {
 .kpi .sub { font-size: 12.5px; color: var(--text-2); margin-top: auto; }
 .kpi .sub .lead { color: var(--text); font-weight: 650; }
 .data-asof { white-space: nowrap; }
+.chk { display: inline-flex; align-items: center; cursor: pointer; }
+.chk input { position: absolute; opacity: 0; width: 0; height: 0; }
+.chk i { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border-2); background: var(--surface); display: block; position: relative; transition: all .12s; }
+.chk:hover i { border-color: var(--green); }
+.chk input:checked + i { background: var(--green); border-color: var(--green); }
+.chk input:checked + i::after { content: ''; position: absolute; left: 5px; top: 1.5px; width: 4px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(43deg); }
+.chk input:focus-visible + i { box-shadow: 0 0 0 3px var(--green-soft); }
+.stage-sel { font: inherit; font-size: 12px; font-weight: 600; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text-2); cursor: pointer; max-width: 168px; }
+.stage-sel:hover { border-color: var(--green); }
+.stage-sel:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+.stage-sel[data-state="none"] { color: var(--text-3); font-weight: 500; }
+.stage-sel[data-state="open"] { color: var(--text); border-color: var(--border-2); }
 .data-asof a { color: var(--text-2); opacity: 1; text-decoration: none; border-bottom: 1px dotted var(--border-2); }
 .data-asof a:hover { color: var(--text); }
 .kpi.sm { min-height: 133px; padding: 15px 17px; }
@@ -344,11 +356,38 @@ html[data-density] .card.kpi.sm { padding: var(--tw-card-pad); }
 .cw .dl { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; color: var(--text-2); }
 .cw.hot .dl { color: var(--red-ink); }
 
-.note-cell { display: block; min-width: 190px; max-width: 320px; text-align: left; font: inherit; font-size: 13px; color: inherit; background: none; border: 1px solid transparent; border-radius: 7px; padding: 7px 9px; cursor: text; white-space: normal; }
+.note-cell { display: block; width: 100%; min-width: 260px; text-align: left; font: inherit; font-size: 13px; line-height: 1.45; color: inherit; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; min-height: 56px; cursor: text; white-space: pre-wrap; overflow-wrap: anywhere; }
 .note-cell:hover { border-color: var(--border-2); background: var(--surface); }
 .note-cell:focus, .note-cell.editing:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); background: var(--surface); }
 .note-cell .muted { color: var(--text-3); }
-input.note-cell { width: 100%; }
+textarea.note-cell { width: 100%; resize: vertical; display: block; font-family: inherit; }
+.note-log { display: flex; flex-direction: column; gap: 5px; min-width: 210px; max-width: 250px; }
+.note-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 5px 7px; }
+.note-item .nt { font-size: 12px; line-height: 1.4; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-item .nm-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 2px; }
+.note-item .nd { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.note-item .nx { border: 0; background: none; color: var(--text-3); font-size: 14px; line-height: 1; cursor: pointer; padding: 0 2px; opacity: 0; transition: opacity .12s; }
+.note-item:hover .nx { opacity: 1; }
+.note-item .nx:hover { color: var(--red); }
+.note-add { align-self: flex-start; border: 1px dashed var(--border-2); background: none; color: var(--text-3); font: inherit; font-size: 11.5px; letter-spacing: .01em; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.note-add::before { content: '+'; margin-right: 6px; font-size: 12.5px; line-height: 1; }
+.note-add:hover { border-color: var(--green); color: var(--green); border-style: solid; }
+.note-in { width: 100%; font: inherit; font-size: 12px; padding: 5px 7px; border-radius: 7px; border: 1px solid var(--green); background: var(--surface); color: var(--text); resize: vertical; font-family: inherit; box-shadow: 0 0 0 3px var(--green-soft); }
+.note-in:focus { outline: none; }
+.grid > .card, .grid > .kpi-hov { min-width: 0; }
+.scroll-y { max-width: 100%; }
+.rw-note { min-width: 210px; }
+.tbl td { vertical-align: middle; }
+.kpi-hov { position: relative; }
+.kpi-pop { position: absolute; z-index: 60; top: calc(100% - 6px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--border-2); border-radius: 12px; box-shadow: 0 18px 40px rgba(16,24,40,.16); padding: 8px; max-height: 300px; overflow-y: auto; opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .12s, transform .12s, visibility .12s; }
+.kpi-hov:hover .kpi-pop, .kpi-hov:focus-within .kpi-pop { opacity: 1; visibility: visible; transform: translateY(0); }
+.kpi-pop .ph { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--text-3); padding: 6px 9px 8px; text-transform: uppercase; }
+.kpi-pop .pr { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 9px; border-radius: 7px; font-size: 12.5px; }
+.kpi-pop .pr:hover { background: var(--surface-2); }
+.kpi-pop .pr .nm { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kpi-pop .pr .vl { color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kpi-pop .pr .vl.red { color: var(--red); }
+.kpi-pop .pe { padding: 10px 9px; font-size: 12.5px; color: var(--text-3); }
 
 /* ===========================================================
    Tweaks — density / accent / surface treatments
@@ -620,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v27 · 10 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v29 · 14 Sep (single-file)</div>
     </div>
   </div>
 
@@ -2213,26 +2252,71 @@ html.locked, html.locked body { overflow: hidden; }
    CSM tab — renewal book, churn table, renewed contracts
    ============================================================ */
 (function () {
-  const { useState } = React;
+  const { useState, useEffect } = React;
   const { Card, KpiCard, SortableTable } = window;
 
-  /* per-contract notes, saved on this device */
+  /* per-contract notes - local cache plus a server copy so any laptop sees them */
   const NOTES = 'safesight_csm_notes_v1';
   const loadNotes = () => { try { return JSON.parse(localStorage.getItem(NOTES)) || {}; } catch (e) { return {}; } };
   const saveNotes = n => { try { localStorage.setItem(NOTES, JSON.stringify(n)); } catch (e) {} };
+  const CSM_API = '/.netlify/functions/csm-store';
+  const pushCsm = (notes, track) => {
+    try { fetch(CSM_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes, track, ts: Date.now() }) }).catch(() => {}); } catch (e) {}
+  };
+  const pullCsm = () => fetch(CSM_API).then(r => r.ok ? r.json() : null).catch(() => null);
 
-  function NoteCell({ value, onCommit }) {
-    const [draft, setDraft] = useState(null);
-    if (draft === null) return (
-      <button className="note-cell" onClick={() => setDraft(value || '')}>
-        {value ? <span>{value}</span> : <span className="muted">+ note</span>}
-      </button>
-    );
+  /* per-contract renewal tracking: contacted flag + where the conversation is */
+  const TRACK = 'safesight_csm_track_v1';
+  const loadTrack = () => { try { return JSON.parse(localStorage.getItem(TRACK)) || {}; } catch (e) { return {}; } };
+  const saveTrack = t => { try { localStorage.setItem(TRACK, JSON.stringify(t)); } catch (e) {} };
+  const STAGES = ['Contact', 'Appointment scheduled', 'Proposal made', 'Verbal agreement'];
+  const FINAL = ['Signed', 'Declined'];          // set by Teamleader only - closes the renewal
+  const STAGE_CLS = { 'Contact': 'watch', 'Appointment scheduled': 'watch', 'Proposal made': 'up', 'Verbal agreement': 'healthy', 'Signed': 'healthy', 'Declined': 'risk' };
+
+  function StageCell({ value, locked, onCommit }) {
+    if (locked) return <span className={`tag ${STAGE_CLS[value] || 'watch'}`} title="Set by Teamleader">{value}</span>;
     return (
-      <input className="note-cell editing" autoFocus value={draft} placeholder="Add a note…"
-             onChange={e => setDraft(e.target.value)}
-             onBlur={() => { onCommit(draft.trim()); setDraft(null); }}
-             onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') setDraft(null); }} />
+      <select className="stage-sel" value={value || ''} onChange={e => onCommit(e.target.value)}
+              data-state={value ? 'open' : 'none'}>
+        <option value="">Not started</option>
+        {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+    );
+  }
+
+  /* a note entry is { t: text, at: iso }. Older single-string notes still load. */
+  const asLog = v => !v ? [] : Array.isArray(v) ? v : [{ t: String(v), at: '' }];
+  const stamp = at => {
+    if (!at) return '';
+    const d = new Date(at); if (isNaN(d)) return '';
+    return d.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  };
+  function NoteCell({ value, onCommit }) {
+    const log = asLog(value);
+    const [draft, setDraft] = useState(null);
+    const commit = () => {
+      const t = (draft || '').trim();
+      if (t) onCommit([...log, { t, at: new Date().toISOString() }]);
+      setDraft(null);
+    };
+    return (
+      <div className="note-log">
+        {log.map((n, i) => (
+          <div className="note-item" key={i}>
+            <div className="nt">{n.t}</div>
+            <div className="nm-row">
+              {n.at ? <span className="nd">{stamp(n.at)}</span> : <span className="nd">—</span>}
+              <button className="nx" title="Remove this note" onClick={() => onCommit(log.filter((_, j) => j !== i))}>×</button>
+            </div>
+          </div>
+        ))}
+        {draft === null
+          ? <button className="note-add" onClick={() => setDraft('')}>note</button>
+          : <textarea className="note-in" autoFocus rows={2} value={draft} placeholder="Note… (⌘/Ctrl+Enter to save)"
+                      onChange={e => setDraft(e.target.value)} onBlur={commit}
+                      onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) e.currentTarget.blur(); else if (e.key === 'Escape') setDraft(null); }} />}
+      </div>
     );
   }
 
@@ -2265,12 +2349,52 @@ html.locked, html.locked body { overflow: hidden; }
 
   const renewalCategory = c => c.signed ? 'Won' : (c.status === 'Churn' ? 'Churn' : 'Open');
 
+  /* KPI card with the underlying customers revealed on hover */
+  function KpiHover({ head, rows, empty, red, children }) {
+    return (
+      <div className="kpi-hov" tabIndex={0}>
+        {children}
+        <div className="kpi-pop">
+          <div className="ph">{head}</div>
+          {rows.length ? rows.map((r, i) => (
+            <div className="pr" key={i}><span className="nm">{r.name}</span><span className={`vl${red ? ' red' : ''}`}>{r.value}</span></div>
+          )) : <div className="pe">{empty}</div>}
+        </div>
+      </div>
+    );
+  }
+
   function CSMTab({ ctx }) {
     const { cur, year, quarters, monthIdx, periodLabel, renewalStatus } = ctx;
     const D = window.DATA || {};
     const [notes, setNotes] = useState(loadNotes);
     const noteKey = r => year + '|' + r.customer;
-    const setNote = (r, v) => setNotes(prev => { const next = { ...prev }; if (v) next[noteKey(r)] = v; else delete next[noteKey(r)]; saveNotes(next); return next; });
+    const setNote = (r, v) => setNotes(prev => {
+      const next = { ...prev }; const k = noteKey(r);
+      const log = Array.isArray(v) ? v : asLog(v);
+      if (log.length) next[k] = log; else delete next[k];
+      saveNotes(next); pushCsm({ [k]: log.length ? log : '' }, {});
+      return next;
+    });
+    const [track, setTrack] = useState(loadTrack);
+    const trackOf = r => track[year + '|' + r.customer] || {};
+    const setTrackVal = (r, patch) => setTrack(prev => {
+      const k = year + '|' + r.customer;
+      const next = { ...prev, [k]: { ...(prev[k] || {}), ...patch } };
+      if (!next[k].contacted && !next[k].stage) delete next[k];
+      saveTrack(next); pushCsm({}, { [k]: next[k] || {} });
+      return next;
+    });
+    /* adopt the server copy on open, so another laptop's notes show up here */
+    useEffect(() => {
+      let live = true;
+      pullCsm().then(d => {
+        if (!live || !d) return;
+        if (d.notes && Object.keys(d.notes).length) setNotes(prev => { const m = { ...d.notes, ...prev }; saveNotes(m); return m; });
+        if (d.track && Object.keys(d.track).length) setTrack(prev => { const m = { ...d.track, ...prev }; saveTrack(m); return m; });
+      });
+      return () => { live = false; };
+    }, []);
 
     /* ---- 1. CONTRACT RENEWAL BOOK — from the Revenue sheet ---- */
     // Contract end dates + ARR come from the Revenue tab (sheet data + manual
@@ -2300,34 +2424,194 @@ html.locked, html.locked body { overflow: hidden; }
                quarter: 'Q' + (Math.floor(end.getMonth() / 3) + 1), days: Math.round((end - today) / 86400000) };
     });
 
+    /* what the contract is worth AFTER renewal: the signed Teamleader renewal
+       if there is one, else next year's line in the Revenue tab */
+    /* Renewed comes from Teamleader (a WON renewal deal). Churn comes from the
+       Revenue tab's Churn column - never Teamleader. */
+    const normName = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const wonAll = ['Q1','Q2','Q3','Q4'].flatMap(q => ((ctx.qdata || D.quarters || {})[q] || {}).won || []);
+    const renewalPool = [...(D.renewals || []), ...wonAll];
+    const dealVal = d => +d.arr || +d.value || +d.total || 0;
+    /* Names differ between the sheet and Teamleader ("Jaarbeurs Holding" vs
+       "Jaarbeurs Utrecht"), so also match on the leading word - but ONLY when
+       that word identifies exactly one customer on each side. That rules out
+       generic prefixes (Gemeente, Stichting) without a hand-kept stop list. */
+    const STOP = /^(the|bv|b|v|nv|n|holding|group|groep|international|gmbh|sa|sad|sarl|ltd|limited|company|co)$/;
+    const lead = s => { const t = String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(x => x.length > 2 && !STOP.test(x)); return t[0] || ''; };
+    const countBy = (list, get) => list.reduce((m, x) => { const k = lead(get(x)); if (k) m[k] = (m[k] || 0) + 1; return m; }, {});
+    const sheetLead = countBy(revRows || [], x => x.customer);
+    const dealLead = countBy(renewalPool, x => x.customer || x.name);
+    const sameCo = (a, b) => {
+      const na = normName(a), nb = normName(b);
+      if (!na || !nb) return false;
+      if (na === nb || na.startsWith(nb) || nb.startsWith(na)) return true;
+      const la = lead(a), lb = lead(b);
+      return !!la && la === lb && sheetLead[la] === 1 && dealLead[la] === 1;
+    };
+    const nextRows = (window.revenueRowsFor && window.revenueRowsFor(year + 1)) || [];
+    const plusMonths = (iso, m) => {
+      const d = parseLocal(iso); if (!d || !m) return '';
+      const day = d.getDate(); d.setMonth(d.getMonth() + m); if (d.getDate() !== day) d.setDate(0);
+      return toIso(d);
+    };
+    /* A renewal = a won Teamleader deal for this customer. Where contract dates
+       are present the new term must run past the ending contract; the synced
+       payload often has none, in which case a won deal in the selected year IS
+       the renewal of the contract ending that year. */
+    const wonRenewal = r => {
+      const end = parseLocal(r.end);
+      const mine = renewalPool.filter(x => sameCo(x.customer || x.name, r.customer));
+      if (!mine.length) return null;
+      const dated = mine.filter(x => x.endDate || x.startDate || x.duration || x.close || x.refused);
+      if (!dated.length) return mine[0];                    // no dates anywhere -> won in-year counts
+      const beyond = dated.filter(x => {
+        const st = x.startDate || x.refused || x.close;
+        const s = parseLocal(st);
+        const e = parseLocal(x.endDate) || (st && x.duration ? parseLocal(plusMonths(st, +x.duration)) : null);
+        return (e && end && e > end) || (s && end && s >= end);
+      });
+      return beyond[0] || mine.find(x => /renewal/i.test(x.type || '')) || null;
+    };
+    /* Upsell: the Revenue tab's own Expected upsell column first; only if that
+       is empty do we fall back to Teamleader, and then on an EXACT name match
+       so one customer's deal can never land on another's row. */
+    const upsellFor = r => {
+      const row = (revRows || []).find(x => normName(x.customer) === normName(r.customer));
+      const sheet = +(row && row.upsell) || 0;
+      if (sheet) return sheet;
+      return wonAll
+        .filter(d => normName(d.customer || d.name) === normName(r.customer) && isUpsell(d))
+        .reduce((a, d) => a + dealVal(d), 0);
+    };
+    const sheetChurn = (window.revenueChurnFor && window.revenueChurnFor(year)) || [];
+    const churnMap = {}; sheetChurn.forEach(c => { churnMap[normName(c.customer)] = c; });
+    /* An Upsell deal is an increment on top of the existing ARR; a renewal or
+       new-logo deal carries the whole new contract value. The Revenue tab wins:
+       Teamleader is only used when the sheet has nothing for next year. */
+    const isUpsell = d => /upsell/i.test((d && d.type) || '');
+    const renewedValue = r => {
+      const nx = nextRows.find(x => normName(x.customer) === normName(r.customer));
+      if (nx) {
+        const v = (+nx.arrAnnual || 0) + (+nx.arrEvent || 0) + (+nx.awaiting || 0);
+        if (v) return v;
+      }
+      const deal = wonRenewal(r);
+      if (deal && dealVal(deal)) return isUpsell(deal) ? r.arr + dealVal(deal) : dealVal(deal);
+      return null;
+    };
+    /* every contract ending this year, with its renewal outcome resolved */
+    const bookAll = renewalBook.map(r => {
+      const t = trackOf(r);
+      const won = wonRenewal(r), lost = !won && churnMap[normName(r.customer)];
+      const settled = won ? 'renewed' : lost ? 'churned' : null;
+      const stage = won ? 'Signed' : lost ? 'Declined' : (t.stage || '');
+      let newArr = 0, delta = 0, newEnd = '', months = 0;
+      if (settled === 'renewed') {
+        const v = renewedValue(r);
+        newArr = v == null ? r.arr : v;          // no figure yet -> assume renewed at the same value
+        delta = newArr - r.arr;                  // + upsell, - renewed smaller
+        newEnd = (won && (won.endDate || (won.duration ? plusMonths(won.startDate || won.refused || won.close, +won.duration) : ''))) || '';
+        months = (won && +won.duration) || 0;
+      } else if (settled === 'churned') {
+        const churned = +lost.value || 0;        // exactly the Revenue tab Churn column
+        newArr = Math.max(0, r.arr - churned);
+        delta = -churned;
+      }
+      return { ...r, contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd,
+               signed: !!won, upsell: upsellFor(r),
+               term: months ? (months % 12 === 0 ? (months / 12) + (months === 12 ? ' year' : ' years') : months + ' months') : '',
+               partial: settled === 'churned' && newArr > 0 };
+    });
+    /* churn recorded in the Revenue tab for customers whose contract does not
+       end this year - still churn, so it belongs in the outcome card */
+    const bookNames = new Set(renewalBook.map(r => normName(r.customer)));
+    const extraChurn = sheetChurn.filter(c => !bookNames.has(normName(c.customer))).map(c => ({
+      customer: c.customer, sector: c.industry || '', end: c.endDate || '', quarter: c.quarter,
+      arr: +c.value || 0, newArr: 0, delta: -(+c.value || 0), settled: 'churned', partial: false,
+      state: 'passed', days: 0, contacted: false, stage: 'Declined', locked: true,
+    }));
+    const bookOpen = bookAll.filter(r => !r.settled);
+    const renewedBook = bookAll.filter(r => r.settled === 'renewed');
+    const churnedBook = [...bookAll.filter(r => r.settled === 'churned'), ...extraChurn];
+
     const bookQuarters = ['Q1','Q2','Q3','Q4'].map(q => {
-      const rows = renewalBook.filter(r => r.quarter === q);
+      const rows = bookOpen.filter(r => r.quarter === q);
       return { q, n: rows.length, value: rows.reduce((a, r) => a + r.arr, 0) };
     });
-    const bookInScope = renewalBook
-      .filter(r => monthIdx != null ? (parseLocal(r.end) || new Date(r.end)).getMonth() === monthIdx : quarters.includes(r.quarter))
+    const inScope = r => monthIdx != null ? (parseLocal(r.end) || new Date(r.end)).getMonth() === monthIdx : quarters.includes(r.quarter);
+    /* the All / Open / Won / Churn filter in the header */
+    const statusOK = r => !renewalStatus || renewalStatus === 'All'
+      || (renewalStatus === 'Open' && !r.settled)
+      || (renewalStatus === 'Won' && r.settled === 'renewed')
+      || (renewalStatus === 'Churn' && r.settled === 'churned');
+    const bookInScope = (renewalStatus === 'Won' || renewalStatus === 'Churn' ? bookAll : bookOpen)
+      .filter(inScope).filter(statusOK)
       .sort((a, b) => {
         const ea = a.state === 'passed' ? 1 : 0, eb = b.state === 'passed' ? 1 : 0;
         if (ea !== eb) return ea - eb;                       // ended → bottom
         return (parseLocal(a.end) || 0) - (parseLocal(b.end) || 0);   // soonest deadline first
       });
-    const contactNow = renewalBook.filter(r => r.state === 'now');
+    const renewedScope = renewedBook.filter(inScope).filter(statusOK).sort((a, b) => b.newArr - a.newArr);
+    const churnedScope = churnedBook.filter(inScope).filter(statusOK).sort((a, b) => a.delta - b.delta);
+    const contactNow = bookOpen.filter(r => r.state === 'now');
 
     const bookCols = [
       { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
       { key: 'sector', label: 'Sector', sortable: true, render: r => <span className="sub">{r.sector || '—'}</span> },
       { key: 'quarter', label: 'Quarter', sortable: true, render: r => <span className="tag" style={{ background: 'var(--surface-3)', color: 'var(--text-2)' }}>{r.quarter}</span> },
       { key: 'end', label: 'Contract ends', sortable: true, sortVal: r => new Date(r.end).getTime(), render: r => <span className="tnum">{dateLong(r.end)}</span> },
-      { key: 'contact', label: 'Contact from (6 mo before)', sortable: true, sortVal: r => new Date(r.contact).getTime(), render: r => <span className="tnum sub">{dateLong(r.contact)}</span> },
+      { key: 'signed', label: 'Contract signed', sortable: true, sortVal: r => r.signed ? 0 : r.settled === 'churned' ? 2 : 1,
+        render: r => r.signed ? <span className="tag healthy">Signed</span>
+                   : r.settled === 'churned' && !r.partial ? <span className="tag risk">Declined</span>
+                   : r.settled === 'churned' ? <span className="tag watch">Partly churned</span>
+                   : <span className="tag watch">Pending</span> },
+      { key: 'contacted', label: 'Contact made', sortable: true, sortVal: r => r.contacted ? 0 : 1,
+        render: r => <label className="chk" title={r.contacted ? 'Contact made' : 'No contact yet'}>
+          <input type="checkbox" checked={r.contacted} onChange={e => setTrackVal(r, { contacted: e.target.checked })} /><i />
+        </label> },
+      { key: 'stage', label: 'Renewal stage', sortable: true, sortVal: r => STAGES.indexOf(r.stage) + 1,
+        render: r => <StageCell value={r.stage} locked={r.locked} onCommit={v => setTrackVal(r, { stage: v })} /> },
       { key: 'state', label: 'Action', sortable: true, sortVal: r => ({ now: 0, later: 1, passed: 2 }[r.state]),
-        render: r => r.state === 'now' ? <span className="tag risk">Contact now</span>
-                   : r.state === 'passed' ? <span className="tag watch">Ended</span>
+        render: r => r.state === 'passed'
+                     ? (r.signed ? <span className="tag healthy">Renewed</span>
+                                 : <span className="tag risk">{Math.abs(r.days)}d overdue</span>)
+                   : r.state === 'now' ? <span className="tag risk">Contact now</span>
                    : <span className="tag healthy">In {Math.max(0, Math.round(r.days / 30))} mo</span> },
       { key: 'arr', label: 'ARR at renewal', num: true, sortable: true, render: r => <span className="tnum">{fmt(r.arr)}</span> },
-      { key: 'note', label: 'Notes', sortable: false, render: r => <NoteCell value={notes[noteKey(r)]} onCommit={v => setNote(r, v)} /> },
+      { key: 'upsell', label: 'Upsell won', num: true, sortable: true,
+        render: r => r.upsell ? <span className="tag healthy">+{fmt(r.upsell)}</span> : <span className="muted">—</span> },
+      { key: 'note', label: 'Notes', sortable: false, cellClass: () => 'rw-note', render: r => <NoteCell value={notes[noteKey(r)]} onCommit={v => setNote(r, v)} /> },
     ];
-    const bookFoot = { customer: 'Total', sector: '', quarter: '', end: '', contact: '', state: `${bookInScope.length} contracts`,
-      arr: fmt(bookInScope.reduce((a, r) => a + r.arr, 0)), note: '' };
+    const bookFoot = { customer: 'Total', sector: '', quarter: '', end: '', signed: `${bookInScope.filter(r => r.signed).length} signed`, contacted: `${bookInScope.filter(r => r.contacted).length} contacted`, stage: '', state: `${bookInScope.length} open`,
+      arr: fmt(bookInScope.reduce((a, r) => a + r.arr, 0)), upsell: fmt(bookInScope.reduce((a, r) => a + r.upsell, 0)), note: '' };
+
+    const deltaCell = d => d > 0 ? <span className="tag healthy">+{fmt(d)}</span>
+                        : d < 0 ? <span className="tag risk">{fmt(d)}</span>
+                        : <span className="sub">same</span>;
+    const outcomeCols = kind => [
+      { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
+      { key: 'end', label: kind === 'renewed' ? 'Previous term ended' : 'Contract ended', sortable: true, sortVal: r => new Date(r.end).getTime(), render: r => r.end ? <span className="tnum sub">{dateLong(r.end)}</span> : <span className="muted">—</span> },
+      kind === 'renewed'
+        ? { key: 'arr', label: 'ARR before', num: true, sortable: true, render: r => <span className="tnum sub">{fmt(r.arr)}</span> }
+        : null,
+      kind === 'renewed'
+        ? { key: 'newEnd', label: 'Renewed until', sortable: true, sortVal: r => new Date(r.newEnd || 0).getTime(),
+            render: r => r.newEnd ? <span className="tnum">{dateLong(r.newEnd)}</span> : <span className="muted">—</span> }
+        : null,
+      kind === 'renewed'
+        ? { key: 'term', label: 'Term', sortable: true, render: r => r.term ? <span className="tag healthy">{r.term}</span> : <span className="muted">—</span> }
+        : null,
+      { key: 'newArr', label: kind === 'renewed' ? 'ARR renewed' : 'ARR kept', num: true, sortable: true, render: r => <span className="tnum" style={{ fontWeight: 700 }}>{fmt(r.newArr)}</span> },
+      kind === 'renewed'
+        ? { key: 'delta', label: 'Upsell / down', num: true, sortable: true, render: r => deltaCell(r.delta) }
+        : { key: 'delta', label: 'Churned', num: true, sortable: true,
+            render: r => <span className="tag risk">{fmt(Math.abs(r.delta))}</span> },
+      kind === 'renewed' ? null
+        : { key: 'partial', label: 'Type', sortable: true, sortVal: r => r.partial ? 1 : 0,
+            render: r => r.partial ? <span className="tag watch">Partial</span> : <span className="tag risk">Total</span> },
+    ].filter(Boolean);
+    const renewedUp = renewedScope.reduce((a, r) => a + Math.max(0, r.delta), 0);
+    const churnedLoss = churnedScope.reduce((a, r) => a + Math.abs(r.delta), 0);
 
     // Live data from Teamleader; fall back to demo if not yet synced
     const allContracts = (D.contracts && D.contracts.length) ? D.contracts : DEMO_CONTRACTS;
@@ -2362,9 +2646,7 @@ html.locked, html.locked body { overflow: hidden; }
     /* ---- 2. CHURN TABLE — same source as Overview tab ---- */
     // Pull from window.DATA.quarters[q].churn for every quarter in scope
     const allQData = ctx.qdata || D.quarters || {};
-    let churnRows = [];
-    const sheetChurn = (window.revenueChurnFor && window.revenueChurnFor(year)) || [];
-    churnRows = sheetChurn
+    let churnRows = sheetChurn
       .filter(c => quarters.includes(c.quarter))
       .filter(c => monthIdx == null || c.mon === monthIdx);
     // Sort: actual first (lost/partial), then forecast; within each group by value desc
@@ -2426,13 +2708,27 @@ html.locked, html.locked body { overflow: hidden; }
     return (
       <React.Fragment>
         {/* ---- KPIs ---- */}
-        <div className="grid g-3">
-          <KpiCard eyebrow={`CONTRACTS ENDING · ${periodLabel}`} value={revRows ? bookInScope.length : ending.length}
-                   sub={<span>up for renewal in this period</span>} />
-          <KpiCard eyebrow="CONTACT WINDOW OPEN" dotColor="red" value={contactNow.length} valueRed={contactNow.length > 0}
-                   sub={<span>inside 6 months before the end date</span>} />
-          <KpiCard eyebrow={`ARR UP FOR RENEWAL · ${year}`} dotColor="green" value={fmt(renewalBook.reduce((a, r) => a + r.arr, 0))}
-                   sub={<span>{renewalBook.length} contracts across the year</span>} />
+        <div className="grid g-4">
+          <KpiHover head={`Contracts ending · ${periodLabel}`} empty="Nothing open in this period"
+                    rows={bookInScope.map(r => ({ name: r.customer, value: fmt(r.arr) }))}>
+            <KpiCard eyebrow={`CONTRACTS ENDING · ${periodLabel}`} value={revRows ? bookInScope.length : ending.length}
+                     sub={<span>still open for renewal</span>} />
+          </KpiHover>
+          <KpiHover head="Inside the 6-month contact window" empty="No contract is inside its window"
+                    rows={[...contactNow].sort((a, b) => a.days - b.days).map(r => ({ name: r.customer, value: r.days <= 0 ? 'now' : Math.max(1, Math.round(r.days / 7)) + 'w' }))}>
+            <KpiCard eyebrow="CONTACT WINDOW OPEN" dotColor="red" value={contactNow.length} valueRed={contactNow.length > 0}
+                     sub={<span>inside 6 months before the end date</span>} />
+          </KpiHover>
+          <KpiHover head={`Renewed · ${year}`} empty="No renewals signed yet"
+                    rows={[...renewedBook].sort((a, b) => b.newArr - a.newArr).map(r => ({ name: r.customer, value: fmt(r.newArr) + (r.delta > 0 ? '  +' + fmt(r.delta) : '') }))}>
+            <KpiCard eyebrow={`RENEWED · ${year}`} dotColor="green" value={renewedBook.length}
+                     sub={<span>{fmt(renewedBook.reduce((a, r) => a + r.newArr, 0))} ARR secured</span>} />
+          </KpiHover>
+          <KpiHover head={`Churned · ${year}`} empty="No churn recorded" red
+                    rows={[...churnedBook].sort((a, b) => a.delta - b.delta).map(r => ({ name: r.customer, value: fmt(Math.abs(r.delta)) + (r.partial ? ' partial' : '') }))}>
+            <KpiCard eyebrow={`CHURNED · ${year}`} dotColor="red" value={churnedBook.length} valueRed={churnedBook.length > 0}
+                     sub={<span>{fmt(churnedBook.reduce((a, r) => a + Math.abs(r.delta), 0))} ARR lost</span>} />
+          </KpiHover>
         </div>
 
         {/* ---- Contracts ending per quarter ---- */}
@@ -2442,8 +2738,8 @@ html.locked, html.locked body { overflow: hidden; }
               <div className="eyebrow">{b.q} {year} · CONTRACTS ENDING</div>
               <div className="big tnum">{b.n}</div>
               <div className="sub" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                <span className="lead">{fmt(b.value)} ARR</span>
-                <span>{renewalBook.filter(r => r.quarter === b.q && r.state === 'now').length} to contact</span>
+                <span className="lead" style={{ whiteSpace: 'nowrap' }}>{fmt(b.value)} ARR</span>
+                <span>{bookOpen.filter(r => r.quarter === b.q && r.state === 'now').length} to contact</span>
               </div>
             </Card>
           ))}
@@ -2461,8 +2757,29 @@ html.locked, html.locked body { overflow: hidden; }
           </Card>
         </div>
 
-        {/* ---- Contact list + Renewed contracts ---- */}
+        {/* ---- Renewal outcome: won vs churned ---- */}
         <div className="grid g-2">
+          <Card title="Renewal outcome · won / renewed" count={`${renewedScope.length} contract${renewedScope.length !== 1 ? 's' : ''}`}
+                total={fmt(renewedScope.reduce((a, r) => a + r.newArr, 0))}
+                headRight={renewedUp > 0 ? <span className="tag healthy">+{fmt(renewedUp)} upsell</span> : <span className="sub" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>same value</span>}>
+            <div className="scroll-y" style={{ maxHeight: 320 }}>
+              <SortableTable columns={outcomeCols('renewed')} rows={renewedScope} />
+              {!renewedScope.length && <div className="empty">No renewals signed in this period</div>}
+            </div>
+          </Card>
+
+          <Card title="Renewal outcome · churn" count={`${churnedScope.length} contract${churnedScope.length !== 1 ? 's' : ''}`}
+                total={<span style={{ color: 'var(--red)' }}>{fmt(churnedLoss)}</span>}
+                headRight={<span className="sub" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{churnedScope.filter(r => r.partial).length} partial · {churnedScope.filter(r => !r.partial).length} total</span>}>
+            <div className="scroll-y" style={{ maxHeight: 320 }}>
+              <SortableTable columns={outcomeCols('churned')} rows={churnedScope} />
+              {!churnedScope.length && <div className="empty">No churn in this period</div>}
+            </div>
+          </Card>
+        </div>
+
+        {/* ---- Contact list ---- */}
+        <div className="grid g-1">
           <Card title="Contact now · inside the 6-month window" count={`${contactNow.length}`}
                 total={fmt(contactNow.reduce((a, r) => a + r.arr, 0))}>
             <div className="scroll-y" style={{ maxHeight: 340 }}>
@@ -2483,20 +2800,11 @@ html.locked, html.locked body { overflow: hidden; }
               ) : <div className="empty">No contract is inside its 6-month contact window</div>}
             </div>
           </Card>
-
-          {/* ---- Renewed contracts ---- */}
-          <Card title={`Renewed contracts · ${year}`} count={`${renewedRows.length} signed`} total={fmt(renewedTotal)}
-                headRight={<span className="sub" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>closed &amp; starting in {year}</span>}>
-            <div className="scroll-y" style={{ maxHeight: 340 }}>
-              <SortableTable columns={renewedCols} rows={renewedRows} footer={renewedRows.length ? renewedFoot : null} />
-              {!renewedRows.length && <div className="empty">No renewals closed and starting in {year}</div>}
-            </div>
-          </Card>
         </div>
 
-        {/* ---- Churn table ---- */}
+        {/* ---- Churn recorded in the Revenue tab ---- */}
         <div className="grid g-1">
-          <Card title="Churn" count={
+          <Card title="Churn recorded in the Revenue tab" count={
             <span>
               <span style={{ color: 'var(--red)' }}>{fmt(actualChurn)} actual</span>
               {forecastChurn > 0 && <span className="sub" style={{ marginLeft: 8 }}>+ {fmt(forecastChurn)} forecast</span>}
@@ -4220,7 +4528,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v27</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v29</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
