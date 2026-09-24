@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v29 · 14 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v30 · 24 Sep (single-file)</div>
     </div>
   </div>
 
@@ -2397,8 +2397,11 @@ html.locked, html.locked body { overflow: hidden; }
       let live = true;
       pullCsm().then(d => {
         if (!live || !d) return;
-        if (d.notes && Object.keys(d.notes).length) setNotes(prev => { const m = { ...d.notes, ...prev }; saveNotes(m); return m; });
-        if (d.track && Object.keys(d.track).length) setTrack(prev => { const m = { ...d.track, ...prev }; saveTrack(m); return m; });
+        // server is the record; anything only cached here (pre-server edits) is uploaded once
+        const upN = {}, upT = {};
+        setNotes(prev => { const sv = d.notes || {}; Object.keys(prev).forEach(k => { if (!(k in sv)) upN[k] = prev[k]; }); const m = { ...prev, ...sv }; saveNotes(m); return m; });
+        setTrack(prev => { const sv = d.track || {}; Object.keys(prev).forEach(k => { if (!(k in sv)) upT[k] = prev[k]; }); const m = { ...prev, ...sv }; saveTrack(m); return m; });
+        setTimeout(() => { if (Object.keys(upN).length || Object.keys(upT).length) pushCsm(upN, upT); }, 0);
       });
       return () => { live = false; };
     }, []);
@@ -3107,40 +3110,58 @@ html.locked, html.locked body { overflow: hidden; }
   const blank = () => ({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), sector: '', country: '', end: '', invoicing: '', customer: 'New customer', license: 0, indexation: '', arrAnnual: 0, arrEvent: 0, awaiting: 0, churn: 0, churnIncl: 0, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0 });
   const loadRows = y => { try { const s = JSON.parse(localStorage.getItem(STORE(y))); return Array.isArray(s) && s.length ? s : null; } catch (e) { return null; } };
   const hasBackup = y => { try { return !!localStorage.getItem(STORE(y) + '_bak'); } catch (e) { return false; } };
-  /* ---- edits are kept on the server too --------------------------------
-     localStorage is only the instant cache; the server copy is the record, so
-     a redeploy, another browser or another laptop still sees the same numbers.
-     Newest timestamp wins. */
+  /* ---- the SERVER is the record ----------------------------------------
+     Every browser shows what the server holds. localStorage is only a cache
+     so the page paints instantly; the moment the server answers, its copy
+     replaces the cache. A save that doesn't reach the server is shown as an
+     error - it never silently stays on one laptop. */
   const EDITS_API = '/.netlify/functions/revenue-store';
   const localTs = y => { try { return Number(localStorage.getItem(STORE(y) + '_ts')) || 0; } catch (e) { return 0; } };
-  const writeLocal = (y, rows, ts) => { try { localStorage.setItem(STORE(y), JSON.stringify(rows)); localStorage.setItem(STORE(y) + '_ts', String(ts)); } catch (e) {} };
+  const writeLocal = (y, rows, ts) => { try {
+    if (rows && rows.length) { localStorage.setItem(STORE(y), JSON.stringify(rows)); localStorage.setItem(STORE(y) + '_ts', String(ts)); }
+    else { localStorage.removeItem(STORE(y)); localStorage.removeItem(STORE(y) + '_ts'); }
+  } catch (e) {} };
+  const SYNC = window.__revSync = window.__revSync || { status: 'loading', savedAt: null, error: '' };
+  const setSync = patch => { Object.assign(SYNC, patch); try { window.dispatchEvent(new CustomEvent('revenue-sync')); } catch (e) {} };
   const pushEdits = (y, rows, ts) => {
-    try { fetch(EDITS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ year: y, rows, ts }) }).catch(() => {}); } catch (e) {}
+    setSync({ status: 'saving' });
+    return fetch(EDITS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: y, rows, ts }) })
+      .then(r => { if (!r.ok) throw new Error('server answered ' + r.status); setSync({ status: 'ok', savedAt: new Date(), error: '' }); })
+      .catch(e => setSync({ status: 'error', error: 'Not saved to the server (' + (e.message || 'offline') + '). Colleagues will not see this change.' }));
   };
-  const pullEdits = () => fetch(EDITS_API).then(r => r.ok ? r.json() : null).catch(() => null);
-  /* Startup sync, before any tab is opened:
-     - server copy newer than this browser -> adopt it (colleagues see your edits)
-     - this browser has edits the server lacks or has older -> send them up
-       (covers edits made before server saving existed)
-     Then tell the app to re-read so Overview/Financials/CSM show the result. */
-  (function startupSync() {
-    pullEdits().then(data => {
-      const server = (data && data.years) || {};
-      let changed = false;
-      YEARS.forEach(y => {
-        const s = server[y];
-        const sTs = s && Array.isArray(s.rows) && s.rows.length ? (+s.ts || 1) : 0;
-        const local = loadRows(y), lTs = localTs(y);
-        if (sTs && sTs > lTs) { writeLocal(y, s.rows, sTs); changed = true; }
-        else if (local && (!sTs || lTs > sTs)) {
-          const ts = lTs || Date.now();
-          if (!lTs) { try { localStorage.setItem(STORE(y) + '_ts', String(ts)); } catch (e) {} }
-          pushEdits(y, local, ts);
-        }
-      });
-      if (changed) { try { window.dispatchEvent(new CustomEvent('revenue-edited')); } catch (e) {} }
+  const pullEdits = () => fetch(EDITS_API).then(r => {
+    if (!r.ok) throw new Error(r.status === 404 ? 'revenue-store is not deployed' : 'server answered ' + r.status);
+    return r.json();
+  });
+  /* on load (and whenever the Revenue tab opens): server replaces the cache.
+     One-time migration: if the server has nothing yet for a year, the edits
+     cached in this browser are uploaded so they become the shared record. */
+  const syncFromServer = () => pullEdits().then(data => {
+    const server = (data && data.years) || {};
+    let changed = false;
+    YEARS.forEach(y => {
+      const s = server[y];
+      const has = s && Array.isArray(s.rows) && s.rows.length;
+      if (has) {
+        if (JSON.stringify(s.rows) !== JSON.stringify(loadRows(y))) changed = true;
+        writeLocal(y, s.rows, +s.ts || Date.now());
+      } else if (!s) {
+        const local = loadRows(y);
+        if (local) pushEdits(y, local, localTs(y) || Date.now());
+      } else if (loadRows(y)) { writeLocal(y, [], 0); changed = true; }   // server says: reset to sheet
     });
+    setSync({ status: 'ok', error: '' });
+    if (changed) { try { window.dispatchEvent(new CustomEvent('revenue-edited')); } catch (e) {} }
+    return changed;
+  }).catch(e => { setSync({ status: 'error', error: 'Could not load shared figures (' + (e.message || 'offline') + '). Showing this browser\'s cached copy.' }); return false; });
+  syncFromServer();
+  /* always-visible warning when the shared store isn't reachable */
+  (function syncBanner() {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;max-width:640px;padding:10px 16px;border-radius:10px;background:#b42318;color:#fff;font:600 13px/1.4 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.25);display:none';
+    const paint = () => { el.textContent = SYNC.error; el.style.display = SYNC.status === 'error' ? 'block' : 'none'; };
+    window.addEventListener('revenue-sync', paint);
+    (document.body ? Promise.resolve() : new Promise(r => window.addEventListener('DOMContentLoaded', r))).then(() => { document.body.appendChild(el); paint(); });
   })();
   const yearOf = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[0]) : NaN; };
   const monthOfIso = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[1]) - 1 : null; };
@@ -3343,22 +3364,17 @@ html.locked, html.locked body { overflow: hidden; }
     const sortVal = (r, key) => key === 'total' ? rowTotal(r) : (typeof r[key] === 'string' ? r[key].toLowerCase() : (+r[key] || 0));
     const barRef = useRef(null);
 
-    /* on open: adopt the server copy of any year whose saved edits are newer
-       than this device's */
+    /* on open: re-read the server (it is the record) and follow sync status */
+    const [sync, setSyncView] = useState({ ...SYNC });
     useEffect(() => {
       let live = true;
-      pullEdits().then(data => {
-        if (!live || !data || !data.years) return;
-        let changed = false;
-        Object.keys(data.years).forEach(y => {
-          const s = data.years[y];
-          if (!s || !Array.isArray(s.rows) || !s.rows.length) return;
-          if ((+s.ts || 0) > localTs(+y)) { writeLocal(+y, s.rows, +s.ts || Date.now()); changed = true; }
-        });
-        if (changed) { setRows(rowsFor(year)); setEdited(!!loadRows(year)); }
-      });
-      return () => { live = false; };
-    }, []);
+      const onSync = () => live && setSyncView({ ...SYNC });
+      const onEdit = () => { if (live) { setRows(rowsFor(year)); setEdited(!!loadRows(year)); } };
+      window.addEventListener('revenue-sync', onSync);
+      window.addEventListener('revenue-edited', onEdit);
+      syncFromServer();
+      return () => { live = false; window.removeEventListener('revenue-sync', onSync); window.removeEventListener('revenue-edited', onEdit); };
+    }, [year]);
 
     useEffect(() => {
       if (!menu) return;
@@ -3488,7 +3504,13 @@ html.locked, html.locked body { overflow: hidden; }
               <button className="btn" onClick={reset} disabled={!edited} title="Restore the numbers from the Excel sheet">Reset to sheet</button>
               {undo && <button className="btn" onClick={undoReset} title="Put your manual edits back">Undo reset</button>}
               <span className="spacer" style={{ marginLeft: 'auto' }} />
-              <span className="rev-note">{edited ? 'Manual edits saved' : 'Click any cell to edit'}</span>
+              <span className="rev-note" style={sync.status === 'error' ? { color: 'var(--red)', fontWeight: 700 } : null}>
+                {sync.status === 'error' ? 'Not saved to server'
+                  : sync.status === 'saving' ? 'Saving to server…'
+                  : sync.status === 'loading' ? 'Loading shared figures…'
+                  : sync.savedAt ? 'Saved to server · ' + sync.savedAt.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+                  : 'Shared figures · click any cell to edit'}
+              </span>
             </div>
             <div className="rev-wrap">
               <table className="rev">
@@ -4564,7 +4586,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v29</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v30</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
