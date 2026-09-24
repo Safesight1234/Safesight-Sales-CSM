@@ -4487,6 +4487,8 @@ Object.assign(window, {
     useEffect(() => {
       const bump = () => setChurnStamp(n => n + 1);
       window.addEventListener('revenue-edited', bump);
+      // the server may have answered before this listener existed
+      if (window.__revSync && window.__revSync.status === 'ok') bump();
       return () => window.removeEventListener('revenue-edited', bump);
     }, []);
     const qdata = (D0.quartersByYear && D0.quartersByYear[effYear]) || D0.quarters;
