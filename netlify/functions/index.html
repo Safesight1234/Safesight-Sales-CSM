@@ -2276,9 +2276,16 @@ html.locked, html.locked body { overflow: hidden; }
 
   function StageCell({ value, locked, onCommit }) {
     if (locked) return <span className={`tag ${STAGE_CLS[value] || 'watch'}`} title="Set by Teamleader">{value}</span>;
+    // Signed / Declined are set by Teamleader now - a value stored by an older
+    // build still shows, as a read-only tag with a way to clear it
+    if (FINAL.includes(value)) return (
+      <span className={`tag ${STAGE_CLS[value]}`} title="Recorded earlier - click to clear" onClick={() => onCommit('')}
+            style={{ cursor: 'pointer' }}>{value}</span>
+    );
+    const sel = STAGES.includes(value) ? value : '';
     return (
-      <select className="stage-sel" value={value || ''} onChange={e => onCommit(e.target.value)}
-              data-state={value ? 'open' : 'none'}>
+      <select className="stage-sel" value={sel} onChange={e => onCommit(e.target.value)}
+              data-state={sel ? 'open' : 'none'}>
         <option value="">Not started</option>
         {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
       </select>
@@ -2421,6 +2428,7 @@ html.locked, html.locked body { overflow: hidden; }
       const end = parseLocal(r.end) || new Date(r.end);
       const state = end < today ? 'passed' : ((parseLocal(contact) || end) <= today ? 'now' : 'later');
       return { customer: r.customer, sector: r.sector, country: r.country, arr, end: r.end, contact, state,
+               sheetUpsell: +r.upsell || 0,
                quarter: 'Q' + (Math.floor(end.getMonth() / 3) + 1), days: Math.round((end - today) / 86400000) };
     });
 
@@ -2472,15 +2480,20 @@ html.locked, html.locked body { overflow: hidden; }
       });
       return beyond[0] || mine.find(x => /renewal/i.test(x.type || '')) || null;
     };
-    /* Upsell: the Revenue tab's own Expected upsell column first; only if that
-       is empty do we fall back to Teamleader, and then on an EXACT name match
-       so one customer's deal can never land on another's row. */
+    /* same company, strictly: identical name or one is the other's prefix
+       ("Stichting Zevenheuvelenloop" vs "Stichting Zevenheuvelenloop:
+       Zevenheuvelen"). Never a loose token match - money must not drift. */
+    const samePrefix = (a, b) => {
+      const na = normName(a), nb = normName(b);
+      if (!na || !nb) return false;
+      return na === nb || na.startsWith(nb) || nb.startsWith(na);
+    };
+    /* Upsell: the row's own Expected upsell from the Revenue tab; only when that
+       is empty do we fall back to Teamleader's won Upsell deals. */
     const upsellFor = r => {
-      const row = (revRows || []).find(x => normName(x.customer) === normName(r.customer));
-      const sheet = +(row && row.upsell) || 0;
-      if (sheet) return sheet;
+      if (r.sheetUpsell) return r.sheetUpsell;
       return wonAll
-        .filter(d => normName(d.customer || d.name) === normName(r.customer) && isUpsell(d))
+        .filter(d => samePrefix(d.customer || d.name, r.customer) && isUpsell(d))
         .reduce((a, d) => a + dealVal(d), 0);
     };
     const sheetChurn = (window.revenueChurnFor && window.revenueChurnFor(year)) || [];
@@ -2490,7 +2503,7 @@ html.locked, html.locked body { overflow: hidden; }
        Teamleader is only used when the sheet has nothing for next year. */
     const isUpsell = d => /upsell/i.test((d && d.type) || '');
     const renewedValue = r => {
-      const nx = nextRows.find(x => normName(x.customer) === normName(r.customer));
+      const nx = nextRows.find(x => samePrefix(x.customer, r.customer));
       if (nx) {
         const v = (+nx.arrAnnual || 0) + (+nx.arrEvent || 0) + (+nx.awaiting || 0);
         if (v) return v;
@@ -3106,6 +3119,29 @@ html.locked, html.locked body { overflow: hidden; }
       body: JSON.stringify({ year: y, rows, ts }) }).catch(() => {}); } catch (e) {}
   };
   const pullEdits = () => fetch(EDITS_API).then(r => r.ok ? r.json() : null).catch(() => null);
+  /* Startup sync, before any tab is opened:
+     - server copy newer than this browser -> adopt it (colleagues see your edits)
+     - this browser has edits the server lacks or has older -> send them up
+       (covers edits made before server saving existed)
+     Then tell the app to re-read so Overview/Financials/CSM show the result. */
+  (function startupSync() {
+    pullEdits().then(data => {
+      const server = (data && data.years) || {};
+      let changed = false;
+      YEARS.forEach(y => {
+        const s = server[y];
+        const sTs = s && Array.isArray(s.rows) && s.rows.length ? (+s.ts || 1) : 0;
+        const local = loadRows(y), lTs = localTs(y);
+        if (sTs && sTs > lTs) { writeLocal(y, s.rows, sTs); changed = true; }
+        else if (local && (!sTs || lTs > sTs)) {
+          const ts = lTs || Date.now();
+          if (!lTs) { try { localStorage.setItem(STORE(y) + '_ts', String(ts)); } catch (e) {} }
+          pushEdits(y, local, ts);
+        }
+      });
+      if (changed) { try { window.dispatchEvent(new CustomEvent('revenue-edited')); } catch (e) {} }
+    });
+  })();
   const yearOf = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[0]) : NaN; };
   const monthOfIso = iso => { const p = String(iso || '').split('-'); return p.length === 3 ? Number(p[1]) - 1 : null; };
   const addMonthsIso = (iso, m) => {
