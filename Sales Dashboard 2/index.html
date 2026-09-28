@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v30 · 24 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v31 · 28 Sep (single-file)</div>
     </div>
   </div>
 
@@ -2430,7 +2430,7 @@ html.locked, html.locked body { overflow: hidden; }
       const contact = minusMonths(r.end, 6);
       const end = parseLocal(r.end) || new Date(r.end);
       const state = end < today ? 'passed' : ((parseLocal(contact) || end) <= today ? 'now' : 'later');
-      return { customer: r.customer, sector: r.sector, country: r.country, arr, end: r.end, contact, state,
+      return { customer: r.customer, sector: r.sector, country: r.country, arr, end: r.end, start: r.start || '', contact, state,
                sheetUpsell: +r.upsell || 0,
                quarter: 'Q' + (Math.floor(end.getMonth() / 3) + 1), days: Math.round((end - today) / 86400000) };
     });
@@ -2441,7 +2441,14 @@ html.locked, html.locked body { overflow: hidden; }
        Revenue tab's Churn column - never Teamleader. */
     const normName = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const wonAll = ['Q1','Q2','Q3','Q4'].flatMap(q => ((ctx.qdata || D.quarters || {})[q] || {}).won || []);
-    const renewalPool = [...(D.renewals || []), ...wonAll];
+    /* every won Teamleader deal (all years), each with its "deal won" date (closed_at) */
+    const allWonRows = Object.values(D.quartersByYear || {}).flatMap(qs => ['Q1','Q2','Q3','Q4'].flatMap(q => (qs && qs[q] && qs[q].won) || []));
+    const wonPool = allWonRows.length ? allWonRows : wonAll;
+    const renewalPool = [
+      ...wonPool.map(x => ({ ...x, wonDate: String(x.refused || x.close || '').slice(0, 10) })),
+      ...(D.renewals || []).map(x => ({ ...x, wonDate: String(x.close || '').slice(0, 10) }))
+        .filter(x => !wonPool.some(w => normName(w.customer || w.name) === normName(x.customer) && String(w.refused || w.close || '').slice(0, 10) === x.wonDate)),
+    ];
     const dealVal = d => +d.arr || +d.value || +d.total || 0;
     /* Names differ between the sheet and Teamleader ("Jaarbeurs Holding" vs
        "Jaarbeurs Utrecht"), so also match on the leading word - but ONLY when
@@ -2469,20 +2476,21 @@ html.locked, html.locked body { overflow: hidden; }
        are present the new term must run past the ending contract; the synced
        payload often has none, in which case a won deal in the selected year IS
        the renewal of the contract ending that year. */
-    const wonRenewal = r => {
-      const end = parseLocal(r.end);
-      const mine = renewalPool.filter(x => sameCo(x.customer || x.name, r.customer));
-      if (!mine.length) return null;
-      const dated = mine.filter(x => x.endDate || x.startDate || x.duration || x.close || x.refused);
-      if (!dated.length) return mine[0];                    // no dates anywhere -> won in-year counts
-      const beyond = dated.filter(x => {
-        const st = x.startDate || x.refused || x.close;
-        const s = parseLocal(st);
-        const e = parseLocal(x.endDate) || (st && x.duration ? parseLocal(plusMonths(st, +x.duration)) : null);
-        return (e && end && e > end) || (s && end && s >= end);
-      });
-      return beyond[0] || mine.find(x => /renewal/i.test(x.type || '')) || null;
+    /* A renewal = a won Teamleader deal for this customer whose DEAL WON date
+       falls from 9 months before the contract end onwards (late renewals count).
+       The deal that created the current contract (won around its start) is skipped. */
+    const renewalDeals = r => {
+      const end = parseLocal(r.end); if (!end) return [];
+      const from = parseLocal(minusMonths(r.end, 9));
+      const st = parseLocal(r.start);
+      const origCut = st && st < from ? parseLocal(plusMonths(r.start, 1)) : null;
+      return renewalPool.filter(x => sameCo(x.customer || x.name, r.customer)).filter(x => {
+        const w = parseLocal(x.wonDate); if (!w) return false;
+        if (origCut && w <= origCut) return false;
+        return w >= from;
+      }).sort((a, b) => String(a.wonDate).localeCompare(String(b.wonDate)));
     };
+    const wonRenewal = r => { const ds = renewalDeals(r); return ds.find(d => !isUpsell(d)) || ds[0] || null; };
     /* same company, strictly: identical name or one is the other's prefix
        ("Stichting Zevenheuvelenloop" vs "Stichting Zevenheuvelenloop:
        Zevenheuvelen"). Never a loose token match - money must not drift. */
@@ -2505,14 +2513,21 @@ html.locked, html.locked body { overflow: hidden; }
        new-logo deal carries the whole new contract value. The Revenue tab wins:
        Teamleader is only used when the sheet has nothing for next year. */
     const isUpsell = d => /upsell/i.test((d && d.type) || '');
+    /* New ARR from Teamleader: renewal deal ARR (or the old ARR if the deal has
+       no ARR filled in) + any won Upsell deals. Revenue tab next year = fallback. */
+    const dealArr = d => ((+d.arr || 0) + (+d.eventArr || 0)) || +d.value || +d.total || 0;
     const renewedValue = r => {
+      const ds = renewalDeals(r);
+      if (ds.length) {
+        const ren = ds.filter(d => !isUpsell(d)), up = ds.filter(isUpsell);
+        const renSum = ren.reduce((a, d) => a + dealArr(d), 0);
+        return (renSum || r.arr) + up.reduce((a, d) => a + dealArr(d), 0);
+      }
       const nx = nextRows.find(x => samePrefix(x.customer, r.customer));
       if (nx) {
         const v = (+nx.arrAnnual || 0) + (+nx.arrEvent || 0) + (+nx.awaiting || 0);
         if (v) return v;
       }
-      const deal = wonRenewal(r);
-      if (deal && dealVal(deal)) return isUpsell(deal) ? r.arr + dealVal(deal) : dealVal(deal);
       return null;
     };
     /* every contract ending this year, with its renewal outcome resolved */
@@ -2533,7 +2548,7 @@ html.locked, html.locked body { overflow: hidden; }
         newArr = Math.max(0, r.arr - churned);
         delta = -churned;
       }
-      return { ...r, contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd,
+      return { ...r, contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd, wonDate: (won && won.wonDate) || '',
                signed: !!won, upsell: upsellFor(r),
                term: months ? (months % 12 === 0 ? (months / 12) + (months === 12 ? ' year' : ' years') : months + ' months') : '',
                partial: settled === 'churned' && newArr > 0 };
@@ -2567,7 +2582,12 @@ html.locked, html.locked body { overflow: hidden; }
         if (ea !== eb) return ea - eb;                       // ended → bottom
         return (parseLocal(a.end) || 0) - (parseLocal(b.end) || 0);   // soonest deadline first
       });
-    const renewedScope = renewedBook.filter(inScope).filter(statusOK).sort((a, b) => b.newArr - a.newArr);
+    const inScopeWon = r => {
+      const w = parseLocal(r.wonDate);
+      if (!w || w.getFullYear() !== year) return inScope(r);
+      return monthIdx != null ? w.getMonth() === monthIdx : quarters.includes('Q' + (Math.floor(w.getMonth() / 3) + 1));
+    };
+    const renewedScope = renewedBook.filter(inScopeWon).filter(statusOK).sort((a, b) => b.newArr - a.newArr);
     const churnedScope = churnedBook.filter(inScope).filter(statusOK).sort((a, b) => a.delta - b.delta);
     const contactNow = bookOpen.filter(r => r.state === 'now');
 
@@ -2607,6 +2627,9 @@ html.locked, html.locked body { overflow: hidden; }
     const outcomeCols = kind => [
       { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
       { key: 'end', label: kind === 'renewed' ? 'Previous term ended' : 'Contract ended', sortable: true, sortVal: r => new Date(r.end).getTime(), render: r => r.end ? <span className="tnum sub">{dateLong(r.end)}</span> : <span className="muted">—</span> },
+      kind === 'renewed'
+        ? { key: 'wonDate', label: 'Deal won', sortable: true, sortVal: r => new Date(r.wonDate || 0).getTime(), render: r => r.wonDate ? <span className="tnum">{dateLong(r.wonDate)}</span> : <span className="muted">—</span> }
+        : null,
       kind === 'renewed'
         ? { key: 'arr', label: 'ARR before', num: true, sortable: true, render: r => <span className="tnum sub">{fmt(r.arr)}</span> }
         : null,
@@ -4588,7 +4611,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v30</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v31</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
