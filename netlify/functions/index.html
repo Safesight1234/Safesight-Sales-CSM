@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v33 · 28 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v35 · 29 Sep (single-file)</div>
     </div>
   </div>
 
@@ -1062,6 +1062,14 @@ html.locked, html.locked body { overflow: hidden; }
     return zip(files);
   }
 
+  window.downloadXlsx = function (sheets, filename) {
+    const blob = buildWorkbook(sheets);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (filename || 'safesight-export') + '.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
   /* ---- assemble the finance data for a scope ---- */
   window.exportFinance = function ({ quarters, monthIdx, year, label, filename }) {
     const D = window.DATA;
@@ -2254,12 +2262,33 @@ html.locked, html.locked body { overflow: hidden; }
     var D = window.DATA;
     var H = D && D.historicals ? D.historicals : null;
     if (!H) return <div className="empty" style={{ padding: 40 }}>No historical data yet.</div>;
+    var exportHist = function () {
+      var sheet = function (data) {
+        var rows = [['Quarter'].concat(YEARS.map(String))];
+        var tot = YEARS.map(function () { return 0; });
+        QLABELS.forEach(function (q, i) {
+          rows.push([q].concat(YEARS.map(function (y, j) { var v = Math.round(quartersFor(data, y)[i]); tot[j] += v; return v; })));
+        });
+        rows.push(['Total'].concat(tot));
+        return rows;
+      };
+      window.downloadXlsx([
+        { name: 'New logo', rows: sheet(H.newLogo) },
+        { name: 'Upsell', rows: sheet(H.upsell) },
+        { name: 'Combined', rows: sheet(H.combined) },
+      ], 'safesight-historicals-' + YEARS[0] + '-' + YEARS[YEARS.length - 1]);
+    };
     return (
-      <div className="grid g-3" style={{ marginTop: 20 }}>
+      <React.Fragment>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+        <button className="btn" onClick={exportHist}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" /></svg>Export to Excel</button>
+      </div>
+      <div className="grid g-3" style={{ marginTop: 12 }}>
         <HistBlock title="New logo" data={H.newLogo}  cur={cur} hotYear={year} accent="var(--green-ink)" soft="var(--green-soft)" />
         <HistBlock title="Upsell"   data={H.upsell}   cur={cur} hotYear={year} accent="var(--blue-ink)"  soft="var(--blue-soft)" />
         <HistBlock title="Combined" data={H.combined} cur={cur} hotYear={year} accent="var(--text)"      soft="var(--surface-2)" />
       </div>
+      </React.Fragment>
     );
   }
 
@@ -2435,7 +2464,7 @@ html.locked, html.locked body { overflow: hidden; }
     }
     useEffect(() => {
       let live = true;
-      const refresh = () => { if (csmPending) return; pullCsm().then(d => { if (live) { if (d) { csmStatus('ok'); adoptCsm(d); } else csmStatus('error'); } }); };
+      const refresh = () => { if (csmPending) return; pullCsm().then(d => { if (live) { if (d) { if (window.__csmSync !== 'error') csmStatus('ok'); adoptCsm(d); } else if (window.__csmSync !== 'error') csmStatus('pullError'); } }); };
       const onSync = ev => setCsmSync(ev.detail);
       refresh();
       const iv = setInterval(refresh, 20000);
@@ -2480,8 +2509,17 @@ html.locked, html.locked body { overflow: hidden; }
     const normName = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const wonAll = ['Q1','Q2','Q3','Q4'].flatMap(q => ((ctx.qdata || D.quarters || {})[q] || {}).won || []);
     /* every won Teamleader deal (all years), each with its "deal won" date (closed_at) */
-    const allWonRows = Object.values(D.quartersByYear || {}).flatMap(qs => ['Q1','Q2','Q3','Q4'].flatMap(q => (qs && qs[q] && qs[q].won) || []));
-    const wonPool = allWonRows.length ? allWonRows : wonAll;
+    /* seed years (2023-25) + live years + the current year's live deals - the
+       seed alone made the pool "non-empty" and hid every 2026 deal */
+    const qWon = qs => ['Q1','Q2','Q3','Q4'].flatMap(q => (qs && qs[q] && qs[q].won) || []);
+    const wonPool = (() => {
+      const seen = new Set(), out = [];
+      [...Object.values(D.quartersByYear || {}).flatMap(qWon), ...qWon(D.quarters), ...wonAll].forEach(x => {
+        const k = normName(x.customer || x.name) + '|' + normName(x.name) + '|' + String(x.refused || x.close || '').slice(0, 10) + '|' + (+x.value || 0);
+        if (!seen.has(k)) { seen.add(k); out.push(x); }
+      });
+      return out;
+    })();
     const renewalPool = [
       ...wonPool.map(x => ({ ...x, wonDate: String(x.refused || x.close || '').slice(0, 10) })),
       ...(D.renewals || []).map(x => ({ ...x, wonDate: String(x.close || '').slice(0, 10) }))
@@ -2784,7 +2822,7 @@ html.locked, html.locked body { overflow: hidden; }
 
     return (
       <React.Fragment>
-        {csmSync === 'error' && <div style={{ background: '#fde8e8', color: '#9b1c1c', border: '1px solid #f5b5b5', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>Could not reach the server - your last change is not visible to colleagues yet. Retrying automatically…</div>}
+        {window.self === window.top && (csmSync === 'error' || csmSync === 'pullError') && <div style={{ background: '#fde8e8', color: '#9b1c1c', border: '1px solid #f5b5b5', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{csmSync === 'error' ? 'Could not save to the server - your last change is not visible to colleagues yet. Retrying automatically…' : 'Could not load the shared CSM notes from the server - retrying…'}</div>}
         {/* ---- KPIs ---- */}
         <div className="grid g-4">
           <KpiHover head={`Contracts ending · ${periodLabel}`} empty="Nothing open in this period"
@@ -4650,7 +4688,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v33</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v35</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
