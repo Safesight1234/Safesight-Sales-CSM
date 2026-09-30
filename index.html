@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v40 · 30 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v41 · 30 Sep (single-file)</div>
     </div>
   </div>
 
@@ -3658,6 +3658,13 @@ html.locked, html.locked body { overflow: hidden; }
               </select>
               <button className="btn" aria-pressed={showLicence} onClick={() => setShowLicence(v => !v)}
                       title="Monthly licence column">{showLicence ? 'Hide' : 'Show'} monthly licence</button>
+              <button className="btn" onClick={() => {
+                const dec = s => { const t = document.createElement('textarea'); t.innerHTML = String(s == null ? '' : s); return t.value; };
+                const head = ['Sector', 'Country', 'Contract start', 'Contract end', 'Invoicing', 'Customer', 'Monthly licence', 'Indexation', ...NUMS.map(n => n[1])];
+                const body = rows.map(r => [dec(r.sector), dec(r.country), r.start || '', dec(r.end), dec(r.invoicing), dec(r.customer), +r.license || 0, dec(r.indexation), ...NUMS.map(n => +r[n[0]] || 0)]);
+                const tot = ['Total', '', '', '', '', '', body.reduce((s, x) => s + x[6], 0), '', ...NUMS.map((n, i) => Math.round(body.reduce((s, x) => s + x[8 + i], 0) * 100) / 100)];
+                window.downloadXlsx([{ name: 'Revenue ' + year, rows: [head, ...body, tot] }], 'safesight-revenue-' + year);
+              }} title="Download this year's Revenue sheet as Excel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" /></svg>Export to Excel</button>
               <button className="btn" onClick={addRow}>+ Add customer</button>
               <button className="btn" onClick={reset} disabled={!edited} title="Restore the numbers from the Excel sheet">Reset to sheet</button>
               {undo && <button className="btn" onClick={undoReset} title="Put your manual edits back">Undo reset</button>}
@@ -4746,7 +4753,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v40</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v41</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
