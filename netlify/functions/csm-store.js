@@ -13,11 +13,6 @@ const RH = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 const KEY = 'csmNotes';
 
 exports.handler = async function (event) {
-  try { return await handle(event); }
-  catch (e) { return { statusCode: 500, headers: RH, body: JSON.stringify({ error: 'store_failed', detail: String(e && e.message || e) }) }; }
-};
-
-async function handle(event) {
   connectLambda(event);
   const store = getStore({ name: 'teamleader' });
 
@@ -40,8 +35,8 @@ async function handle(event) {
     Object.keys(next.notes).forEach(k => { if (empty(next.notes[k])) delete next.notes[k]; });
     Object.keys(next.track).forEach(k => { const t = next.track[k]; if (!t || (!t.contacted && !t.stage)) delete next.track[k]; });
     await store.setJSON(KEY, next);
-    return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, ...next }) };
+    return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, notes: Object.keys(next.notes).length, track: Object.keys(next.track).length, ts: next.ts }) };
   }
 
   return { statusCode: 405, headers: RH, body: '{"error":"method_not_allowed"}' };
-}
+};
