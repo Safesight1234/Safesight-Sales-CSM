@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v36 · 30 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v40 · 30 Sep (single-file)</div>
     </div>
   </div>
 
@@ -2516,10 +2516,12 @@ html.locked, html.locked body { overflow: hidden; }
     /* every won Teamleader deal (all years), each with its "deal won" date (closed_at) */
     /* seed years (2023-25) + live years + the current year's live deals - the
        seed alone made the pool "non-empty" and hid every 2026 deal */
-    const qWon = qs => ['Q1','Q2','Q3','Q4'].flatMap(q => (qs && qs[q] && qs[q].won) || []);
+    const qWon = (qs, y) => ['Q1','Q2','Q3','Q4'].flatMap(q => ((qs && qs[q] && qs[q].won) || []).map(x => ({ ...x, _q: q, _y: +y })));
+    const CUR_Y = new Date().getFullYear();
     const wonPool = (() => {
       const seen = new Set(), out = [];
-      [...Object.values(D.quartersByYear || {}).flatMap(qWon), ...qWon(D.quarters), ...wonAll].forEach(x => {
+      const qd = ctx.qdata || D.quarters || {};
+      [...Object.entries(D.quartersByYear || {}).flatMap(([y, qs]) => qWon(qs, y)), ...qWon(D.quarters, CUR_Y), ...qWon(qd, year)].forEach(x => {
         const k = normName(x.customer || x.name) + '|' + normName(x.name) + '|' + String(x.refused || x.close || '').slice(0, 10) + '|' + (+x.value || 0);
         if (!seen.has(k)) { seen.add(k); out.push(x); }
       });
@@ -2537,7 +2539,13 @@ html.locked, html.locked body { overflow: hidden; }
        generic prefixes (Gemeente, Stichting) without a hand-kept stop list. */
     const STOP = /^(the|bv|b|v|nv|n|holding|group|groep|international|gmbh|sa|sad|sarl|ltd|limited|company|co)$/;
     const lead = s => { const t = String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(x => x.length > 2 && !STOP.test(x)); return t[0] || ''; };
-    const countBy = (list, get) => list.reduce((m, x) => { const k = lead(get(x)); if (k) m[k] = (m[k] || 0) + 1; return m; }, {});
+    /* counts DISTINCT customer names per leading word - two deals for the same
+       customer (renewal + upsell) must not make the word look ambiguous */
+    const countBy = (list, get) => {
+      const seen = {}, m = {};
+      list.forEach(x => { const n = normName(get(x)), k = lead(get(x)); if (!k || !n) return; seen[k] = seen[k] || new Set(); seen[k].add(n); m[k] = seen[k].size; });
+      return m;
+    };
     const sheetLead = countBy(revRows || [], x => x.customer);
     const dealLead = countBy(renewalPool, x => x.customer || x.name);
     const sameCo = (a, b) => {
@@ -2585,8 +2593,8 @@ html.locked, html.locked body { overflow: hidden; }
     const upsellFor = r => {
       if (r.sheetUpsell) return r.sheetUpsell;
       return wonAll
-        .filter(d => samePrefix(d.customer || d.name, r.customer) && isUpsell(d))
-        .reduce((a, d) => a + dealVal(d), 0);
+        .filter(d => sameCo(d.customer || d.name, r.customer) && isUpsell(d))
+        .reduce((a, d) => a + window.ownValue(d), 0);
     };
     const sheetChurn = (window.revenueChurnFor && window.revenueChurnFor(year)) || [];
     const churnMap = {}; sheetChurn.forEach(c => { churnMap[normName(c.customer)] = c; });
@@ -2604,11 +2612,8 @@ html.locked, html.locked body { overflow: hidden; }
         const renSum = ren.reduce((a, d) => a + dealArr(d), 0);
         return (renSum || r.arr) + up.reduce((a, d) => a + dealArr(d), 0);
       }
-      const nx = nextRows.find(x => samePrefix(x.customer, r.customer));
-      if (nx) {
-        const v = (+nx.arrAnnual || 0) + (+nx.arrEvent || 0) + (+nx.awaiting || 0);
-        if (v) return v;
-      }
+      // no Teamleader deal -> no upsell. Never derive it from next year's
+      // Revenue tab (that figure blends old + new contract months).
       return null;
     };
     /* every contract ending this year, with its renewal outcome resolved */
@@ -2668,7 +2673,55 @@ html.locked, html.locked body { overflow: hidden; }
       if (!w || w.getFullYear() !== year) return inScope(r);
       return monthIdx != null ? w.getMonth() === monthIdx : quarters.includes('Q' + (Math.floor(w.getMonth() / 3) + 1));
     };
-    const renewedScope = renewedBook.filter(inScopeWon).filter(statusOK).sort((a, b) => b.newArr - a.newArr);
+    const renewedContract = renewedBook.filter(inScopeWon);
+    /* EVERY won Customer-growth deal (Upsell pipeline) + won renewal rows from
+       Teamleader, placed in the quarter of its DEAL WON date - so the won card
+       matches the Upsell total on the Overview. One row per customer. */
+    /* dated by deal-won; a deal without a date falls back to the quarter
+       bucket Teamleader put it in (same as the Overview upsell bars) */
+    const wonWhen = d => {
+      const w = parseLocal(d.wonDate);
+      if (w) return { y: w.getFullYear(), q: 'Q' + (Math.floor(w.getMonth() / 3) + 1), m: w.getMonth() };
+      if (d._y && d._q) return { y: d._y, q: d._q, m: window.dealMonth ? window.dealMonth(d) : null };
+      return null;
+    };
+    const wonInYear = d => { const t = wonWhen(d); return !!t && t.y === year; };
+    const wonInScope = d => {
+      const t = wonWhen(d); if (!t || t.y !== year) return false;
+      return monthIdx != null ? t.m === monthIdx : quarters.includes(t.q);
+    };
+    const growthAll = [
+      ...wonPool.filter(isUpsell).map(x => ({ ...x, wonDate: String(x.refused || x.close || '').slice(0, 10), up: window.ownValue(x), ren: 0 })),
+      ...(D.renewals || []).map(x => ({ ...x, wonDate: String(x.close || '').slice(0, 10), up: 0, ren: +x.arr || 0 })),
+    ];
+    const buildGrowth = deals => {
+    const byCo = {};
+    deals.forEach(d => {
+      const name = d.customer || d.name;
+      const row = (revRows || []).find(r => sameCo(name, r.customer));
+      const k = normName(row ? row.customer : name);
+      const g = byCo[k] || (byCo[k] = { customer: row ? row.customer : name, sector: row ? row.sector : (d.industry || ''),
+        arr: row ? (+row.arrAnnual || 0) + (+row.arrEvent || 0) + (+row.awaiting || 0) : 0,
+        end: row ? row.end : '', up: 0, ren: 0, wonDate: '', newEnd: '', months: 0 });
+      g.up += d.up; g.ren += d.ren;
+      if (d.wonDate > g.wonDate) g.wonDate = d.wonDate;
+      if (!g._q && d._q) g._q = d._q;
+      if (d.endDate && d.endDate > g.newEnd) { g.newEnd = d.endDate; g.months = +d.duration || g.months; }
+    });
+    return Object.values(byCo).map(g => {
+      const newArr = (g.ren || g.arr) + g.up;
+      const w = parseLocal(g.wonDate);
+      return { customer: g.customer, sector: g.sector, arr: g.arr, end: g.end, wonDate: g.wonDate,
+        newArr, delta: newArr - g.arr, newEnd: g.newEnd, settled: 'renewed', signed: true, upsell: g.up,
+        quarter: w ? 'Q' + (Math.floor(w.getMonth() / 3) + 1) : (g._q || ''),
+        term: g.months ? (g.months % 12 === 0 ? (g.months / 12) + (g.months === 12 ? ' year' : ' years') : g.months + ' months') : '' };
+    });
+    };
+    const mergeRenewed = (contract, growth) => [...contract, ...growth.filter(g => !contract.some(r => normName(r.customer) === normName(g.customer)))];
+    const growthRows = buildGrowth(growthAll.filter(wonInScope));
+    const renewedScope = mergeRenewed(renewedContract, growthRows).filter(statusOK).sort((a, b) => b.newArr - a.newArr);
+    /* whole selected year - drives the RENEWED KPI so it matches the card */
+    const renewedYear = mergeRenewed(renewedBook.filter(r => { const w = parseLocal(r.wonDate); return !w || w.getFullYear() === year; }), buildGrowth(growthAll.filter(wonInYear)));
     const churnedScope = churnedBook.filter(inScope).filter(statusOK).sort((a, b) => a.delta - b.delta);
     const contactNow = bookOpen.filter(r => r.state === 'now');
 
@@ -2841,9 +2894,9 @@ html.locked, html.locked body { overflow: hidden; }
                      sub={<span>inside 6 months before the end date</span>} />
           </KpiHover>
           <KpiHover head={`Renewed · ${year}`} empty="No renewals signed yet"
-                    rows={[...renewedBook].sort((a, b) => b.newArr - a.newArr).map(r => ({ name: r.customer, value: fmt(r.newArr) + (r.delta > 0 ? '  +' + fmt(r.delta) : '') }))}>
-            <KpiCard eyebrow={`RENEWED · ${year}`} dotColor="green" value={renewedBook.length}
-                     sub={<span>{fmt(renewedBook.reduce((a, r) => a + r.newArr, 0))} ARR secured</span>} />
+                    rows={[...renewedYear].sort((a, b) => b.newArr - a.newArr).map(r => ({ name: r.customer, value: fmt(r.newArr) + (r.delta > 0 ? '  +' + fmt(r.delta) : '') }))}>
+            <KpiCard eyebrow={`RENEWED · ${year}`} dotColor="green" value={renewedYear.length}
+                     sub={<span>{fmt(renewedYear.reduce((a, r) => a + r.newArr, 0))} ARR secured</span>} />
           </KpiHover>
           <KpiHover head={`Churned · ${year}`} empty="No churn recorded" red
                     rows={[...churnedBook].sort((a, b) => a.delta - b.delta).map(r => ({ name: r.customer, value: fmt(Math.abs(r.delta)) + (r.partial ? ' partial' : '') }))}>
@@ -4693,7 +4746,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v36</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v40</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
