@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v35 · 29 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v36 · 30 Sep (single-file)</div>
     </div>
   </div>
 
@@ -2309,7 +2309,7 @@ html.locked, html.locked body { overflow: hidden; }
   const NOTES = 'safesight_csm_notes_v1';
   const loadNotes = () => { try { return JSON.parse(localStorage.getItem(NOTES)) || {}; } catch (e) { return {}; } };
   const saveNotes = n => { try { localStorage.setItem(NOTES, JSON.stringify(n)); } catch (e) {} };
-  const CSM_API = '/.netlify/functions/csm-store';
+  const CSM_API = '/.netlify/functions/revenue-store?store=csm';
   /* The server is the ONLY record. Every change is sent straight away and
      retried until it lands; the answer is the full shared state, which then
      replaces what this laptop shows. */
@@ -2827,7 +2827,7 @@ html.locked, html.locked body { overflow: hidden; }
 
     return (
       <React.Fragment>
-        {window.self === window.top && (csmSync === 'error' || csmSync === 'pullError') && <div style={{ background: '#fde8e8', color: '#9b1c1c', border: '1px solid #f5b5b5', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{csmSync === 'error' ? 'Could not save to the server - your last change is not visible to colleagues yet. Retrying automatically…' : 'Could not load the shared CSM notes from the server (' + (window.__csmErr || 'unknown') + (window.__csmErr === 'HTTP 404' ? ' - csm-store.js is missing in netlify/functions' : '') + ') - retrying…'}</div>}
+        {window.self === window.top && (csmSync === 'error' || csmSync === 'pullError') && <div style={{ background: '#fde8e8', color: '#9b1c1c', border: '1px solid #f5b5b5', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{csmSync === 'error' ? 'Could not save to the server - your last change is not visible to colleagues yet. Retrying automatically…' : 'Could not load the shared CSM notes from the server (' + (window.__csmErr || 'unknown') + (window.__csmErr === 'HTTP 404' ? ' - revenue-store.js in netlify/functions is out of date' : '') + ') - retrying…'}</div>}
         {/* ---- KPIs ---- */}
         <div className="grid g-4">
           <KpiHover head={`Contracts ending · ${periodLabel}`} empty="Nothing open in this period"
@@ -4693,7 +4693,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v35</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v36</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
