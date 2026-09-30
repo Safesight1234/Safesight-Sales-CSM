@@ -15,6 +15,8 @@ const KEY = 'revenueEdits';
 exports.handler = async function (event) {
   connectLambda(event);
   const store = getStore({ name: 'teamleader' });
+  // ?store=csm -> CSM notes + renewal tracking (same key csm-store.js used)
+  if ((event.queryStringParameters || {}).store === 'csm') return csm(event, store);
 
   if (event.httpMethod === 'GET') {
     const data = await store.get(KEY, { type: 'json' }).catch(() => null);
@@ -36,3 +38,32 @@ exports.handler = async function (event) {
 
   return { statusCode: 405, headers: RH, body: '{"error":"method_not_allowed"}' };
 };
+
+/* CSM notes + tracking: per-key merge, newest write wins per key */
+async function csm(event, store) {
+  const K = 'csmNotes';
+  try {
+    if (event.httpMethod === 'GET') {
+      const data = await store.get(K, { type: 'json' }).catch(() => null);
+      return { statusCode: 200, headers: RH, body: JSON.stringify(data || { notes: {}, track: {}, ts: 0 }) };
+    }
+    if (event.httpMethod === 'POST') {
+      let body;
+      try { body = JSON.parse(event.body || '{}'); } catch (e) { return { statusCode: 400, headers: RH, body: '{"error":"bad_json"}' }; }
+      const cur = (await store.get(K, { type: 'json' }).catch(() => null)) || { notes: {}, track: {} };
+      const next = {
+        notes: { ...(cur.notes || {}), ...(body.notes || {}) },
+        track: { ...(cur.track || {}), ...(body.track || {}) },
+        ts: Number(body.ts) || Date.now(),
+      };
+      const empty = v => !v || (Array.isArray(v) && !v.length);
+      Object.keys(next.notes).forEach(k => { if (empty(next.notes[k])) delete next.notes[k]; });
+      Object.keys(next.track).forEach(k => { const t = next.track[k]; if (!t || (!t.contacted && !t.stage)) delete next.track[k]; });
+      await store.setJSON(K, next);
+      return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, ...next }) };
+    }
+    return { statusCode: 405, headers: RH, body: '{"error":"method_not_allowed"}' };
+  } catch (e) {
+    return { statusCode: 500, headers: RH, body: JSON.stringify({ error: 'store_failed', detail: String(e && e.message || e) }) };
+  }
+}
