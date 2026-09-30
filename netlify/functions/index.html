@@ -2326,7 +2326,12 @@ html.locked, html.locked body { overflow: hidden; }
         return new Promise(res => setTimeout(res, Math.min(30000, 3000 * (tries + 1)))).then(() => pushCsm(notes, track, tries + 1));
       });
   };
-  const pullCsm = () => fetch(CSM_API).then(r => r.ok ? r.json() : null).catch(() => null);
+  /* remembers WHY a load failed (404 = csm-store.js not deployed, 500 = server error) */
+  let csmPullFails = 0;
+  const pullCsm = () => fetch(CSM_API, { cache: 'no-store' })
+    .then(r => { if (!r.ok) { window.__csmErr = 'HTTP ' + r.status; return null; } return r.json(); })
+    .then(d => { if (d && typeof d === 'object') { csmPullFails = 0; return d; } csmPullFails++; return null; })
+    .catch(e => { window.__csmErr = 'no connection'; csmPullFails++; return null; });
 
   /* per-contract renewal tracking: contacted flag + where the conversation is */
   const TRACK = 'safesight_csm_track_v1';
@@ -2464,7 +2469,7 @@ html.locked, html.locked body { overflow: hidden; }
     }
     useEffect(() => {
       let live = true;
-      const refresh = () => { if (csmPending) return; pullCsm().then(d => { if (live) { if (d) { if (window.__csmSync !== 'error') csmStatus('ok'); adoptCsm(d); } else if (window.__csmSync !== 'error') csmStatus('pullError'); } }); };
+      const refresh = () => { if (csmPending) return; pullCsm().then(d => { if (live) { if (d) { if (window.__csmSync !== 'error') csmStatus('ok'); adoptCsm(d); } else if (window.__csmSync !== 'error' && csmPullFails >= 2) csmStatus('pullError'); } }); };
       const onSync = ev => setCsmSync(ev.detail);
       refresh();
       const iv = setInterval(refresh, 20000);
@@ -2822,7 +2827,7 @@ html.locked, html.locked body { overflow: hidden; }
 
     return (
       <React.Fragment>
-        {window.self === window.top && (csmSync === 'error' || csmSync === 'pullError') && <div style={{ background: '#fde8e8', color: '#9b1c1c', border: '1px solid #f5b5b5', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{csmSync === 'error' ? 'Could not save to the server - your last change is not visible to colleagues yet. Retrying automatically…' : 'Could not load the shared CSM notes from the server - retrying…'}</div>}
+        {window.self === window.top && (csmSync === 'error' || csmSync === 'pullError') && <div style={{ background: '#fde8e8', color: '#9b1c1c', border: '1px solid #f5b5b5', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{csmSync === 'error' ? 'Could not save to the server - your last change is not visible to colleagues yet. Retrying automatically…' : 'Could not load the shared CSM notes from the server (' + (window.__csmErr || 'unknown') + (window.__csmErr === 'HTTP 404' ? ' - csm-store.js is missing in netlify/functions' : '') + ') - retrying…'}</div>}
         {/* ---- KPIs ---- */}
         <div className="grid g-4">
           <KpiHover head={`Contracts ending · ${periodLabel}`} empty="Nothing open in this period"
