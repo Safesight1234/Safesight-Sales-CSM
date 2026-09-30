@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v38 · 30 Sep (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v40 · 30 Sep (single-file)</div>
     </div>
   </div>
 
@@ -2539,7 +2539,13 @@ html.locked, html.locked body { overflow: hidden; }
        generic prefixes (Gemeente, Stichting) without a hand-kept stop list. */
     const STOP = /^(the|bv|b|v|nv|n|holding|group|groep|international|gmbh|sa|sad|sarl|ltd|limited|company|co)$/;
     const lead = s => { const t = String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter(x => x.length > 2 && !STOP.test(x)); return t[0] || ''; };
-    const countBy = (list, get) => list.reduce((m, x) => { const k = lead(get(x)); if (k) m[k] = (m[k] || 0) + 1; return m; }, {});
+    /* counts DISTINCT customer names per leading word - two deals for the same
+       customer (renewal + upsell) must not make the word look ambiguous */
+    const countBy = (list, get) => {
+      const seen = {}, m = {};
+      list.forEach(x => { const n = normName(get(x)), k = lead(get(x)); if (!k || !n) return; seen[k] = seen[k] || new Set(); seen[k].add(n); m[k] = seen[k].size; });
+      return m;
+    };
     const sheetLead = countBy(revRows || [], x => x.customer);
     const dealLead = countBy(renewalPool, x => x.customer || x.name);
     const sameCo = (a, b) => {
@@ -2587,8 +2593,8 @@ html.locked, html.locked body { overflow: hidden; }
     const upsellFor = r => {
       if (r.sheetUpsell) return r.sheetUpsell;
       return wonAll
-        .filter(d => samePrefix(d.customer || d.name, r.customer) && isUpsell(d))
-        .reduce((a, d) => a + dealVal(d), 0);
+        .filter(d => sameCo(d.customer || d.name, r.customer) && isUpsell(d))
+        .reduce((a, d) => a + window.ownValue(d), 0);
     };
     const sheetChurn = (window.revenueChurnFor && window.revenueChurnFor(year)) || [];
     const churnMap = {}; sheetChurn.forEach(c => { churnMap[normName(c.customer)] = c; });
@@ -2606,11 +2612,8 @@ html.locked, html.locked body { overflow: hidden; }
         const renSum = ren.reduce((a, d) => a + dealArr(d), 0);
         return (renSum || r.arr) + up.reduce((a, d) => a + dealArr(d), 0);
       }
-      const nx = nextRows.find(x => samePrefix(x.customer, r.customer));
-      if (nx) {
-        const v = (+nx.arrAnnual || 0) + (+nx.arrEvent || 0) + (+nx.awaiting || 0);
-        if (v) return v;
-      }
+      // no Teamleader deal -> no upsell. Never derive it from next year's
+      // Revenue tab (that figure blends old + new contract months).
       return null;
     };
     /* every contract ending this year, with its renewal outcome resolved */
@@ -4743,7 +4746,7 @@ Object.assign(window, {
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v38</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v40</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
