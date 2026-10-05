@@ -13,8 +13,13 @@ const RH = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 const KEY = 'revenueEdits';
 
 exports.handler = async function (event) {
+  try { return await handle(event); }
+  catch (e) { return { statusCode: 500, headers: RH, body: JSON.stringify({ error: 'store_failed', detail: String(e && e.message || e) }) }; }
+};
+
+async function handle(event) {
   connectLambda(event);
-  const store = getStore({ name: 'teamleader', consistency: 'strong' });   // strong: a read right after a save sees that save
+  const store = getStore({ name: 'teamleader' });
   // ?store=csm -> CSM notes + renewal tracking (same key csm-store.js used)
   if ((event.queryStringParameters || {}).store === 'csm') return csm(event, store);
 
@@ -37,7 +42,7 @@ exports.handler = async function (event) {
   }
 
   return { statusCode: 405, headers: RH, body: '{"error":"method_not_allowed"}' };
-};
+}
 
 /* CSM notes + tracking: per-key merge, newest write wins per key */
 async function csm(event, store) {
