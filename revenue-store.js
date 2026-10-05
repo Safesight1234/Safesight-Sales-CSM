@@ -9,7 +9,7 @@
    ============================================================================ */
 const { connectLambda, getStore } = require('@netlify/blobs');
 
-const RH = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+const RH = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Store-Version': 'v45-plain' };
 const KEY = 'revenueEdits';
 
 exports.handler = async function (event) {
@@ -23,6 +23,7 @@ async function handle(event) {
   // ?store=csm -> CSM notes + renewal tracking (same key csm-store.js used)
   if ((event.queryStringParameters || {}).store === 'csm') return csm(event, store);
 
+  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v45-plain' }) };
   if (event.httpMethod === 'GET') {
     const data = await store.get(KEY, { type: 'json' }).catch(() => null);
     return { statusCode: 200, headers: RH, body: JSON.stringify(data || { years: {} }) };
