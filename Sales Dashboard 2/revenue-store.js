@@ -9,7 +9,7 @@
    ============================================================================ */
 const { connectLambda, getStore } = require('@netlify/blobs');
 
-const RH = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Store-Version': 'v45-plain' };
+const RH = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Store-Version': 'v46' };
 const KEY = 'revenueEdits';
 
 exports.handler = async function (event) {
@@ -23,7 +23,7 @@ async function handle(event) {
   // ?store=csm -> CSM notes + renewal tracking (same key csm-store.js used)
   if ((event.queryStringParameters || {}).store === 'csm') return csm(event, store);
 
-  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v45-plain' }) };
+  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v46' }) };
   if (event.httpMethod === 'GET') {
     const data = await store.get(KEY, { type: 'json' }).catch(() => null);
     return { statusCode: 200, headers: RH, body: JSON.stringify(data || { years: {} }) };
@@ -66,7 +66,7 @@ async function csm(event, store) {
       Object.entries(body.track || {}).forEach(([k, t]) => { const c = next.track[k]; if (!c || !(+c.ts > +((t && t.ts) || 0))) next.track[k] = t; });
       const empty = v => !v || (Array.isArray(v) && !v.length);
       Object.keys(next.notes).forEach(k => { if (empty(next.notes[k])) delete next.notes[k]; });
-      Object.keys(next.track).forEach(k => { const t = next.track[k]; if (!t || (!t.contacted && !t.stage && !t.cleared)) delete next.track[k]; });
+      Object.keys(next.track).forEach(k => { const t = next.track[k]; if (!t || (!t.contacted && !t.stage && !t.csm && !t.cleared)) delete next.track[k]; });
       await store.setJSON(K, next);
       return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, ...next }) };
     }
