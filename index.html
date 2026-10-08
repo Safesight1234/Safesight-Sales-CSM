@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v45 · 5 Oct (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v46 · 8 Oct (single-file)</div>
     </div>
   </div>
 
@@ -2341,6 +2341,14 @@ html.locked, html.locked body { overflow: hidden; }
   const FINAL = ['Signed', 'Declined'];          // set by Teamleader only - closes the renewal
   const STAGE_CLS = { 'Contact': 'watch', 'Appointment scheduled': 'watch', 'Proposal made': 'up', 'Verbal agreement': 'healthy', 'Signed': 'healthy', 'Declined': 'risk' };
 
+  const CSMS = ['Eva de Vre', 'Casper Derks'];
+  const csmFirst = n => String(n || '').split(' ')[0];
+  function CsmCell({ value, onCommit }) {
+    return <select className="stage-sel" data-state={value ? 'open' : 'none'} value={value || ''} onChange={e => onCommit(e.target.value)} title="Customer success manager">
+      <option value="">— assign</option>
+      {CSMS.map(n => <option key={n} value={n}>{csmFirst(n)}</option>)}
+    </select>;
+  }
   function StageCell({ value, locked, onCommit }) {
     if (locked) return <span className={`tag ${STAGE_CLS[value] || 'watch'}`} title="Set by Teamleader">{value}</span>;
     // Signed / Declined are set by Teamleader now - a value stored by an older
@@ -2453,10 +2461,14 @@ html.locked, html.locked body { overflow: hidden; }
     });
     const [track, setTrack] = useState(loadTrack);
     const trackOf = r => track[year + '|' + r.customer] || {};
+    const csmOf = name => (track[year + '|' + name] || {}).csm || '';
+    const [csmFilter, setCsmFilter] = useState(() => { try { return localStorage.getItem('safesight_csm_filter') || ''; } catch (e) { return ''; } });
+    const pickCsm = v => { setCsmFilter(v); try { localStorage.setItem('safesight_csm_filter', v); } catch (e) {} };
+    const csmOK = r => !csmFilter || (csmFilter === '-' ? !csmOf(r.customer) : csmOf(r.customer) === csmFilter);
     const setTrackVal = (r, patch) => setTrack(prev => {
       const k = year + '|' + r.customer;
       const next = { ...prev, [k]: { ...(prev[k] || {}), ...patch, ts: Date.now() } };
-      const cleared = !next[k].contacted && !next[k].stage;
+      const cleared = !next[k].contacted && !next[k].stage && !next[k].csm;
       window.__csmTouched = window.__csmTouched || {}; window.__csmTouched['t:' + k] = Date.now();
       const sendT = cleared ? { ts: next[k].ts, cleared: true } : next[k];
       if (cleared) delete next[k];
@@ -2648,7 +2660,7 @@ html.locked, html.locked body { overflow: hidden; }
         newArr = Math.max(0, r.arr - churned);
         delta = -churned;
       }
-      return { ...r, contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd, wonDate: (won && won.wonDate) || '',
+      return { ...r, csm: t.csm || '', contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd, wonDate: (won && won.wonDate) || '',
                signed: !!won, upsell: upsellFor(r),
                term: months ? (months % 12 === 0 ? (months / 12) + (months === 12 ? ' year' : ' years') : months + ' months') : '',
                partial: settled === 'churned' && newArr > 0 };
@@ -2661,9 +2673,10 @@ html.locked, html.locked body { overflow: hidden; }
       arr: +c.value || 0, newArr: 0, delta: -(+c.value || 0), settled: 'churned', partial: false,
       state: 'passed', days: 0, contacted: false, stage: 'Declined', locked: true,
     }));
-    const bookOpen = bookAll.filter(r => !r.settled);
-    const renewedBook = bookAll.filter(r => r.settled === 'renewed');
-    const churnedBook = [...bookAll.filter(r => r.settled === 'churned'), ...extraChurn];
+    const bookMine = bookAll.filter(csmOK);
+    const bookOpen = bookMine.filter(r => !r.settled);
+    const renewedBook = bookMine.filter(r => r.settled === 'renewed');
+    const churnedBook = [...bookMine.filter(r => r.settled === 'churned'), ...extraChurn.filter(csmOK)];
 
     const bookQuarters = ['Q1','Q2','Q3','Q4'].map(q => {
       const rows = bookOpen.filter(r => r.quarter === q);
@@ -2675,7 +2688,7 @@ html.locked, html.locked body { overflow: hidden; }
       || (renewalStatus === 'Open' && !r.settled)
       || (renewalStatus === 'Won' && r.settled === 'renewed')
       || (renewalStatus === 'Churn' && r.settled === 'churned');
-    const bookInScope = (renewalStatus === 'Won' || renewalStatus === 'Churn' ? bookAll : bookOpen)
+    const bookInScope = (renewalStatus === 'Won' || renewalStatus === 'Churn' ? bookMine : bookOpen)
       .filter(inScope).filter(statusOK)
       .sort((a, b) => {
         const ea = a.state === 'passed' ? 1 : 0, eb = b.state === 'passed' ? 1 : 0;
@@ -2732,15 +2745,16 @@ html.locked, html.locked body { overflow: hidden; }
     });
     };
     const mergeRenewed = (contract, growth) => [...contract, ...growth.filter(g => !contract.some(r => normName(r.customer) === normName(g.customer)))];
-    const growthRows = buildGrowth(growthAll.filter(wonInScope));
+    const growthRows = buildGrowth(growthAll.filter(wonInScope)).filter(csmOK);
     const renewedScope = mergeRenewed(renewedContract, growthRows).filter(statusOK).sort((a, b) => b.newArr - a.newArr);
     /* whole selected year - drives the RENEWED KPI so it matches the card */
-    const renewedYear = mergeRenewed(renewedBook.filter(r => { const w = parseLocal(r.wonDate); return !w || w.getFullYear() === year; }), buildGrowth(growthAll.filter(wonInYear)));
+    const renewedYear = mergeRenewed(renewedBook.filter(r => { const w = parseLocal(r.wonDate); return !w || w.getFullYear() === year; }), buildGrowth(growthAll.filter(wonInYear)).filter(csmOK));
     const churnedScope = churnedBook.filter(inScope).filter(statusOK).sort((a, b) => a.delta - b.delta);
     const contactNow = bookOpen.filter(r => r.state === 'now');
 
     const bookCols = [
       { key: 'customer', label: 'Customer', sortable: true, render: r => <span className="co">{r.customer}</span> },
+      { key: 'csm', label: 'CSM', sortable: true, sortVal: r => r.csm || '~', render: r => <CsmCell value={r.csm} onCommit={v => setTrackVal(r, { csm: v })} /> },
       { key: 'sector', label: 'Sector', sortable: true, render: r => <span className="sub">{r.sector || '—'}</span> },
       { key: 'quarter', label: 'Quarter', sortable: true, render: r => <span className="tag" style={{ background: 'var(--surface-3)', color: 'var(--text-2)' }}>{r.quarter}</span> },
       { key: 'end', label: 'Contract ends', sortable: true, sortVal: r => new Date(r.end).getTime(), render: r => <span className="tnum">{dateLong(r.end)}</span> },
@@ -2766,7 +2780,7 @@ html.locked, html.locked body { overflow: hidden; }
         render: r => r.upsell ? <span className="tag healthy">+{fmt(r.upsell)}</span> : <span className="muted">—</span> },
       { key: 'note', label: 'Notes', sortable: false, cellClass: () => 'rw-note', render: r => <NoteCell value={notes[noteKey(r)]} onCommit={v => setNote(r, v)} /> },
     ];
-    const bookFoot = { customer: 'Total', sector: '', quarter: '', end: '', signed: `${bookInScope.filter(r => r.signed).length} signed`, contacted: `${bookInScope.filter(r => r.contacted).length} contacted`, stage: '', state: `${bookInScope.length} open`,
+    const bookFoot = { customer: 'Total', csm: '', sector: '', quarter: '', end: '', signed: `${bookInScope.filter(r => r.signed).length} signed`, contacted: `${bookInScope.filter(r => r.contacted).length} contacted`, stage: '', state: `${bookInScope.length} open`,
       arr: fmt(bookInScope.reduce((a, r) => a + r.arr, 0)), upsell: fmt(bookInScope.reduce((a, r) => a + r.upsell, 0)), note: '' };
 
     const deltaCell = d => d > 0 ? <span className="tag healthy">+{fmt(d)}</span>
@@ -2895,6 +2909,13 @@ html.locked, html.locked body { overflow: hidden; }
     return (
       <React.Fragment>
         {window.self === window.top && (csmSync === 'error' || csmSync === 'pullError') && <div style={{ background: '#fde8e8', color: '#9b1c1c', border: '1px solid #f5b5b5', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>{csmSync === 'error' ? 'Could not save to the server - your last change is not visible to colleagues yet. Retrying automatically…' : 'Could not load the shared CSM notes from the server (' + (window.__csmErr || 'unknown') + (window.__csmErr === 'HTTP 404' ? ' - revenue-store.js in netlify/functions is out of date' : '') + ') - retrying…'}</div>}
+        <div className="filterrow" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span className="sub" style={{ fontSize: 12, fontWeight: 600 }}>CSM</span>
+          <div className="seg">
+            {[['', 'All'], ...CSMS.map(n => [n, csmFirst(n)]), ['-', 'Unassigned']].map(([v, l]) => <button key={v || 'all'} aria-pressed={csmFilter === v} onClick={() => pickCsm(v)}>{l}</button>)}
+          </div>
+          {csmFilter && <span className="sub" style={{ fontSize: 12 }}>{bookMine.length} contract{bookMine.length !== 1 ? 's' : ''} ending in {year}</span>}
+        </div>
         {/* ---- KPIs ---- */}
         <div className="grid g-4">
           <KpiHover head={`Contracts ending · ${periodLabel}`} empty="Nothing open in this period"
@@ -5000,7 +5021,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v45</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v46</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
