@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v46 · 8 Oct (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v47 · 12 Oct (single-file)</div>
     </div>
   </div>
 
@@ -2346,7 +2346,7 @@ html.locked, html.locked body { overflow: hidden; }
   function CsmCell({ value, onCommit }) {
     return <select className="stage-sel" data-state={value ? 'open' : 'none'} value={value || ''} onChange={e => onCommit(e.target.value)} title="Customer success manager">
       <option value="">— assign</option>
-      {CSMS.map(n => <option key={n} value={n}>{csmFirst(n)}</option>)}
+      {[...CSMS, ...(value && !CSMS.includes(value) ? [value] : [])].map(n => <option key={n} value={n}>{csmFirst(n)}</option>)}
     </select>;
   }
   function StageCell({ value, locked, onCommit }) {
@@ -2461,7 +2461,15 @@ html.locked, html.locked body { overflow: hidden; }
     });
     const [track, setTrack] = useState(loadTrack);
     const trackOf = r => track[year + '|' + r.customer] || {};
-    const csmOf = name => (track[year + '|' + name] || {}).csm || '';
+    /* CSM = Teamleader "CSM" field (synced). A pick in the CSM column overrides it. */
+    const csmCanon = v => CSMS.find(n => csmFirst(n).toLowerCase() === csmFirst(v).toLowerCase()) || v;
+    const tlCsm = name => {
+      const m = D.csmByCustomer || {}, keys = Object.keys(m), k = normName(name);
+      let hit = keys.find(x => normName(x) === k);
+      if (!hit && lead(name)) { const c = keys.filter(x => lead(x) === lead(name)); if (c.length === 1) hit = c[0]; }
+      return hit ? csmCanon(m[hit]) : '';
+    };
+    const csmOf = name => (track[year + '|' + name] || {}).csm || tlCsm(name);
     const [csmFilter, setCsmFilter] = useState(() => { try { return localStorage.getItem('safesight_csm_filter') || ''; } catch (e) { return ''; } });
     const pickCsm = v => { setCsmFilter(v); try { localStorage.setItem('safesight_csm_filter', v); } catch (e) {} };
     const csmOK = r => !csmFilter || (csmFilter === '-' ? !csmOf(r.customer) : csmOf(r.customer) === csmFilter);
@@ -2660,7 +2668,7 @@ html.locked, html.locked body { overflow: hidden; }
         newArr = Math.max(0, r.arr - churned);
         delta = -churned;
       }
-      return { ...r, csm: t.csm || '', contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd, wonDate: (won && won.wonDate) || '',
+      return { ...r, csm: csmOf(r.customer), contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd, wonDate: (won && won.wonDate) || '',
                signed: !!won, upsell: upsellFor(r),
                term: months ? (months % 12 === 0 ? (months / 12) + (months === 12 ? ' year' : ' years') : months + ' months') : '',
                partial: settled === 'churned' && newArr > 0 };
@@ -5021,7 +5029,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v46</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v47</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
