@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v47 · 12 Oct (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v48 · 20 Oct (single-file)</div>
     </div>
   </div>
 
@@ -2343,6 +2343,16 @@ html.locked, html.locked body { overflow: hidden; }
 
   const CSMS = ['Eva de Vre', 'Casper Derks'];
   const csmFirst = n => String(n || '').split(' ')[0];
+  function ExpUpsellCell({ value, onCommit }) {
+    const [v, setV] = useState(value ? String(value) : '');
+    useEffect(() => { setV(value ? String(value) : ''); }, [value]);
+    const commit = () => { const n = Math.max(0, Math.round(parseFloat(String(v).replace(/[^\d.,-]/g, '').replace(',', '.')) || 0)); if (n !== (value || 0)) onCommit(n); setV(n ? String(n) : ''); };
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+      <span className="muted" style={{ fontSize: 12 }}>€</span>
+      <input className="tnum" inputMode="numeric" placeholder="—" value={v} onChange={e => setV(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+        style={{ width: 72, textAlign: 'right', font: 'inherit', fontSize: 13, padding: '4px 6px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)' }} title="Expected upsell at renewal (saved for everyone)" />
+    </div>;
+  }
   function CsmCell({ value, onCommit }) {
     return <select className="stage-sel" data-state={value ? 'open' : 'none'} value={value || ''} onChange={e => onCommit(e.target.value)} title="Customer success manager">
       <option value="">— assign</option>
@@ -2476,7 +2486,7 @@ html.locked, html.locked body { overflow: hidden; }
     const setTrackVal = (r, patch) => setTrack(prev => {
       const k = year + '|' + r.customer;
       const next = { ...prev, [k]: { ...(prev[k] || {}), ...patch, ts: Date.now() } };
-      const cleared = !next[k].contacted && !next[k].stage && !next[k].csm;
+      const cleared = !next[k].contacted && !next[k].stage && !next[k].csm && !next[k].expUpsell;
       window.__csmTouched = window.__csmTouched || {}; window.__csmTouched['t:' + k] = Date.now();
       const sendT = cleared ? { ts: next[k].ts, cleared: true } : next[k];
       if (cleared) delete next[k];
@@ -2668,7 +2678,7 @@ html.locked, html.locked body { overflow: hidden; }
         newArr = Math.max(0, r.arr - churned);
         delta = -churned;
       }
-      return { ...r, csm: csmOf(r.customer), contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd, wonDate: (won && won.wonDate) || '',
+      return { ...r, csm: csmOf(r.customer), expUpsell: +t.expUpsell || 0, contacted: !!t.contacted, stage, locked: !!settled, settled, newArr, delta, newEnd, wonDate: (won && won.wonDate) || '',
                signed: !!won, upsell: upsellFor(r),
                term: months ? (months % 12 === 0 ? (months / 12) + (months === 12 ? ' year' : ' years') : months + ' months') : '',
                partial: settled === 'churned' && newArr > 0 };
@@ -2784,12 +2794,13 @@ html.locked, html.locked body { overflow: hidden; }
                    : r.state === 'now' ? <span className="tag risk">Contact now</span>
                    : <span className="tag healthy">In {Math.max(0, Math.round(r.days / 30))} mo</span> },
       { key: 'arr', label: 'ARR at renewal', num: true, sortable: true, render: r => <span className="tnum">{fmt(r.arr)}</span> },
+      { key: 'expUpsell', label: 'Expected upsell', num: true, sortable: true, render: r => r.locked ? (r.expUpsell ? <span className="tnum muted">{fmt(r.expUpsell)}</span> : <span className="muted">—</span>) : <ExpUpsellCell value={r.expUpsell} onCommit={n => setTrackVal(r, { expUpsell: n })} /> },
       { key: 'upsell', label: 'Upsell won', num: true, sortable: true,
         render: r => r.upsell ? <span className="tag healthy">+{fmt(r.upsell)}</span> : <span className="muted">—</span> },
       { key: 'note', label: 'Notes', sortable: false, cellClass: () => 'rw-note', render: r => <NoteCell value={notes[noteKey(r)]} onCommit={v => setNote(r, v)} /> },
     ];
     const bookFoot = { customer: 'Total', csm: '', sector: '', quarter: '', end: '', signed: `${bookInScope.filter(r => r.signed).length} signed`, contacted: `${bookInScope.filter(r => r.contacted).length} contacted`, stage: '', state: `${bookInScope.length} open`,
-      arr: fmt(bookInScope.reduce((a, r) => a + r.arr, 0)), upsell: fmt(bookInScope.reduce((a, r) => a + r.upsell, 0)), note: '' };
+      arr: fmt(bookInScope.reduce((a, r) => a + r.arr, 0)), expUpsell: fmt(bookInScope.reduce((a, r) => a + (r.expUpsell || 0), 0)), upsell: fmt(bookInScope.reduce((a, r) => a + r.upsell, 0)), note: '' };
 
     const deltaCell = d => d > 0 ? <span className="tag healthy">+{fmt(d)}</span>
                         : d < 0 ? <span className="tag risk">{fmt(d)}</span>
@@ -5029,7 +5040,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v47</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v48</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
