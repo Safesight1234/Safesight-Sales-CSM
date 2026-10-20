@@ -30,10 +30,17 @@ const FRESH_FROM = 2026;          // only re-read detail for deals in this year 
 const dealYear = d => new Date(d.closedAt || d.estClose || d.created).getFullYear();
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const BUDGET = 7000, DETAIL_BATCH = 6;
-const DETAIL_SCHEMA = 9;          // bump when a NEW custom field is added to the detail record,
+const DETAIL_SCHEMA = 10;          // bump when a NEW custom field is added to the detail record,
                                   // so already-cached deals get re-read once and backfilled
 const num = v => (v == null || v === '') ? 0 : (Number(v) || 0);
 const riskVal = v => (v === true || v === 'Yes' || v === 'yes' || v === 'Ja') ? 'Yes' : (v === false || v === 'No' || v === 'no' || v === 'Nee') ? 'No' : '';
+// CSM field value -> person name. A user-type field gives {type:'user', id}; a
+// dropdown / text field gives the name itself.
+function csmVal(v, users) {
+  if (Array.isArray(v)) v = v[0];
+  if (v && typeof v === 'object') return (v.id && users[v.id]) || v.name || v.value || '';
+  return String(v == null ? '' : v).trim();
+}
 function cfMap(d) { const m = {}; (d.custom_fields || []).forEach(f => { if (f.definition) m[f.definition.id] = f.value; }); return m; }
 // Fallback when the field ids aren't known: read contract dates / duration off
 // the deal by VALUE SHAPE. Dates are ISO (yyyy-mm-dd); the earliest is the
@@ -66,7 +73,8 @@ exports.handler = async function (event) {
   if (!cache) cache = { version: 8, details: {}, companyName: {}, userName: {}, cfIds: {} };
   cache.version = 8;
   if (!cache.cfIds) cache.cfIds = {};
-  if (cache.cfIds.scanVersion !== 2) cache.cfIds = { scanVersion: 2 };   // re-scan definitions (start/end date by label)
+  if (cache.cfIds.scanVersion !== 3) cache.cfIds = { scanVersion: 3 };   // v3: also finds the CSM field
+  if (!cache.companyCsm) cache.companyCsm = {};   // re-scan definitions (start/end date by label)
 
   // in-flight job (resume mid-sync). Self-healing: if a job got wedged and is
   // older than 10 min, discard it and start fresh so a sync can never stay
@@ -97,6 +105,11 @@ exports.handler = async function (event) {
               defs.forEach(def => {
                 const label = String(def.label || '').toLowerCase().trim();
                 if (cache.cfIds.labels.length < 250) cache.cfIds.labels.push(def.label + ' = ' + def.id);
+                // "CSM" / "Customer success (manager)" - who is responsible for the account
+                if (/^csm\b|customer\s*success/.test(label)) {
+                  if (def.context === 'company') { if (!cache.cfIds.csmCompany) cache.cfIds.csmCompany = def.id; }
+                  else if (!cache.cfIds.csmDeal) cache.cfIds.csmDeal = def.id;
+                }
                 if (!cache.cfIds.duration && /(duration|looptijd|duur)/.test(label)) cache.cfIds.duration = def.id;
                 // "Startdate" / "Start date" / "Contract start" / "Startdatum"
                 if (!cache.cfIds.startDate && /^(contract\s*)?start\s*-?\s*(date|datum)?$|contract\s*start|start\s*date|startdatum/.test(label)) cache.cfIds.startDate = def.id;
@@ -174,6 +187,7 @@ exports.handler = async function (event) {
               endDate: endCf || g.end,
               startDate: startCf || g.start,      // "Startdate" custom field (id, else by shape)
               duration: durCf || g.duration,      // "Duration (in months)"
+              csm: cache.cfIds.csmDeal ? csmVal(cf[cache.cfIds.csmDeal], cache.userName) : '',
               risk: isNL ? '' : riskVal(cf[CF.risk]), statusRenewal: isNL ? '' : (cf[CF.statusRenewal] || ''),
             };
           });
@@ -183,11 +197,27 @@ exports.handler = async function (event) {
 
       else if (job.phase === 'companies') {
         const slice = job.companyIds.slice(job.companyCursor, job.companyCursor + 100);
-        if (slice.length === 0) { job.phase = 'finalize'; }
+        if (slice.length === 0) {
+          job.phase = cache.cfIds.csmCompany ? 'companyCsm' : 'finalize';
+          // company CSM: re-read every company once a day (or when never read)
+          const stale = !cache.companyCsmAt || Date.now() - cache.companyCsmAt > 24 * 3600 * 1000;
+          job.csmIds = [...new Set(job.deals.map(d => d.cust).filter(Boolean))].filter(id => stale || !(id in cache.companyCsm));
+          job.csmCursor = 0;
+        }
         else {
           const cs = await page('companies.list', { filter: { ids: slice } }, 1);
           cs.forEach(c => { cache.companyName[c.id] = c.name; });
           job.companyCursor += slice.length;
+        }
+      }
+
+      else if (job.phase === 'companyCsm') {
+        const slice = (job.csmIds || []).slice(job.csmCursor, job.csmCursor + DETAIL_BATCH);
+        if (slice.length === 0) { cache.companyCsmAt = Date.now(); job.phase = 'finalize'; }
+        else {
+          const infos = await Promise.all(slice.map(id => tlApi('companies.info', { id }).then(r => r.data).catch(() => null)));
+          infos.forEach((c, i) => { if (c) cache.companyCsm[slice[i]] = csmVal(cfMap(c)[cache.cfIds.csmCompany], cache.userName); });
+          job.csmCursor += slice.length;
         }
       }
 
@@ -314,6 +344,15 @@ function build(deals, cache) {
       }
   });
 
+  // CSM per customer (Teamleader "CSM" field): company field first, else the
+  // most recently updated deal that carries one.
+  const csmByCustomer = {};
+  [...deals].sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || ''))).forEach(d => {
+    const name = d.cust && cache.companyName[d.cust]; if (!name || csmByCustomer[name]) return;
+    const v = (cache.companyCsm || {})[d.cust] || (cache.details[d.id] || {}).csm || '';
+    if (v) csmByCustomer[name] = v;
+  });
+
   // ---- Manual entry: PEC Zwolle ----
   // A lost Customer-growth renewal (churned Feb 2026, VL-Churn 7390) that the
   // deals.list isn't returning, so it's added by hand. Remove once the sync
@@ -345,6 +384,6 @@ function build(deals, cache) {
     cfIds: cache.cfIds || {},          // which custom-field ids the label scan found (diagnostic)
     cfDebug,
     years, reps, goals: GOALS, quarters, quartersByYear, leaderboard: lb,
-    historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts,
+    historicals: { newLogo: histNL, upsell: histUP, combined }, renewals, contracts, csmByCustomer,
     finance: { arrTotal, totalSafesight: Math.round(arrTotal * 0.75), churnTotal, safesightPct: 0.75 } };
 }
