@@ -66,7 +66,7 @@ async function csm(event, store) {
       Object.entries(body.track || {}).forEach(([k, t]) => { const c = next.track[k]; if (!c || !(+c.ts > +((t && t.ts) || 0))) next.track[k] = t; });
       const empty = v => !v || (Array.isArray(v) && !v.length);
       Object.keys(next.notes).forEach(k => { if (empty(next.notes[k])) delete next.notes[k]; });
-      Object.keys(next.track).forEach(k => { const t = next.track[k]; if (!t || (!t.contacted && !t.stage && !t.csm && !t.cleared)) delete next.track[k]; });
+      Object.keys(next.track).forEach(k => { const t = next.track[k]; if (!t || (!t.contacted && !t.stage && !t.csm && !t.expUpsell && !t.cleared)) delete next.track[k]; });
       await store.setJSON(K, next);
       return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, ...next }) };
     }
