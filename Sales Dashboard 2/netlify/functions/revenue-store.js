@@ -23,7 +23,7 @@ async function handle(event) {
   // ?store=csm -> CSM notes + renewal tracking (same key csm-store.js used)
   if ((event.queryStringParameters || {}).store === 'csm') return csm(event, store);
 
-  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v46' }) };
+  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v48' }) };
   if (event.httpMethod === 'GET') {
     const data = await store.get(KEY, { type: 'json' }).catch(() => null);
     return { statusCode: 200, headers: RH, body: JSON.stringify(data || { years: {} }) };
