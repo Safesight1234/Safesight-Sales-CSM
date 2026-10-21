@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v50 · 21 Oct (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v52 · 21 Oct (single-file)</div>
     </div>
   </div>
 
@@ -3342,7 +3342,11 @@ html.locked, html.locked body { overflow: hidden; }
   } catch (e) {} };
   const SYNC = window.__revSync = window.__revSync || { status: 'loading', savedAt: null, error: '' };
   const setSync = patch => { Object.assign(SYNC, patch); try { window.dispatchEvent(new CustomEvent('revenue-sync')); } catch (e) {} };
-  const pushEdits = (y, rows, ts) => {
+  /* one save at a time: the server stores all years in one record, so two
+     saves in parallel would each overwrite the other's year */
+  let pushQueue = Promise.resolve();
+  const pushEdits = (y, rows, ts) => (pushQueue = pushQueue.then(() => pushEditsNow(y, rows, ts), () => pushEditsNow(y, rows, ts)));
+  const pushEditsNow = (y, rows, ts) => {
     setSync({ status: 'saving' });
     return fetch(EDITS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: y, rows, ts }) })
       .then(async r => { if (!r.ok) { let t = ''; try { t = (await r.text()).replace(/\s+/g, ' ').slice(0, 220); } catch (e) {} throw new Error('server answered ' + r.status + (t ? ': ' + t : '')); } setSync({ status: 'ok', savedAt: new Date(), error: '' }); })
@@ -3497,7 +3501,32 @@ html.locked, html.locked body { overflow: hidden; }
     });
     return m;
   };
-  const rowsFor = y => mergeTeamleader(loadRows(y) || baseRows(y), y);
+  /* A contract renewed in an earlier year (end date changed by hand) runs on in
+     every later year until its new end: full months in ARR, the rest of the
+     final year in "awaiting renewal". Rows edited by hand in that later year win. */
+  const extendRenewed = (rows, y) => {
+    const latest = {};
+    YEARS.filter(yy => yy < y).forEach(yy => (loadRows(yy) || SOURCE_BY_YEAR[yy] || []).forEach(r => {
+      if (!r.manual || !r.end || yearOf(r.end) < y) return;
+      const k = norm(r.customer); if (!k) return;
+      if (!latest[k] || r.end > latest[k].end) latest[k] = r;
+    }));
+    if (!Object.keys(latest).length) return rows;
+    const out = rows.map(r => ({ ...r }));
+    Object.entries(latest).forEach(([k, src]) => {
+      let t = out.find(r => norm(r.customer) === k);
+      if (t && (t.manual || !(t.end < src.end))) return;
+      const srcRate = (+src.arrAnnual || 0) + (+src.arrEvent || 0) + (+src.awaiting || 0) + (+src.churn || 0);
+      const own = t ? (+t.arrAnnual || 0) + (+t.arrEvent || 0) + (+t.awaiting || 0) + (+t.churn || 0) : 0;
+      const rate = own || srcRate; if (!rate) return;
+      const ref = own ? t : src, ae = (+ref.arrAnnual || 0) + (+ref.arrEvent || 0);
+      const ev = ae ? (+ref.arrEvent || 0) / ae : 0;
+      if (!t) { t = { ...src, id: 'e' + y + '_' + src.id, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0 }; delete t.manual; out.unshift(t); }
+      Object.assign(t, spread(y, '', src.end, rate * (1 - ev), rate * ev), { end: src.end, churn: 0, churnIncl: 0, renewedFrom: true }, +src.license ? { license: +src.license } : {});
+    });
+    return out;
+  };
+  const rowsFor = y => extendRenewed(mergeTeamleader(loadRows(y) || baseRows(y), y), y);
 
   /* hover note on a Teamleader-sourced row: when it was signed, how long it
      runs and which sheet years it lands in */
@@ -3635,7 +3664,7 @@ html.locked, html.locked body { overflow: hidden; }
         const evShare = ((+ref.arrAnnual || 0) + (+ref.arrEvent || 0)) ? (+ref.arrEvent || 0) / ((+ref.arrAnnual || 0) + (+ref.arrEvent || 0)) : 0;
         const s = spread(y, '', end, rate * (1 - evShare), rate * evShare);
         if (!t) { t = { ...src, id: 'e' + y + '_' + src.id, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0 }; list.unshift(t); }
-        Object.assign(t, s, { end, churn: 0, churnIncl: 0, manual: true });
+        Object.assign(t, s, { end, churn: 0, churnIncl: 0, manual: true }, +src.license ? { license: +src.license } : {});
         writeLocal(y, list, ts); pushEdits(y, list, ts);
       });
       try { window.dispatchEvent(new CustomEvent('revenue-edited')); } catch (e) {}
@@ -5081,7 +5110,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v50</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v52</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
