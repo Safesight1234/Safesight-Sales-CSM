@@ -659,7 +659,7 @@ html.locked, html.locked body { overflow: hidden; }
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v48 · 20 Oct (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v50 · 21 Oct (single-file)</div>
     </div>
   </div>
 
@@ -2490,7 +2490,14 @@ html.locked, html.locked body { overflow: hidden; }
       window.__csmTouched = window.__csmTouched || {}; window.__csmTouched['t:' + k] = Date.now();
       const sendT = cleared ? { ts: next[k].ts, cleared: true } : next[k];
       if (cleared) delete next[k];
-      saveTrack(next); pushCsm({}, { [k]: sendT }).then(adoptCsm);
+      saveTrack(next); pushCsm({}, { [k]: sendT }).then(d => {
+        /* old revenue-store.js on the server drops entries that only hold an expected upsell */
+        if (!cleared && next[k].expUpsell && d && d.track && !(d.track[k] || {}).expUpsell && !window.__expWarned) {
+          window.__expWarned = true;
+          alert('Expected upsell was NOT saved: the server still runs an old revenue-store.js.\n\nUpload netlify/functions/revenue-store.js from the v48 download into the netlify/functions folder on GitHub, wait for the Netlify deploy, then enter the amount again.');
+        }
+        adoptCsm(d);
+      });
       return next;
     });
     /* shared state from the server replaces this laptop's copy - on open, every
@@ -3603,7 +3610,41 @@ html.locked, html.locked body { overflow: hidden; }
       pushEdits(year, next, ts);          // server copy - survives redeploys and other devices
       try { window.dispatchEvent(new CustomEvent('revenue-edited')); } catch (e) {}
     };
-    const setCell = (id, key, val) => persist(rows.map(r => r.id === id ? { ...r, [key]: val, manual: true } : r));
+    /* new end date -> every later year up to that end gets the contract:
+       months inside the contract in ARR, the rest of the final year in
+       "awaiting renewal". The year you edit keeps its own numbers. */
+    const carryEnd = (src, end) => {
+      const eY = yearOf(end); if (isNaN(eY)) return;
+      /* the end date itself is one fact: every year that lists this customer
+         shows the same end (the CSM tab reads it from here). Numbers only
+         change in the years the contract is extended into. */
+      YEARS.filter(y => y !== year && !(y > year && y <= eY)).forEach(y => {
+        const list = rowsFor(y); let hit = false;
+        const out = list.map(r => norm(r.customer) === norm(src.customer) && r.end !== end ? (hit = true, { ...r, end, manual: true }) : r);
+        if (hit) { const ts = Date.now(); writeLocal(y, out, ts); pushEdits(y, out, ts); }
+      });
+      if (eY <= year) { try { window.dispatchEvent(new CustomEvent('revenue-edited')); } catch (e) {} return; }
+      const srcRate = (+src.arrAnnual || 0) + (+src.arrEvent || 0) + (+src.awaiting || 0) + (+src.churn || 0);
+      const ts = Date.now();
+      YEARS.filter(y => y > year && y <= eY).forEach(y => {
+        const list = rowsFor(y).map(r => ({ ...r }));
+        let t = list.find(r => norm(r.customer) === norm(src.customer));
+        const own = t ? (+t.arrAnnual || 0) + (+t.arrEvent || 0) + (+t.awaiting || 0) + (+t.churn || 0) : 0;
+        const rate = own || srcRate; if (!rate) return;
+        const ref = own ? t : src;
+        const evShare = ((+ref.arrAnnual || 0) + (+ref.arrEvent || 0)) ? (+ref.arrEvent || 0) / ((+ref.arrAnnual || 0) + (+ref.arrEvent || 0)) : 0;
+        const s = spread(y, '', end, rate * (1 - evShare), rate * evShare);
+        if (!t) { t = { ...src, id: 'e' + y + '_' + src.id, upsell: 0, oneoff: 0, onboarding: 0, sponsorship: 0 }; list.unshift(t); }
+        Object.assign(t, s, { end, churn: 0, churnIncl: 0, manual: true });
+        writeLocal(y, list, ts); pushEdits(y, list, ts);
+      });
+      try { window.dispatchEvent(new CustomEvent('revenue-edited')); } catch (e) {}
+    };
+    const setCell = (id, key, val) => {
+      const src = rows.find(r => r.id === id);
+      persist(rows.map(r => r.id === id ? { ...r, [key]: val, manual: true } : r));
+      if (key === 'end' && src && val && val !== src.end) carryEnd({ ...src, end: val }, val);
+    };
     const addRow = () => persist([blank(), ...rows]);
     const delRow = id => persist(rows.filter(r => r.id !== id));
     const reset = () => {
@@ -5040,7 +5081,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v48</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v50</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
