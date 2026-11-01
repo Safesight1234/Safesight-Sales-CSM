@@ -30,7 +30,7 @@ const FRESH_FROM = 2026;          // only re-read detail for deals in this year 
 const dealYear = d => new Date(d.closedAt || d.estClose || d.created).getFullYear();
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const BUDGET = 7000, DETAIL_BATCH = 6;
-const DETAIL_SCHEMA = 10;          // bump when a NEW custom field is added to the detail record,
+const DETAIL_SCHEMA = 11;          // bump when a NEW custom field is added to the detail record,
                                   // so already-cached deals get re-read once and backfilled
 const num = v => (v == null || v === '') ? 0 : (Number(v) || 0);
 const riskVal = v => (v === true || v === 'Yes' || v === 'yes' || v === 'Ja') ? 'Yes' : (v === false || v === 'No' || v === 'no' || v === 'Nee') ? 'No' : '';
@@ -73,7 +73,7 @@ exports.handler = async function (event) {
   if (!cache) cache = { version: 8, details: {}, companyName: {}, userName: {}, cfIds: {} };
   cache.version = 8;
   if (!cache.cfIds) cache.cfIds = {};
-  if (cache.cfIds.scanVersion !== 3) cache.cfIds = { scanVersion: 3 };   // v3: also finds the CSM field
+  if (cache.cfIds.scanVersion !== 4) cache.cfIds = { scanVersion: 4 };   // v4: 'UP - ARR Event' = upsell, 'VL - ARR Event' = renewal (never sales)
   if (!cache.companyCsm) cache.companyCsm = {};   // re-scan definitions (start/end date by label)
 
   // in-flight job (resume mid-sync). Self-healing: if a job got wedged and is
@@ -117,7 +117,8 @@ exports.handler = async function (event) {
                 // "ARR - event annual" — a per-event ARR field, on New logo and/or Upsell
                 if (/event/.test(label) && /arr/.test(label)) {
                   if (/new\s*logo|^nl\b|nl\s*-/.test(label)) cache.cfIds.nlEventArr = def.id;
-                  else if (/^us|us\s*-|upsell/.test(label)) cache.cfIds.usEventArr = def.id;
+                  else if (/^(us|up)\b|(us|up)\s*-|upsell/.test(label)) cache.cfIds.usEventArr = def.id;
+                  else if (/^vl\b|vl\s*-|verleng|renewal/.test(label)) cache.cfIds.vlEventArr = def.id;   // renewal event ARR: NOT sales
                   else cache.cfIds.eventArr = def.id;
                 }
               });
@@ -380,7 +381,7 @@ function build(deals, cache) {
     definitions: cache.cfIds.labels || [],
   };
   return { asOf: new Date().toISOString().slice(0, 10), currentMonth: new Date().toLocaleString('en-US', { month: 'long' }),
-    buildVersion: 'eventarr-v26',
+    buildVersion: 'eventarr-v27',
     cfIds: cache.cfIds || {},          // which custom-field ids the label scan found (diagnostic)
     cfDebug,
     years, reps, goals: GOALS, quarters, quartersByYear, leaderboard: lb,
