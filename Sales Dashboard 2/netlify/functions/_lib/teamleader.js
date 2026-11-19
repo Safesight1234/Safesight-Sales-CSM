@@ -1,3 +1,8 @@
+/* ============================================================================
+   Shared Teamleader helper — token storage, refresh (with rotation), API calls.
+   Now with request throttling + 429 (rate-limit) backoff.
+   ============================================================================ */
+
 const { getStore } = require('@netlify/blobs');
 
 const TOKEN_URL = 'https://focus.teamleader.eu/oauth2/access_token';
@@ -15,7 +20,7 @@ async function loadTokens() {
 async function saveTokens(t) {
   await store().setJSON('tokens', {
     access_token:  t.access_token,
-    refresh_token: t.refresh_token,
+    refresh_token: t.refresh_token,                 // the NEW one, every time
     expires_at:    Date.now() + ((t.expires_in || 3600) - 60) * 1000,
   });
 }
@@ -54,12 +59,14 @@ async function getAccessToken() {
   if (!tokens) { const e = new Error('NOT_CONNECTED'); e.code = 'NOT_CONNECTED'; throw e; }
   if (Date.now() >= tokens.expires_at) {
     const fresh = await refreshTokens(tokens.refresh_token);
-    await saveTokens(fresh);
+    await saveTokens(fresh);            // store the rotated refresh token
     return fresh.access_token;
   }
   return tokens.access_token;
 }
 
+/* Throttled POST with 429 backoff. Throws an error tagged code:'RATE_LIMIT'
+   if it can't get through after a few retries (caller can save + resume). */
 async function tlApi(endpoint, body) {
   const token = await getAccessToken();
   for (let attempt = 0; attempt < 4; attempt++) {
