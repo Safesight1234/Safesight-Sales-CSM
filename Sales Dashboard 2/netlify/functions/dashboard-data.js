@@ -1,3 +1,9 @@
+/* ============================================================================
+   The endpoint the dashboard calls. Returns the cached summary instantly.
+   Starts (or resumes) the resumable background refresh whenever there's no
+   active worker (stale lock) and the data is missing or older than 2h.
+   ============================================================================ */
+
 const { connectLambda, getStore } = require('@netlify/blobs');
 const { loadTokens } = require('./_lib/teamleader');
 
