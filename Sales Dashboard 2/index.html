@@ -1034,6 +1034,25 @@ body .mkt section h2 { margin-bottom: 14px; }
 /* customer journeys + warm accounts removed from the Marketing tab */
 body .mkt section:has(#mkt-journey) { display: none !important; }
 body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-hot), body .mkt .tscroll:has(#mkt-hot) + .more-btn, body .mkt h3.warm-h { display: none !important; }
+
+.hbc-row.click { cursor: pointer; border-radius: 10px; margin: -3px -6px; padding: 3px 6px; transition: background .12s; }
+.hbc-row.click:hover { background: color-mix(in oklab, var(--surface) 90%, transparent); }
+.hbc-row.click:hover .hbc-name { color: var(--blue-ink); }
+
+.drow.clickable { cursor: pointer; }
+.drow.clickable:hover .dname { color: var(--blue-ink); }
+.detail-grid { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.dg-row { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 9px 12px; border-radius: 12px; background: color-mix(in oklab, var(--surface-2) 70%, transparent); font-size: 13.5px; }
+.dg-k { color: var(--text-3); font-weight: 600; }
+.dg-v { font-weight: 650; overflow-wrap: anywhere; }
+
+.htbl { margin-top: 10px; }
+.htbl td, .htbl th { font-size: 12.5px; }
+.mtbl td, .mtbl th { font-size: 11.5px; padding-left: 6px !important; padding-right: 6px !important; }
+.mtbl td:first-child, .mtbl th:first-child { padding-left: 12px !important; }
+.htbl tr.hotrow td { background: color-mix(in oklab, var(--green-soft) 80%, transparent) !important; }
+
+.rev2 td.c-date .cell { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; letter-spacing: 0; text-overflow: clip; }
 </style>
 </head>
 <body>
@@ -1053,7 +1072,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v72 · 19 Nov (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v79 · 19 Nov (single-file)</div>
     </div>
   </div>
 
@@ -1986,7 +2005,12 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
                     const v = g.values[s.key];
                     if (v == null || !(v > 0)) return null;
                     const h = (v / top) * plotH, rr = Math.min(5, bw / 2, h / 2);
-                    return <rect key={s.key} x={x0 + j * (bw + gap)} y={baseY - h} width={bw} height={h} rx={rr} fill={s.color} />;
+                    return (
+                      <g key={s.key}>
+                        <rect x={x0 + j * (bw + gap)} y={baseY - h} width={bw} height={h} rx={rr} fill={s.color} />
+                        {bw >= 30 && <text className="cc-val" x={x0 + j * (bw + gap) + bw / 2} y={baseY - h - 6} textAnchor="middle" style={{ fontSize: 10.5 }}>{axisK(v, cur)}</text>}
+                      </g>
+                    );
                   })}
                   <text className={`axis-label ${isH ? 'on' : ''}`} x={padL + slot * i + slot / 2} y={H - 9} textAnchor="middle">{g.label}</text>
                 </g>
@@ -2117,7 +2141,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
           const sub = [ind, d.ownerLine].filter(Boolean).join(' · ');
           return (
             <div className="drow" key={(d.name || '') + i}>
-              <span className={`dav ${up ? 'up' : 'nl'}`} aria-hidden="true">{dealInitials(d.name)}</span>
+              <span className={`dav ${d.type === 'Churn' || d.type === 'Lost' ? 'red' : up ? 'up' : 'nl'}`} aria-hidden="true">{dealInitials(d.name)}</span>
               <span className="dmain">
                 <span className="dname">{d.name}</span>
                 {sub && <span className="dsub">{sub}</span>}
@@ -2289,7 +2313,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
     return ((w[0] || '?')[0] + (w[1] ? w[1][0] : '')).toUpperCase();
   }
   /* Clean deal rows: badge · name + industry · type · meta · value */
-  function DealRows({ rows: all, cur, emptyText, open, lost, limit = window.LIST_LIMIT }) {
+  function DealRows({ rows: all, cur, emptyText, open, lost, limit = window.LIST_LIMIT, onRow }) {
     const [more, setMore] = useState(false);
     if (!all.length) return <div className="empty">{emptyText}</div>;
     const rows = more ? all : all.slice(0, limit);
@@ -2299,7 +2323,9 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
           const up = d.type === 'Upsell';
           const ind = window.industryName(d.industry);
           return (
-            <div className="drow" key={(d.name || '') + i}>
+            <div className={`drow ${onRow ? 'clickable' : ''}`} key={(d.name || '') + i}
+                 role={onRow ? 'button' : undefined} tabIndex={onRow ? 0 : undefined}
+                 onClick={onRow ? () => onRow(d) : undefined} onKeyDown={onRow ? (e => { if (e.key === 'Enter') onRow(d); }) : undefined}>
               <span className={`dav ${lost ? 'red' : up ? 'up' : 'nl'}`} aria-hidden="true">{initials(d.name)}</span>
               <span className="dmain">
                 <span className="dname">{d.name}</span>
@@ -2347,6 +2373,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
     const isPast = (ctx.year || 0) < new Date().getFullYear();   // past years have no open/lost deals
     const [repView, setRepView] = useState(null);
     const [industryView, setIndustryView] = useState(null);
+    const [listView, setListView] = useState(null);
     const [wonF, setWonF] = useState('all');
     const [openF, setOpenF] = useState('all');
     const [lostF, setLostF] = useState('all');
@@ -2458,7 +2485,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
     const fmtDay = iso => { const t = new Date(iso); return isNaN(t) ? '' : t.getDate() + ' ' + MON3[t.getMonth()]; };
     const lostShown = lost.filter(d => lostF === 'all' || d.type === lostF);
     const lostRows = [...lostShown].sort((a, b) => (b.value || 0) - (a.value || 0))
-      .map(d => ({ name: d.customer || d.name, industry: d.industry, owner: d.owner, type: d.type, value: d.value || 0, date: fmtDay(d.refused) }));
+      .map(d => ({ name: d.customer || d.name, industry: d.industry, owner: d.owner, type: d.type, value: d.value || 0, date: fmtDay(d.refused), raw: d }));
     const lostCols = [
       { key: 'name', label: 'Deal', sortable: true, render: r => <span className="cocell"><window.Avatar name={r.name} tone="red" /><span className="co">{r.name}</span></span> },
       { key: 'industry', label: 'Industry', sortable: true, render: r => <span className="sub">{window.industryName(r.industry) || '—'}</span> },
@@ -2645,12 +2672,18 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
                       onRowClick={r => setIndustryView(r.name)} />
           </Card>
           {showOpenIndustry && (
-            <Card title="Open pipeline by industry" count={`${open.length} deals`} total={window.fmtK(pipeline, cur)}>
-              <HBarList rows={indRows(openByIndustry, pipeline)} cur={cur} color="blue" emptyText="No open deals in this period" />
+            <Card title="Open pipeline by industry" count={`${open.length} deals · click → deals`} total={window.fmtK(pipeline, cur)}>
+              <HBarList rows={indRows(openByIndustry, pipeline)} cur={cur} color="blue" emptyText="No open deals in this period"
+                        onRowClick={r => { const l = open.filter(d => (indName(d.industry) || 'No customer type') === r.name).sort((a, b) => arrV(b) - arrV(a));
+                          setListView({ title: r.name, count: `${l.length} open deals`, total: l.reduce((a, d) => a + arrV(d), 0),
+                            rows: l.map(d => ({ name: d.customer || d.name, industry: d.industry, type: d.type, value: arrV(d), ownerLine: `${d.owner} · ${Math.round((d.prob || 0) * 100)}%`, barPct: Math.round((d.prob || 0) * 100) })) }); }} />
             </Card>
           )}
-          <Card title="Churn by industry" count={`${churnByIndustry.length} industries`} total={window.fmtK(churnTotal, cur)}>
-            <HBarList rows={indRows(churnByIndustry, churnTotal)} cur={cur} color="red" emptyText="No churn in this period" />
+          <Card title="Churn by industry" count={`${churnByIndustry.length} industries · click → customers`} total={window.fmtK(churnTotal, cur)}>
+            <HBarList rows={indRows(churnByIndustry, churnTotal)} cur={cur} color="red" emptyText="No churn in this period"
+                      onRowClick={r => { const l = churn.filter(c => c.kind !== 'forecast' && (indName(c.industry) || 'No customer type') === r.name).sort((a, b) => (b.value || 0) - (a.value || 0));
+                        setListView({ title: r.name, count: `${l.length} churned`, total: l.reduce((a, c) => a + (c.value || 0), 0), red: true, noType: true,
+                          rows: l.map(c => ({ name: c.customer, type: 'Churn', value: c.value || 0, ownerLine: [c.when, c.reason].filter(Boolean).join(' · ') })) }); }} />
           </Card>
         </div>
 
@@ -2661,9 +2694,10 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
                       onRowClick={r => setRepView(r.name)} />
           </Card>
           {!isPast && (
-            <Card title="Lost deals" count={`${lostShown.length} deals`} headRight={
+            <Card title="Lost deals" count={`${lostShown.length} deals · click → details`} headRight={
               <div className="head-tools-r"><TypeFilter value={lostF} onChange={setLostF} label="Filter lost deals" /><span className="total tnum">{window.fmtK(lostShown.reduce((a, d) => a + (d.value || 0), 0), cur)}</span></div>}>
-              <DealRows rows={lostRows} cur={cur} lost emptyText="No lost deals in this period" />
+              <DealRows rows={lostRows} cur={cur} lost emptyText="No lost deals in this period"
+                        onRow={d => setListView({ title: d.name, count: 'lost deal', total: d.value, red: true, detail: d })} />
             </Card>
           )}
         </div>
@@ -2680,6 +2714,29 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
           <RepModal rep={repView} cur={cur} periodLabel={periodLabel}
                     deals={wonAllReps.filter(d => d.owner === repView)}
                     onClose={() => setRepView(null)} />
+        )}
+
+        {listView && (
+          <div onClick={() => setListView(null)} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div onClick={e => e.stopPropagation()} className="card" role="dialog" aria-label={listView.title} style={{ maxWidth: 600, width: '100%', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', boxShadow: 'var(--shadow-pop)', background: 'var(--surface)' }}>
+              <div className="card-head">
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+                  <h3 className="card-title">{listView.title}</h3><span className="count">{listView.count}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="total tnum" style={listView.red ? { color: 'var(--red-ink)' } : null}>{window.fmtK(listView.total, cur)}</span>
+                  <button className="btn icon sm" onClick={() => setListView(null)} aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+                </div>
+              </div>
+              {listView.detail ? (() => { const d = listView.detail, r = d.raw || {}; return (
+                <div className="detail-grid">
+                  {[['Customer', r.customer || d.name], ['Deal', r.name || '—'], ['Type', d.type], ['Owner', d.owner || '—'], ['Industry', window.industryName(d.industry) || '—'], ['Lost on', r.refused || '—'], ['Value', window.fmtFull(d.value, cur)]].map(([k, v]) => (
+                    <div className="dg-row" key={k}><span className="dg-k">{k}</span><span className="dg-v">{v}</span></div>
+                  ))}
+                </div>); })()
+              : <window.DealList deals={listView.rows} cur={cur} limit={0} showType={!listView.noType} emptyText="Nothing here" />}
+            </div>
+          </div>
         )}
 
         {industryView && (
@@ -2996,18 +3053,36 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
 
         {/* ---- charts ---- */}
         <div className="grid g-1">
-          <Card title={`Per quarter · ${mLabel}`} count="ARR · one-off apart · YoY = same months" headRight={legend}>
+          <Card title={`Per quarter · ${mLabel}`} count="ARR · one-off apart · YoY = same months" headRight={
+            <div className="head-tools-r">{legend}
+              <button className="btn icon sm" onClick={exportHist} title="Export to Excel" aria-label="Export to Excel">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" /></svg>
+              </button></div>}>
             <window.GroupChart groups={qGroups} series={series} height={300} cur={cur} />
+            <table className="tbl htbl">
+              <thead><tr><th></th>{QS.map(q => <th key={q} className="num">{q}</th>)}<th className="num">Year</th></tr></thead>
+              <tbody>{years.map(y => (
+                <tr key={y} className={y === hot ? 'hotrow' : ''}><td><span className="dot" style={{ background: colorOf(y), marginRight: 8 }} /><b>{y}</b></td>
+                  {QS.map((q, i) => <td key={q} className="num">{futureQ(y, i) ? <span className="muted">–</span> : window.fmtK(Y[y].quarter[i], cur)}</td>)}
+                  <td className="num"><b>{window.fmtK(Y[y].total, cur)}</b></td></tr>))}</tbody>
+            </table>
           </Card>
         </div>
         <div className="grid g-1">
           <Card title={`Per month · ${mLabel}`} count="seasonality" headRight={legend}>
             <window.GroupChart groups={mGroups} series={series} height={280} cur={cur} />
+            <table className="tbl htbl mtbl">
+              <thead><tr><th></th>{MON3.map(m => <th key={m} className="num">{m}</th>)}<th className="num">Year</th></tr></thead>
+              <tbody>{years.map(y => (
+                <tr key={y} className={y === hot ? 'hotrow' : ''}><td><span className="dot" style={{ background: colorOf(y), marginRight: 8 }} /><b>{y}</b></td>
+                  {MON3.map((m, i) => <td key={m} className="num">{future(y, i) ? <span className="muted">–</span> : window.fmtK(Y[y].month[i], cur)}</td>)}
+                  <td className="num"><b>{window.fmtK(Y[y].total, cur)}</b></td></tr>))}</tbody>
+            </table>
           </Card>
         </div>
 
         {/* ---- revenue churn + table ---- */}
-        <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 2fr)' }}>
+        <div className="grid g-1">
           <Card title="Revenue churn per year" count="from the Revenue sheet" headRight={<span className="prelim" title="Not correct yet - this figure will be updated">not final yet · will be updated</span>}>
             {sheetYears.length ? (
               <div className="drows nometa">
@@ -3023,20 +3098,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
               </div>
             ) : <div className="empty">No Revenue sheet data</div>}
           </Card>
-          <Card title={`Table · ${mLabel}`} count="ARR per quarter" headRight={
-            <button className="btn icon sm" onClick={exportHist} title="Export to Excel" aria-label="Export to Excel">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" /></svg>
-            </button>}>
-            <table className="tbl">
-              <thead><tr><th></th>{years.map(y => <th key={y} className={`num ${y === hot ? 'hot' : ''}`}>{y}</th>)}</tr></thead>
-              <tbody>
-                {QS.map((q, i) => (
-                  <tr key={q}><td><b>{q}</b></td>{years.map(y => <td key={y} className={`num ${y === hot ? 'hot' : ''}`}>{futureQ(y, i) ? <span className="muted">–</span> : window.fmtK(Y[y].quarter[i], cur)}</td>)}</tr>
-                ))}
-              </tbody>
-              <tfoot><tr><td>Total</td>{years.map(y => <td key={y} className={`num ${y === hot ? 'hot' : ''}`}>{window.fmtK(Y[y].total, cur)}</td>)}</tr></tfoot>
-            </table>
-          </Card>
+
         </div>
       </React.Fragment>
     );
@@ -4067,7 +4129,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
   const COMP_KEYS = { arr: ['arrAnnual', 'arrEvent'], awaiting: ['awaiting'], churn: ['churn', 'churnIncl'], oneoff: ['oneoff', 'onboarding'], sponsorship: ['sponsorship'] };
   const ROW_LIMIT = 25;
   const MON_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const shortDate = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? iso : d.getDate() + ' ' + MON_S[d.getMonth()] + ' ' + d.getFullYear(); };
+  const shortDate = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? iso : String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear(); };
   const rowTotal = r => TOTAL_COLS.reduce((a, k) => a + (+r[k] || 0), 0);
   // churn is reported on its own card - never part of the total
   const TOTAL_COLS = NUMS.map(([k]) => k).filter(k => k !== 'churn');
@@ -4537,7 +4599,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
             <div className="rev-wrap">
               <table className="rev rev2">
                 <colgroup>
-                  <col style={{ width: '18%' }} /><col style={{ width: '7.5%' }} /><col style={{ width: '7%' }} />
+                  <col style={{ width: '18.5%' }} /><col style={{ width: '7.5%' }} /><col style={{ width: '6.5%' }} />
                   {COLS.map(([k]) => <col key={k} />)}
                   <col /><col style={{ width: 26 }} />
                 </colgroup>
@@ -4564,7 +4626,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
                             <Cell value={r.country} onCommit={v => setCell(r.id, 'country', v)} />
                           </span>
                         </td>
-                        <td><Cell kind="date" short value={r.end} onCommit={v => setCell(r.id, 'end', v)} /></td>
+                        <td className="c-date"><Cell kind="date" short value={r.end} onCommit={v => setCell(r.id, 'end', v)} /></td>
                         <td><Cell value={r.invoicing} onCommit={v => setCell(r.id, 'invoicing', v)} /></td>
                         {COLS.map(([k]) => (
                           <td key={k} className={k.slice(0,5) === 'churn' ? 'churn-col' : ''}>
@@ -5574,8 +5636,10 @@ function srcBlock(){
     return (
       <div className="hbc">
         {rows.map(r => (
-          <div className="hbc-row" key={r.name}>
-            <span className="hbc-name" title={r.name}>{r.name}</span>
+          <div className={`hbc-row ${onRow ? 'click' : ''}`} key={r.name} role={onRow ? 'button' : undefined} tabIndex={onRow ? 0 : undefined}
+               onClick={onRow ? () => onRow(r) : undefined} onKeyDown={onRow ? (e => { if (e.key === 'Enter') onRow(r); }) : undefined}
+               title={onRow ? `Show ${r.name}'s deals` : r.name}>
+            <span className="hbc-name">{r.name}</span>
             <span className="hbc-track">
               <i style={{ width: `${(r.value / max) * 100}%`, background: color }} />
               <b className="tnum" style={{ left: `${(r.value / max) * 100}%` }}>{window.fmtK(r.value, cur)}{r.tail ? <span> · {r.tail}</span> : null}</b>
@@ -5628,7 +5692,8 @@ function srcBlock(){
     const year = ctx.year;
     const D = window.DATA;
     const today = new Date(), CURY = today.getFullYear();
-    const mi = year === CURY ? today.getMonth() : year < CURY ? 11 : 0;   // month in focus
+    const lastM = year === CURY ? today.getMonth() : year < CURY ? 11 : 0;
+    const mi = ctx.perfMonth != null && ctx.perfMonth <= lastM ? ctx.perfMonth : lastM;   // month in focus (picked in the header)
     const qi = Math.floor(mi / 3);
     const Q = ctx.qdata || D.quarters;
     const qList = (qs, q, k) => ((qs && qs[q] && qs[q][k]) || []);
@@ -5644,7 +5709,8 @@ function srcBlock(){
     const sum = l => l.reduce((a, d) => a + arrV(d), 0);
     const valM = sum(won.filter(d => dm(d) === mi));
     const valQ = sum(won.filter(d => d._q === QS[qi]));
-    const valY = sum(won);
+    const wonYtd = won.filter(d => { const m = dm(d); return m >= 0 && m <= mi; });
+    const valY = sum(wonYtd);
 
     // ---- leaderboard + pipeline per person ----
     const reps = (D.reps || []).filter(r => r !== 'All reps');
@@ -5653,10 +5719,16 @@ function srcBlock(){
       list.forEach(d => { const k = d.owner || 'Unassigned'; m[k] = m[k] || { v: 0, n: 0 }; m[k].v += valFn(d); m[k].n++; });
       return Object.entries(m).map(([name, o]) => ({ name, value: o.v, n: o.n })).sort((a, b) => b.value - a.value);
     };
-    const board = byOwner(won, arrV).map(r => ({ ...r, tail: `${r.n} won` }));
+    const board = byOwner(wonYtd, arrV).map(r => ({ ...r, tail: `${r.n} won` }));
     const pipe = byOwner(open, arrV).map(r => ({ ...r, tail: `${r.n} open` }));
     const pipeTotal = pipe.reduce((a, r) => a + r.value, 0);
     const pipeWeighted = open.reduce((a, d) => a + arrV(d) * (d.prob || 0), 0);
+    const [pick, setPick] = useState(null);   // { kind: 'won' | 'open', name }
+    const pickDeals = pick ? (pick.kind === 'won' ? wonYtd : open).filter(d => (d.owner || 'Unassigned') === pick.name)
+      .sort((a, b) => pick.kind === 'open' ? ((b.prob || 0) - (a.prob || 0)) || (arrV(b) - arrV(a)) : arrV(b) - arrV(a))
+      .map(d => ({ name: d.customer || d.name, industry: d.industry, type: d.type, value: arrV(d),
+                   ownerLine: pick.kind === 'open' ? `${Math.round((d.prob || 0) * 100)}% win chance` : (window.dealMonth(d) >= 0 ? 'won ' + MON3[window.dealMonth(d)] : null),
+                   barPct: pick.kind === 'open' ? Math.round((d.prob || 0) * 100) : undefined })) : [];
 
     // ---- new logos won: count, cumulative this year vs last year ----
     const prevQ = (D.quartersByYear && D.quartersByYear[year - 1]) || null;
@@ -5664,7 +5736,7 @@ function srcBlock(){
     const nlPrev = QS.flatMap(q => qList(prevQ, q, 'won')).filter(d => d.type === 'New logo' && arrV(d) > 0);
     const cum = list => { let c = 0; return MON3.map((_, i) => (c += list.filter(d => dm(d) === i).length)); };
     const cNow = cum(nlNow), cPrev = cum(nlPrev);
-    const upTo = year === CURY ? mi + 1 : year < CURY ? 12 : 0;
+    const upTo = year > CURY ? 0 : mi + 1;
     const ytdNow = upTo ? cNow[upTo - 1] : 0, ytdPrev = upTo ? cPrev[upTo - 1] : 0;
     const delta = ytdPrev ? (ytdNow - ytdPrev) / ytdPrev : null;
 
@@ -5677,16 +5749,16 @@ function srcBlock(){
             <Card title={`${QS[qi]} ${year}`} count="sales vs quarter goal">
               <Gauge value={valQ} goal={goalQ} cur={cur} />
             </Card>
-            <Card title={`${year}${year === CURY ? ' · YTD' : ''}`} count="sales vs annual goal">
+            <Card title={`${year} · YTD`} count={`Jan – ${MON3[mi]} vs annual goal`}>
               <Gauge value={valY} goal={goalY} cur={cur} />
             </Card>
         </div>
         <div className="grid perf-grid">
-          <Card title={`Sales leaderboard · ${year}`} count="won ARR per person" total={window.fmtK(valY, cur)}>
-            <HBars rows={board} cur={cur} color="var(--green)" />
+          <Card title={`Sales leaderboard · ${year} YTD`} count={`won ARR per person · Jan – ${MON3[mi]}`} total={window.fmtK(valY, cur)}>
+            <HBars rows={board} cur={cur} color="var(--green)" onRow={r => setPick({ kind: 'won', name: r.name })} />
           </Card>
           <Card title="Open pipeline per person" count={`weighted ${window.fmtK(pipeWeighted, cur)}`} total={window.fmtK(pipeTotal, cur)}>
-            <HBars rows={pipe} cur={cur} color="var(--blue)" />
+            <HBars rows={pipe} cur={cur} color="var(--blue)" onRow={r => setPick({ kind: 'open', name: r.name })} />
           </Card>
         </div>
 
@@ -5697,7 +5769,7 @@ function srcBlock(){
               {delta != null && <span className={`chipd ${delta >= 0 ? 'up' : 'down'}`}>{delta >= 0 ? '▲' : '▼'} {Math.abs(Math.round(delta * 100))}%</span>}
             </div>
             <div className="big tnum">{ytdNow}</div>
-            <div className="kpi-lbl">New logos won {year === CURY ? 'YTD' : year}</div>
+            <div className="kpi-lbl">New logos won · Jan – {MON3[mi]} {year}</div>
             <div className="sub">{ytdPrev} in the same period {year - 1}</div>
             <div className="sub">{window.fmtK(sum(nlNow), cur)} ARR</div>
           </div>
@@ -5709,6 +5781,24 @@ function srcBlock(){
             <CumLine cur={cur} now={cNow} prev={cPrev} upTo={upTo} />
           </Card>
         </div>
+
+        {pick && (
+          <div onClick={() => setPick(null)} style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(10,12,14,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <div onClick={e => e.stopPropagation()} className="card" role="dialog" aria-label={`${pick.name} deals`} style={{ maxWidth: 620, width: '100%', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto', boxShadow: 'var(--shadow-pop)', background: 'var(--surface)' }}>
+              <div className="card-head">
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+                  <h3 className="card-title">{pick.name}</h3>
+                  <span className="count">{pickDeals.length} {pick.kind === 'won' ? `won · ${year}` : 'open deals'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="total tnum">{window.fmtK(pickDeals.reduce((a, d) => a + d.value, 0), cur)}</span>
+                  <button className="btn icon sm" onClick={() => setPick(null)} aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+                </div>
+              </div>
+              <window.DealList deals={pickDeals} cur={cur} limit={0} emptyText={pick.kind === 'won' ? 'No won deals' : 'No open deals'} />
+            </div>
+          </div>
+        )}
       </React.Fragment>
     );
   }
@@ -5890,6 +5980,7 @@ function srcBlock(){
     const [month, setMonth] = useState(saved.month || 'Jun');
     const [rep, setRep] = useState(saved.rep || 'All reps');
     const [histMetric, setHistMetric] = useState(saved.histMetric || 'all');
+    const [perfMonth, setPerfMonth] = useState(null);   // null = current month
     const [renewalStatus, setRenewalStatus] = useState(saved.renewalStatus || 'All');
     const [theme, setTheme] = useState(saved.theme || 'light');
     const [goalsOn, setGoalsOn] = useState(saved.goalsOn != null ? saved.goalsOn : true);
@@ -5998,7 +6089,7 @@ function srcBlock(){
     const EMPTYQ = { Q1: { won: [], open: [], lost: [], churn: [] }, Q2: { won: [], open: [], lost: [], churn: [] }, Q3: { won: [], open: [], lost: [], churn: [] }, Q4: { won: [], open: [], lost: [], churn: [] } };
     const qdata = (D0.quartersByYear && D0.quartersByYear[effYear]) || (effYear > CUR_YEAR ? EMPTYQ : D0.quarters);
 
-    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year: effYear, goalsOn, financeReady, qdata, churnStamp, histMetric };
+    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year: effYear, goalsOn, financeReady, qdata, churnStamp, histMetric, perfMonth };
 
     const showYear = tab !== 'financials' && tab !== 'revenue';
     // Pipeline only offers forecast years (current + next); other tabs list all.
@@ -6070,6 +6161,21 @@ function srcBlock(){
               </select>
             )}
 
+            {tab === 'performance' && (() => {
+              const lastM = effYear === CUR_YEAR ? new Date().getMonth() : 11;
+              const cur = perfMonth != null && perfMonth <= lastM ? perfMonth : lastM;
+              const FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+              const curQ = Math.floor(cur / 3), lastQ = Math.floor(lastM / 3);
+              return <React.Fragment>
+                <select className="select" value={String(curQ)} onChange={e => { const q = +e.target.value; setPerfMonth(Math.min(q * 3 + 2, lastM)); }} aria-label="Quarter">
+                  {[0, 1, 2, 3].slice(0, lastQ + 1).map(q => <option key={q} value={String(q)}>Q{q + 1}{q === lastQ && effYear === CUR_YEAR ? ' (now)' : ''}</option>)}
+                </select>
+                <select className="select" value={String(cur)} onChange={e => setPerfMonth(+e.target.value)} aria-label="Month">
+                  {FULL.slice(0, lastM + 1).map((m, i) => <option key={m} value={String(i)}>{m}{i === lastM && effYear === CUR_YEAR ? ' (now)' : ''}</option>)}
+                </select>
+              </React.Fragment>;
+            })()}
+
             {tab === 'historicals' && (
               <Seg options={[['all', 'Combined'], ['New logo', 'New logo'], ['Upsell', 'Upsell']]} value={histMetric} onChange={setHistMetric} />
             )}
@@ -6087,7 +6193,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v72</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v79</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
