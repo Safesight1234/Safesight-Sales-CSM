@@ -9,3 +9,26 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+
+# Always revalidate app code so a normal refresh picks up new deploys
+# (no more stale cached .jsx/.js/.css after an upload).
+[[headers]]
+  for = "/*.jsx"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
