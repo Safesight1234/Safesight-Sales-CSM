@@ -1072,7 +1072,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v80 · 21 Nov (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v81 · 21 Nov (single-file)</div>
     </div>
   </div>
 
@@ -3364,7 +3364,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
     const dateLong = iso => { const d = parseLocal(iso); return d ? ORD(d.getDate()) + ' of ' + MONTHS_L[d.getMonth()] + ' ' + d.getFullYear() : (iso || '—'); };
     const dateShort = iso => { const d = parseLocal(iso); return d ? d.getDate() + ' ' + MONTHS_L[d.getMonth()].slice(0, 3) + ' ' + d.getFullYear() : (iso || '—'); };
 
-    const renewalBook = (revRows || []).filter(r => r.end && (parseLocal(r.end) || new Date(r.end)).getFullYear() === year).map(r => {
+    const mkBook = (rows, yy) => (rows || []).filter(r => r.end && (parseLocal(r.end) || new Date(r.end)).getFullYear() === yy).map(r => {
       const arr = (+r.arrAnnual || 0) + (+r.arrEvent || 0) + (+r.awaiting || 0);
       const contact = minusMonths(r.end, 6);
       const end = parseLocal(r.end) || new Date(r.end);
@@ -3373,6 +3373,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
                sheetUpsell: +r.upsell || 0,
                quarter: 'Q' + (Math.floor(end.getMonth() / 3) + 1), days: Math.round((end - today) / 86400000) };
     });
+    const renewalBook = mkBook(revRows, year);
 
     /* what the contract is worth AFTER renewal: the signed Teamleader renewal
        if there is one, else next year's line in the Revenue tab */
@@ -3484,7 +3485,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
       return null;
     };
     /* every contract ending this year, with its renewal outcome resolved */
-    const bookAll = renewalBook.map(r => {
+    const toBook = r => {
       const t = trackOf(r);
       const won = wonRenewal(r), lost = !won && churnMap[normName(r.customer)];
       const settled = won ? 'renewed' : lost ? 'churned' : null;
@@ -3505,7 +3506,13 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
                signed: !!won, upsell: upsellFor(r),
                term: months ? (months % 12 === 0 ? (months / 12) + (months === 12 ? ' year' : ' years') : months + ' months') : '',
                partial: settled === 'churned' && newArr > 0 };
-    });
+    };
+    const bookAll = renewalBook.map(toBook);
+    /* contracts that end in a LATER year but were already renewed this year:
+       they belong to this year's renewals (the year the deal was won) */
+    const earlyRenewed = [year + 1, year + 2].flatMap(yy => mkBook((window.revenueRowsFor && window.revenueRowsFor(yy)) || [], yy))
+      .map(toBook).filter(r => r.settled === 'renewed' && (parseLocal(r.wonDate) || { getFullYear: () => 0 }).getFullYear() === year)
+      .filter((r, i, a) => a.findIndex(x => normName(x.customer) === normName(r.customer)) === i);
     /* churn recorded in the Revenue tab for customers whose contract does not
        end this year - still churn, so it belongs in the outcome card */
     const bookNames = new Set(renewalBook.map(r => normName(r.customer)));
@@ -3516,7 +3523,8 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
     }));
     const bookMine = bookAll.filter(csmOK);
     const bookOpen = bookMine.filter(r => !r.settled);
-    const renewedBook = bookMine.filter(r => r.settled === 'renewed');
+    const renewedBook = [...bookMine.filter(r => r.settled === 'renewed'),
+      ...earlyRenewed.filter(csmOK).filter(r => !bookMine.some(b => normName(b.customer) === normName(r.customer)))];
     const churnedBook = [...bookMine.filter(r => r.settled === 'churned'), ...extraChurn.filter(csmOK)];
 
     const bookQuarters = ['Q1','Q2','Q3','Q4'].map(q => {
@@ -3540,7 +3548,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
       || (renewalStatus === 'Open' && !r.settled)
       || (renewalStatus === 'Won' && r.settled === 'renewed')
       || (renewalStatus === 'Churn' && r.settled === 'churned');
-    const bookInScope = (renewalStatus === 'Won' || renewalStatus === 'Churn' ? bookMine : bookOpen)
+    const bookInScope = bookOpen
       .filter(inScope).filter(statusOK)
       .sort((a, b) => {
         const ea = a.state === 'passed' ? 1 : 0, eb = b.state === 'passed' ? 1 : 0;
@@ -3549,7 +3557,8 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
       });
     const inScopeWon = r => {
       const w = parseLocal(r.wonDate);
-      if (!w || w.getFullYear() !== year) return inScope(r);
+      if (!w) return inScope(r);
+      if (w.getFullYear() !== year) return false;
       return monthIdx != null ? w.getMonth() === monthIdx : quarters.includes('Q' + (Math.floor(w.getMonth() / 3) + 1));
     };
     const renewedContract = renewedBook.filter(inScopeWon);
@@ -6204,7 +6213,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v80</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v81</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
