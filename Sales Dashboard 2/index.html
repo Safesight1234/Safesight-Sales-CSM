@@ -1072,7 +1072,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v79 · 19 Nov (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v80 · 21 Nov (single-file)</div>
     </div>
   </div>
 
@@ -5629,7 +5629,7 @@ function srcBlock(){
 
   /* ---------- horizontal bar chart (leaderboard / pipeline) ---------- */
   function HBars({ rows, cur, color, onRow }) {
-    if (!rows.length) return <div className="empty">No data</div>;
+    if (!rows.length || rows.every(r => !r.value)) return <div className="empty">Nothing in this selection</div>;
     const top = Math.max(1, ...rows.map(r => r.value));
     const step = [1, 2, 2.5, 5, 10].map(m => m * Math.pow(10, Math.floor(Math.log10(top / 4 || 1)))).find(s => s * 4 >= top) || top / 4;
     const max = step * 4;
@@ -5697,15 +5697,19 @@ function srcBlock(){
     const qi = Math.floor(mi / 3);
     const Q = ctx.qdata || D.quarters;
     const qList = (qs, q, k) => ((qs && qs[q] && qs[q][k]) || []);
-    const won = QS.flatMap(q => qList(Q, q, 'won').map(d => ({ ...d, _q: q })));
-    const open = QS.flatMap(q => qList(Q, q, 'open')).filter(d => window.ownValue(d) > 0);
+    const T = ctx.perfType || 'all';                       // all | New logo | Upsell
+    const tOK = d => T === 'all' || d.type === T;
+    const GK = T === 'New logo' ? 'newLogo' : T === 'Upsell' ? 'upsell' : 'combined';
+    const TL = T === 'all' ? 'sales' : T.toLowerCase();
+    const won = QS.flatMap(q => qList(Q, q, 'won').map(d => ({ ...d, _q: q }))).filter(tOK);
+    const open = QS.flatMap(q => qList(Q, q, 'open')).filter(d => window.ownValue(d) > 0).filter(tOK);
     const dm = window.dealMonth;
 
     // ---- goals ----
     const g = window.goalsFor(year), mg = window.monthGoals(year);
-    const goalY = window.goalSum(QS, 'combined', year);
-    const goalQ = (g[QS[qi]] || {}).combined || 0;
-    const goalM = mg ? mg.combined[mi] : Math.round(goalQ / 3);
+    const goalY = window.goalSum(QS, GK, year);
+    const goalQ = (g[QS[qi]] || {})[GK] || 0;
+    const goalM = mg ? mg[GK][mi] : Math.round(goalQ / 3);
     const sum = l => l.reduce((a, d) => a + arrV(d), 0);
     const valM = sum(won.filter(d => dm(d) === mi));
     const valQ = sum(won.filter(d => d._q === QS[qi]));
@@ -5732,8 +5736,10 @@ function srcBlock(){
 
     // ---- new logos won: count, cumulative this year vs last year ----
     const prevQ = (D.quartersByYear && D.quartersByYear[year - 1]) || null;
-    const nlNow = won.filter(d => d.type === 'New logo' && arrV(d) > 0);
-    const nlPrev = QS.flatMap(q => qList(prevQ, q, 'won')).filter(d => d.type === 'New logo' && arrV(d) > 0);
+    const CT = T === 'all' ? 'New logo' : T;
+    const CL = CT === 'New logo' ? 'New logos won' : 'Upsell deals won';
+    const nlNow = won.filter(d => d.type === CT && arrV(d) > 0);
+    const nlPrev = QS.flatMap(q => qList(prevQ, q, 'won')).filter(d => d.type === CT && arrV(d) > 0);
     const cum = list => { let c = 0; return MON3.map((_, i) => (c += list.filter(d => dm(d) === i).length)); };
     const cNow = cum(nlNow), cPrev = cum(nlPrev);
     const upTo = year > CURY ? 0 : mi + 1;
@@ -5743,13 +5749,13 @@ function srcBlock(){
     return (
       <React.Fragment>
         <div className="perf-gauges">
-            <Card title={`${MONF[mi]} ${year}`} count="sales vs monthly goal">
+            <Card title={`${MONF[mi]} ${year}`} count={`${TL} vs monthly goal`}>
               <Gauge value={valM} goal={goalM} cur={cur} />
             </Card>
-            <Card title={`${QS[qi]} ${year}`} count="sales vs quarter goal">
+            <Card title={`${QS[qi]} ${year}`} count={`${TL} vs quarter goal`}>
               <Gauge value={valQ} goal={goalQ} cur={cur} />
             </Card>
-            <Card title={`${year} · YTD`} count={`Jan – ${MON3[mi]} vs annual goal`}>
+            <Card title={`${year} · YTD`} count={`${TL} · Jan – ${MON3[mi]} vs annual goal`}>
               <Gauge value={valY} goal={goalY} cur={cur} />
             </Card>
         </div>
@@ -5769,11 +5775,11 @@ function srcBlock(){
               {delta != null && <span className={`chipd ${delta >= 0 ? 'up' : 'down'}`}>{delta >= 0 ? '▲' : '▼'} {Math.abs(Math.round(delta * 100))}%</span>}
             </div>
             <div className="big tnum">{ytdNow}</div>
-            <div className="kpi-lbl">New logos won · Jan – {MON3[mi]} {year}</div>
+            <div className="kpi-lbl">{CL} · Jan – {MON3[mi]} {year}</div>
             <div className="sub">{ytdPrev} in the same period {year - 1}</div>
             <div className="sub">{window.fmtK(sum(nlNow), cur)} ARR</div>
           </div>
-          <Card title={`New logos won · ${year} vs ${year - 1}`} count="cumulative count" headRight={
+          <Card title={`${CL} · ${year} vs ${year - 1}`} count="cumulative count" headRight={
             <div className="legend">
               <span className="li"><span className="sw" style={{ background: 'var(--green)' }} />{year}</span>
               <span className="li dash"><span className="sw" />{year - 1}</span>
@@ -5981,6 +5987,7 @@ function srcBlock(){
     const [rep, setRep] = useState(saved.rep || 'All reps');
     const [histMetric, setHistMetric] = useState(saved.histMetric || 'all');
     const [perfMonth, setPerfMonth] = useState(null);   // null = current month
+    const [perfType, setPerfType] = useState('all');
     const [renewalStatus, setRenewalStatus] = useState(saved.renewalStatus || 'All');
     const [theme, setTheme] = useState(saved.theme || 'light');
     const [goalsOn, setGoalsOn] = useState(saved.goalsOn != null ? saved.goalsOn : true);
@@ -6089,7 +6096,7 @@ function srcBlock(){
     const EMPTYQ = { Q1: { won: [], open: [], lost: [], churn: [] }, Q2: { won: [], open: [], lost: [], churn: [] }, Q3: { won: [], open: [], lost: [], churn: [] }, Q4: { won: [], open: [], lost: [], churn: [] } };
     const qdata = (D0.quartersByYear && D0.quartersByYear[effYear]) || (effYear > CUR_YEAR ? EMPTYQ : D0.quarters);
 
-    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year: effYear, goalsOn, financeReady, qdata, churnStamp, histMetric, perfMonth };
+    const ctx = { cur, quarters, goalQuarters, monthIdx, isYTD, periodLabel, period, gran, month, rep, renewalStatus, year: effYear, goalsOn, financeReady, qdata, churnStamp, histMetric, perfMonth, perfType };
 
     const showYear = tab !== 'financials' && tab !== 'revenue';
     // Pipeline only offers forecast years (current + next); other tabs list all.
@@ -6161,6 +6168,10 @@ function srcBlock(){
               </select>
             )}
 
+            {tab === 'performance' && (
+              <Seg options={[['all', 'Combined'], ['New logo', 'New logo'], ['Upsell', 'Upsell']]} value={perfType} onChange={setPerfType} />
+            )}
+
             {tab === 'performance' && (() => {
               const lastM = effYear === CUR_YEAR ? new Date().getMonth() : 11;
               const cur = perfMonth != null && perfMonth <= lastM ? perfMonth : lastM;
@@ -6193,7 +6204,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v79</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v80</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
