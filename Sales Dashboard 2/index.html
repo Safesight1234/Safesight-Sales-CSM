@@ -1072,7 +1072,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v84 · 21 Nov (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v86 · 21 Nov (single-file)</div>
     </div>
   </div>
 
@@ -1094,8 +1094,8 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
       document.documentElement.classList.remove('locked');
     }
 
-    var unlocked = false;
-    try { unlocked = sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+    var unlocked = /(?:^|;\s*)ss_user=[a-z]/.test(document.cookie);   // already logged in on the server
+    try { unlocked = unlocked || sessionStorage.getItem(KEY) === '1'; } catch (e) {}
     if (unlocked) { reveal(); return; }
 
     document.documentElement.classList.add('locked');
@@ -12930,7 +12930,7 @@ function srcBlock(){
       style: {
         opacity: .6
       }
-    }, "v84"), " \xB7 ", React.createElement("a", {
+    }, "v86"), " \xB7 ", React.createElement("a", {
       href: "#",
       onClick: e => {
         e.preventDefault();
