@@ -19,11 +19,11 @@ exports.handler = async function (event) {
 
 async function handle(event) {
   connectLambda(event);
-  const store = getStore({ name: 'teamleader' });
+  const store = getStore({ name: 'teamleader', consistency: 'strong' });   // always read the latest save - otherwise one year's save can bring back an older copy of another year
   // ?store=csm -> CSM notes + renewal tracking (same key csm-store.js used)
   if ((event.queryStringParameters || {}).store === 'csm') return csm(event, store);
 
-  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v48' }) };
+  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v87' }) };
   if (event.httpMethod === 'GET') {
     const data = await store.get(KEY, { type: 'json' }).catch(() => null);
     return { statusCode: 200, headers: RH, body: JSON.stringify(data || { years: {} }) };
@@ -37,7 +37,11 @@ async function handle(event) {
       return { statusCode: 400, headers: RH, body: '{"error":"year and rows required"}' };
     }
     const data = (await store.get(KEY, { type: 'json' }).catch(() => null)) || { years: {} };
-    data.years[year] = { rows: body.rows, ts: Number(body.ts) || Date.now() };
+    const ts = Number(body.ts) || Date.now();
+    const cur = data.years[year];
+    // an older save arriving late never replaces a newer one
+    if (cur && +cur.ts > ts) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, year, kept: 'newer', ts: cur.ts }) };
+    data.years[year] = { rows: body.rows, ts };
     await store.setJSON(KEY, data);
     return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, year, count: body.rows.length, ts: data.years[year].ts }) };
   }

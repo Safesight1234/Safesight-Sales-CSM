@@ -19,7 +19,7 @@ exports.handler = async function (event) {
 
 async function handle(event) {
   connectLambda(event);
-  const store = getStore({ name: 'teamleader' });
+  const store = getStore({ name: 'teamleader', consistency: 'strong' });   // always read the latest save - otherwise one year's save can bring back an older copy of another year
 
   if (event.httpMethod === 'GET') {
     const data = await store.get(KEY, { type: 'json' }).catch(() => null);
