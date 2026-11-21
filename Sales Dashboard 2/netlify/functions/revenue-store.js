@@ -19,14 +19,25 @@ exports.handler = async function (event) {
 
 async function handle(event) {
   connectLambda(event);
-  const store = getStore({ name: 'teamleader', consistency: 'strong' });   // always read the latest save - otherwise one year's save can bring back an older copy of another year
+  const store = getStore({ name: 'teamleader' });
   // ?store=csm -> CSM notes + renewal tracking (same key csm-store.js used)
   if ((event.queryStringParameters || {}).store === 'csm') return csm(event, store);
 
-  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v87' }) };
+  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v88' }) };
+  /* Each year is stored under its OWN key ("revenueEdits:2026", ...), so saving
+     one year can never bring back an older copy of another year. The old
+     combined record ("revenueEdits") is still read as a fallback. */
   if (event.httpMethod === 'GET') {
-    const data = await store.get(KEY, { type: 'json' }).catch(() => null);
-    return { statusCode: 200, headers: RH, body: JSON.stringify(data || { years: {} }) };
+    const legacy = await store.get(KEY, { type: 'json' }).catch(() => null);
+    const years = { ...((legacy && legacy.years) || {}) };
+    let keys = [];
+    try { const l = await store.list({ prefix: KEY + ':' }); keys = (l.blobs || []).map(b => b.key); } catch (e) {}
+    for (const k of keys) {
+      const v = await store.get(k, { type: 'json' }).catch(() => null);
+      const y = k.slice(KEY.length + 1);
+      if (v && (!years[y] || +v.ts >= +(years[y].ts || 0))) years[y] = v;
+    }
+    return { statusCode: 200, headers: RH, body: JSON.stringify({ years }) };
   }
 
   if (event.httpMethod === 'POST') {
@@ -36,14 +47,12 @@ async function handle(event) {
     if (!/^\d{4}$/.test(year) || !Array.isArray(body.rows)) {
       return { statusCode: 400, headers: RH, body: '{"error":"year and rows required"}' };
     }
-    const data = (await store.get(KEY, { type: 'json' }).catch(() => null)) || { years: {} };
     const ts = Number(body.ts) || Date.now();
-    const cur = data.years[year];
+    const cur = await store.get(KEY + ':' + year, { type: 'json' }).catch(() => null);
     // an older save arriving late never replaces a newer one
     if (cur && +cur.ts > ts) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, year, kept: 'newer', ts: cur.ts }) };
-    data.years[year] = { rows: body.rows, ts };
-    await store.setJSON(KEY, data);
-    return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, year, count: body.rows.length, ts: data.years[year].ts }) };
+    await store.setJSON(KEY + ':' + year, { rows: body.rows, ts });
+    return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, year, count: body.rows.length, ts }) };
   }
 
   return { statusCode: 405, headers: RH, body: '{"error":"method_not_allowed"}' };
