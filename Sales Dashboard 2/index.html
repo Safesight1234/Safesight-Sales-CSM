@@ -1072,7 +1072,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v86 · 21 Nov (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v87 · 21 Nov (single-file)</div>
     </div>
   </div>
 
@@ -9811,6 +9811,10 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
       const s = server[y];
       const has = s && Array.isArray(s.rows) && s.rows.length;
       if (has) {
+        if (loadRows(y) && localTs(y) > (+s.ts || 0)) {
+          pushEdits(y, loadRows(y), localTs(y));
+          return;
+        }
         if (JSON.stringify(s.rows) !== JSON.stringify(loadRows(y))) changed = true;
         writeLocal(y, s.rows, +s.ts || Date.now());
       } else if (!s) {
@@ -12930,7 +12934,7 @@ function srcBlock(){
       style: {
         opacity: .6
       }
-    }, "v86"), " \xB7 ", React.createElement("a", {
+    }, "v87"), " \xB7 ", React.createElement("a", {
       href: "#",
       onClick: e => {
         e.preventDefault();
