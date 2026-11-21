@@ -1072,7 +1072,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v81 · 21 Nov (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v82 · 21 Nov (single-file)</div>
     </div>
   </div>
 
@@ -3294,7 +3294,10 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
       if (!hit && lead(name)) { const c = keys.filter(x => lead(x) === lead(name)); if (c.length === 1) hit = c[0]; }
       return hit ? csmCanon(m[hit]) : '';
     };
-    const csmOf = name => (track[year + '|' + name] || {}).csm || tlCsm(name);
+    /* CSM picked in this year, else in the year before/after (a contract renewed
+       early is shown in the year it was won, but was assigned in its end year) */
+    const csmOf = name => (track[year + '|' + name] || {}).csm || (track[(year + 1) + '|' + name] || {}).csm
+      || (track[(year - 1) + '|' + name] || {}).csm || tlCsm(name);
     const [csmFilter, setCsmFilter] = useState(() => { try { return localStorage.getItem('safesight_csm_filter') || ''; } catch (e) { return ''; } });
     const pickCsm = v => { setCsmFilter(v); try { localStorage.setItem('safesight_csm_filter', v); } catch (e) {} };
     const csmOK = r => !csmFilter || (csmFilter === '-' ? !csmOf(r.customer) : csmOf(r.customer) === csmFilter);
@@ -6213,7 +6216,7 @@ function srcBlock(){
             )}
 
             <span className="spacer" style={{ marginLeft: 'auto' }} />
-            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v81</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
+            <span className="data-asof">Data as of <b>{window.DATA.asOf}</b> · <span style={{ opacity: .6 }}>v82</span> · <a href="#" onClick={e => { e.preventDefault(); const d = window.DATA.cfDebug || { note: 'Run a sync on build v26 first' }; const w = window.open('', '_blank'); w.document.write('<pre style="font:12px ui-monospace,monospace;white-space:pre-wrap;padding:20px">' + JSON.stringify(d, null, 2).replace(/</g, '&lt;') + '</pre>'); w.document.close(); }}>field check</a></span>
           </div>
 
           {/* ---- tab content ---- */}
