@@ -22,8 +22,10 @@ async function handle(event) {
   const store = getStore({ name: 'teamleader' });
   // ?store=csm -> CSM notes + renewal tracking (same key csm-store.js used)
   if ((event.queryStringParameters || {}).store === 'csm') return csm(event, store);
+  // ?store=churn -> shared churn reasons (Revenue tab star, Overview churn table)
+  if ((event.queryStringParameters || {}).store === 'churn') return churnReasons(event, store);
 
-  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v88' }) };
+  if ((event.queryStringParameters || {}).ping != null) return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, version: 'v91' }) };
   /* Each year is stored under its OWN key ("revenueEdits:2026", ...), so saving
      one year can never bring back an older copy of another year. The old
      combined record ("revenueEdits") is still read as a fallback. */
@@ -87,4 +89,30 @@ async function csm(event, store) {
   } catch (e) {
     return { statusCode: 500, headers: RH, body: JSON.stringify({ error: 'store_failed', detail: String(e && e.message || e) }) };
   }
+}
+
+/* Churn reasons: { notes: { "2026|customer name": { text, ts } } }
+   per-key merge, the newest change wins; an empty text removes the note */
+async function churnReasons(event, store) {
+  const K = 'churnReasons';
+  if (event.httpMethod === 'GET') {
+    const data = await store.get(K, { type: 'json' }).catch(() => null);
+    return { statusCode: 200, headers: RH, body: JSON.stringify(data || { notes: {} }) };
+  }
+  if (event.httpMethod === 'POST') {
+    let body;
+    try { body = JSON.parse(event.body || '{}'); } catch (e) { return { statusCode: 400, headers: RH, body: '{"error":"bad_json"}' }; }
+    const cur = (await store.get(K, { type: 'json' }).catch(() => null)) || { notes: {} };
+    const notes = { ...(cur.notes || {}) };
+    Object.entries(body.notes || {}).forEach(([k, v]) => {
+      if (!k || k.length > 300 || !v) return;
+      const c = notes[k];
+      if (c && +c.ts > +(v.ts || 0)) return;
+      const text = String(v.text || '').slice(0, 2000).trim();
+      if (text) notes[k] = { text, ts: Number(v.ts) || Date.now() }; else delete notes[k];
+    });
+    await store.setJSON(K, { notes });
+    return { statusCode: 200, headers: RH, body: JSON.stringify({ ok: true, notes }) };
+  }
+  return { statusCode: 405, headers: RH, body: '{"error":"method_not_allowed"}' };
 }
