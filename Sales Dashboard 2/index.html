@@ -1056,6 +1056,69 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
 </style>
 </head>
 <body>
+  <style>.cr-name > .cell{width:auto !important;flex:0 1 auto;min-width:0} .cr-name > .churn-star{flex:none}</style>
+  <script>
+  /* Session guard: the server login lasts 1 day. When it has expired, every
+     call to the server answers 401 "login_required" - nothing loads and
+     nothing saves. Instead of showing an empty page or failing saves, send
+     the user straight back to the login screen. Edits stay in this browser
+     and are sent to the server automatically after logging in. */
+  (function () {
+    var isApi = function (u) { return String(u && (u.url || u) || '').indexOf('/.netlify/functions/') >= 0; };
+    var gone = false;
+    var relogin = function () {
+      if (gone) return; gone = true;
+      try {
+        var el = document.createElement('div');
+        el.textContent = 'Your login has expired (after 1 day). Taking you to the login screen; your changes are kept and saved after you log in.';
+        el.style.cssText = 'position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:10000;max-width:640px;padding:12px 18px;border-radius:10px;background:#1f2a33;color:#fff;font:600 14px/1.4 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.25)';
+        document.body.appendChild(el);
+      } catch (e) {}
+      setTimeout(function () { location.reload(); }, 1800);
+    };
+    window.__relogin = relogin;
+    var f = window.fetch;
+    window.fetch = function (input) {
+      return f.apply(this, arguments).then(function (r) {
+        if (r && r.status === 401 && isApi(input)) relogin();
+        return r;
+      });
+    };
+    /* coming back to a tab that was left open: check the login first */
+    var check = function () {
+      if (document.visibilityState === 'visible') f('/.netlify/functions/revenue-store?ping', { cache: 'no-store' }).then(function (r) { if (r.status === 401) relogin(); }).catch(function () {});
+    };
+    document.addEventListener('visibilitychange', check);
+    setInterval(check, 10 * 60 * 1000);
+  })();
+  </script>
+  <script>
+  /* Churn reasons: one shared note per churned customer per year, stored on
+     the server so every colleague sees the same text. Edited in the Revenue
+     tab (star after the name), shown in the Overview churn table. */
+  (function () {
+    var API = '/.netlify/functions/revenue-store?store=churn';
+    var notes = {};
+    var key = function (y, name) { return String(y) + '|' + String(name || '').trim().toLowerCase(); };
+    var ping = function () { try { window.dispatchEvent(new CustomEvent('churn-reasons')); } catch (e) {} };
+    window.churnReasonFor = function (y, name) { var v = notes[key(y, name)]; return (v && v.text) || ''; };
+    window.loadChurnReasons = function () {
+      return fetch(API, { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { if (d && d.notes) { notes = d.notes; ping(); } }).catch(function () {});
+    };
+    window.saveChurnReason = function (y, name, text) {
+      var k = key(y, name), v = { text: String(text || '').trim(), ts: Date.now() };
+      notes = Object.assign({}, notes); notes[k] = v; ping();
+      var body = { notes: {} }; body.notes[k] = v;
+      return fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (d) { if (d && d.notes) { notes = d.notes; ping(); } return true; })
+        .catch(function () { return false; });
+    };
+    window.loadChurnReasons();
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') window.loadChurnReasons(); });
+  })();
+  </script>
   <!-- ===== Login gate ===== -->
   <div id="login" class="login-screen" hidden>
     <div class="login-card">
@@ -1072,7 +1135,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         <div id="login-error" class="login-error" hidden>Incorrect password. Please try again.</div>
         <button type="submit" class="login-btn">Unlock dashboard</button>
       </form>
-      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v88 · 21 Nov (single-file)</div>
+      <div style="margin-top:16px;font-size:11px;color:#9aa0a6;letter-spacing:.04em;">build v91 · 25 Nov (single-file)</div>
     </div>
   </div>
 
@@ -1356,11 +1419,11 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
     2026: { Q1: GQ(85000, 15000),  Q2: GQ(55000, 20000),  Q3: GQ(90000, 10000),  Q4: GQ(85000, 15000) },
     2027: { Q1: GQ(75000, 10000),  Q2: GQ(60000, 5000),   Q3: GQ(80000, 15000),  Q4: GQ(70000, 10000) },
   };
-  // Monthly targets: each quarter goal split by the 2023–2026 month pattern.
+  // Monthly targets: each quarter goal split by the 2023–2026 ARR month pattern.
   window.GOALS_MONTH_BY_YEAR = {
-    2027: {
-      newLogo: [26000, 10000, 39000, 25800, 8500, 25700, 2600, 16600, 60800, 19300, 26900, 23800],
-      upsell:  [3200, 3500, 3300, 1100, 1500, 2400, 4700, 5200, 5100, 5200, 2800, 2000],
+    2027: {  // ARR only (one-off not counted) · split by ARR month pattern 2023–2026, as in the yearly deck
+      newLogo: [29600, 5100, 40300, 25500, 6900, 27600, 1100, 21700, 57200, 25700, 16000, 28300],
+      upsell:  [3400, 4100, 2500, 800, 1600, 2600, 4500, 4800, 5700, 5600, 2900, 1500],
     },
   };
   window.monthGoals = function (year) {
@@ -2972,6 +3035,12 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
     const upCount = won.filter(d => d.type === 'Upsell').length;
     const pipeline = sumA(open);
     const newLogoPipe = sumA(open, 'New logo');
+    const [, setCrTick] = React.useState(0);
+    React.useEffect(() => {
+      const f = () => setCrTick(x => x + 1);
+      window.addEventListener('churn-reasons', f);
+      return () => window.removeEventListener('churn-reasons', f);
+    }, []);
     const churnTotal = churn.filter(c => c.kind !== 'forecast').reduce((a, c) => a + (c.value || 0), 0);
     const churnForecast = churn.filter(c => c.kind === 'forecast').reduce((a, c) => a + (c.value || 0), 0);
     const churnAll = churnTotal + churnForecast;
@@ -3283,10 +3352,19 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
       }
     }, {
       key: 'reason',
-      label: 'Source / reason',
-      render: r => React.createElement("span", {
-        className: "sub"
-      }, r.reason || '—')
+      label: 'Reason',
+      render: r => {
+        const t = window.churnReasonFor(ctx.year, r.customer);
+        return t ? React.createElement("span", {
+          style: {
+            fontSize: 13,
+            whiteSpace: 'normal',
+            lineHeight: 1.35
+          }
+        }, t) : React.createElement("span", {
+          className: "sub"
+        }, "\u2014");
+      }
     }, {
       key: 'when',
       label: 'Month churned',
@@ -9788,7 +9866,7 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         try {
           t = (await r.text()).replace(/\s+/g, ' ').slice(0, 220);
         } catch (e) {}
-        throw new Error('server answered ' + r.status + (t ? ': ' + t : ''));
+        throw new Error(r.status === 401 ? 'your login has expired - log in again, the change is kept and saved then' : 'server answered ' + r.status + (t ? ': ' + t : ''));
       }
       setSync({
         status: 'ok',
@@ -10088,6 +10166,103 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
     }
     return bits.join(' · ');
   };
+  function ChurnStar({
+    year,
+    name
+  }) {
+    const [open, setOpen] = useState(false);
+    const [text, setText] = useState(() => window.churnReasonFor(year, name));
+    const [state, setState] = useState('');
+    const [, tick] = useState(0);
+    useEffect(() => {
+      const f = () => {
+        tick(x => x + 1);
+        if (!open) setText(window.churnReasonFor(year, name));
+      };
+      window.addEventListener('churn-reasons', f);
+      return () => window.removeEventListener('churn-reasons', f);
+    }, [open, year, name]);
+    const saved = window.churnReasonFor(year, name);
+    const save = () => {
+      if (text.trim() === saved) {
+        setState('');
+        return;
+      }
+      setState('saving');
+      window.saveChurnReason(year, name, text).then(ok => setState(ok ? 'saved' : 'error'));
+    };
+    return React.createElement(React.Fragment, null, React.createElement("button", {
+      type: "button",
+      className: "churn-star",
+      title: saved ? 'Churn reason: ' + saved : 'Add a churn reason',
+      "aria-label": "Churn reason",
+      onClick: () => {
+        setText(window.churnReasonFor(year, name));
+        setState('');
+        setOpen(o => !o);
+      },
+      style: {
+        border: 0,
+        background: 'none',
+        cursor: 'pointer',
+        padding: '0 2px',
+        fontSize: 15,
+        lineHeight: 1,
+        color: saved ? '#E8A15C' : 'var(--muted, #98A2AD)'
+      }
+    }, saved ? '★' : '☆'), open && React.createElement("div", {
+      className: "churn-note",
+      style: {
+        marginTop: 6,
+        flexBasis: '100%',
+        maxWidth: 300,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6
+      }
+    }, React.createElement("textarea", {
+      autoFocus: true,
+      rows: 3,
+      value: text,
+      placeholder: "Reason for the churn\u2026",
+      onChange: e => {
+        setText(e.target.value);
+        setState('');
+      },
+      onBlur: save,
+      onKeyDown: e => {
+        if (e.key === 'Escape') setOpen(false);
+      },
+      style: {
+        width: '100%',
+        font: 'inherit',
+        fontSize: 13,
+        padding: '6px 8px',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        background: 'var(--surface)',
+        color: 'var(--text)',
+        resize: 'vertical'
+      }
+    }), React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 12
+      }
+    }, React.createElement("button", {
+      type: "button",
+      className: "btn sm",
+      onMouseDown: e => e.preventDefault(),
+      onClick: () => {
+        save();
+        setOpen(false);
+      }
+    }, "Save"), React.createElement("span", {
+      className: "sub"
+    }, state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved · visible to everyone' : state === 'error' ? 'Not saved, try again' : 'Shown on Overview · Churn'))));
+  }
   function Cell({
     value,
     onCommit,
@@ -10611,10 +10786,22 @@ body .mkt #mkt-hot, body .mkt #mkt-hot + .more-btn, body .mkt .tscroll:has(#mkt-
         key: r.id
       }, React.createElement("td", {
         className: "c-cust"
+      }, React.createElement("span", {
+        className: "cr-name",
+        style: {
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 2,
+          maxWidth: '100%'
+        }
       }, React.createElement(Cell, {
         value: r.customer,
         onCommit: v => setCell(r.id, 'customer', v)
-      }), React.createElement("span", {
+      }), (+r.churn || 0) > 0 || (+r.churnIncl || 0) > 0 || window.churnReasonFor(year, r.customer) ? React.createElement(ChurnStar, {
+        year: year,
+        name: r.customer
+      }) : null), React.createElement("span", {
         className: "cc-sub"
       }, React.createElement("i", {
         style: {
@@ -12934,7 +13121,7 @@ function srcBlock(){
       style: {
         opacity: .6
       }
-    }, "v88"), " \xB7 ", React.createElement("a", {
+    }, "v91"), " \xB7 ", React.createElement("a", {
       href: "#",
       onClick: e => {
         e.preventDefault();
